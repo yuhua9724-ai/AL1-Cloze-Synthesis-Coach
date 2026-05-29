@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Cathy's AL1 English Coach</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --gold: #7c3aed;
+    --gold-light: #ddd6fe;
+    --gold-dim: #5b21b6;
+    --dark: #f8f7ff;
+    --dark2: #ffffff;
+    --dark3: #f3f0ff;
+    --dark4: #ede9fe;
+    --cream: #1e1b4b;
+    --cream2: #312e81;
+    --text: #1e1b4b;
+    --text-dim: #6d6a8a;
+    --green: #4caf7a;
+    --red: #e05a5a;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans', sans-serif;
+    background: var(--dark);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 50% 50% at 10% 20%, rgba(0,255,136,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 90% 80%, rgba(255,45,138,0.06) 0%, transparent 60%);
+    pointer-events: none; z-index: 0;
+  }
+  .screen { display: none; min-height: 100vh; position: relative; z-index: 1; }
+  .screen.active { display: flex; }
+
+  /* LOGIN */
+  #login-screen { flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; }
+  .login-box {
+    width: 100%; max-width: 400px;
+    background: var(--dark2);
+    border: 1px solid #e5e5e5;
+    border-radius: 16px;
+    padding: 44px 36px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.1);
+    position: relative; overflow: hidden;
+  }
+  .login-box::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, #7c3aed, #a78bfa);
+  }
+  .logo-mark {
+    width: 48px; height: 48px; border-radius: 12px;
+    background: var(--dark3);
+    border: 1px solid #dddddd;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 700; margin-bottom: 20px;
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    color: #fff;
+  }
+  .login-title { font-size: 22px; font-weight: 700; color: #1e1b4b; margin-bottom: 4px; line-height: 1.3; }
+  .login-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 32px; }
+  .login-sub span { color: #7c3aed; }
+  .role-tabs { display: flex; gap: 6px; margin-bottom: 24px; }
+  .role-tab {
+    flex: 1; padding: 9px; background: var(--dark3);
+    border: 1px solid #dddddd; border-radius: 8px;
+    color: var(--text-dim); font-family: 'Noto Sans', sans-serif;
+    font-size: 13px; cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .role-tab.active { background: #ede9fe; border-color: #7c3aed; color: #7c3aed; }
+  .field-group { margin-bottom: 14px; }
+  .field-label { font-size: 11px; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; display: block; }
+  .login-box input[type="text"], .login-box input[type="password"] {
+    width: 100%; background: #ffffff; border: 1px solid #dddddd;
+    border-radius: 8px; padding: 11px 14px; color: var(--text);
+    font-family: 'Noto Sans', sans-serif; font-size: 14px; outline: none; transition: border-color 0.15s;
+  }
+  .login-box input:focus { border-color: #7c3aed; }
+  .btn-primary {
+    width: 100%; padding: 13px;
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    border: none; border-radius: 8px; color: #ffffff;
+    font-family: 'Noto Sans', sans-serif; font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: opacity 0.15s, transform 0.1s; letter-spacing: 0.02em;
+  }
+  .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+  .login-error {
+    margin-top: 12px; padding: 10px 14px;
+    background: rgba(224,90,90,0.08); border: 1px solid rgba(224,90,90,0.3);
+    border-radius: 8px; font-size: 13px; color: #e05a5a; display: none;
+  }
+
+  /* APP */
+  #app-screen { flex-direction: column; }
+  .topnav {
+    height: 56px; padding: 0 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: #ffffff; border-bottom: 1px solid #ede9fe;
+    position: sticky; top: 0; z-index: 100; flex-shrink: 0;
+  }
+  .nav-brand { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .nav-brand-dot {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(135deg, var(--green), var(--pink));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: #000; font-weight: 700;
+  }
+  .nav-brand-text { background: linear-gradient(90deg, #7c3aed, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .nav-right { display: flex; align-items: center; gap: 14px; }
+  .nav-user { font-size: 12px; color: #6d6a8a; }
+  .nav-user span { color: #7c3aed; font-weight: 500; }
+  .btn-logout {
+    padding: 6px 12px; background: transparent;
+    border: 1px solid #ede9fe; border-radius: 7px;
+    color: #6d6a8a; font-family: 'Noto Sans', sans-serif;
+    font-size: 12px; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-logout:hover { border-color: #7c3aed; color: #7c3aed; }
+
+  /* TABS */
+  .tabbar {
+    display: flex; gap: 2px; padding: 10px 24px 0;
+    background: #ffffff; border-bottom: 1px solid #ede9fe; flex-shrink: 0;
+  }
+  .tab-btn {
+    padding: 9px 18px; background: transparent; border: none;
+    border-bottom: 2px solid transparent; color: #6d6a8a;
+    font-family: 'Noto Sans', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; margin-bottom: -1px;
+  }
+  .tab-btn.active { color: #7c3aed; border-bottom-color: #7c3aed; }
+  .tab-btn:hover:not(.active) { color: #1e1b4b; }
+  .tab-panel { display: none; flex: 1; overflow-y: auto; }
+  .tab-panel.active { display: block; }
+
+  /* PRACTICE */
+  .practice-layout { display: grid; grid-template-columns: 200px 1fr; height: calc(100vh - 115px); }
+  .practice-sidebar {
+    background: #faf9ff; border-right: 1px solid #ede9fe;
+    padding: 18px 14px; overflow-y: auto;
+  }
+  .sidebar-section-title {
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 8px; margin-top: 18px; padding: 0 4px;
+  }
+  .sidebar-section-title:first-child { margin-top: 0; }
+  .topic-btn {
+    width: 100%; text-align: left; padding: 8px 10px; border-radius: 7px;
+    background: transparent; border: none; color: #aaa;
+    font-family: 'Noto Sans', sans-serif; font-size: 13px;
+    cursor: pointer; transition: all 0.12s; margin-bottom: 2px;
+  }
+  .topic-btn:hover { background: var(--dark3); color: var(--text); }
+  .topic-btn.active { background: #ede9fe; color: #7c3aed; border-left: 2px solid #7c3aed; padding-left: 8px; font-weight: 600; }
+
+  /* CHAT */
+  .chat-area { display: flex; flex-direction: column; height: 100%; }
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 24px 28px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .chat-messages::-webkit-scrollbar { width: 3px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: #cccccc; border-radius: 2px; }
+  .msg { display: flex; gap: 10px; max-width: 720px; }
+  .msg.user { flex-direction: row-reverse; align-self: flex-end; }
+  .msg-avatar {
+    width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
+  }
+  .msg.ai .msg-avatar { background: linear-gradient(135deg, #7c3aed, #5b21b6); color: #fff; }
+  .msg.user .msg-avatar { background: linear-gradient(135deg, #a78bfa, #7c3aed); color: #fff; }
+  .msg-bubble {
+    padding: 12px 16px; border-radius: 12px;
+    font-size: 14px; line-height: 1.7; max-width: calc(100% - 42px);
+  }
+  .msg.ai .msg-bubble {
+    background: #f7f7f7; border: 1px solid #e8e8e8;
+    border-top-left-radius: 3px; color: var(--text);
+  }
+  .msg.user .msg-bubble {
+    background: #ede9fe; border: 1px solid #ddd6fe;
+    border-top-right-radius: 3px; color: var(--text);
+  }
+  .msg-bubble p { margin-bottom: 8px; }
+  .msg-bubble p:last-child { margin-bottom: 0; }
+  .msg-bubble strong { color: #7c3aed; font-weight: 600; }
+  .msg-bubble em { color: #5b21b6; font-style: normal; font-weight: 500; }
+  .typing-indicator { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+  .typing-dot {
+    width: 6px; height: 6px; border-radius: 50%; opacity: 0.5;
+    animation: typingBounce 1.2s ease-in-out infinite;
+  }
+  .typing-dot:nth-child(1) { background: #7c3aed; }
+  .typing-dot:nth-child(2) { background: #a78bfa; animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { background: #5b21b6; animation-delay: 0.4s; }
+  @keyframes typingBounce {
+    0%,60%,100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-5px); opacity: 1; }
+  }
+  .chat-input-area {
+    padding: 14px 28px 20px; border-top: 1px solid #eeeeee; background: var(--dark);
+  }
+  .chat-input-row {
+    display: flex; gap: 8px; align-items: flex-end;
+    background: #ffffff; border: 1px solid #dddddd;
+    border-radius: 12px; padding: 10px 12px; transition: border-color 0.15s;
+  }
+  .chat-input-row:focus-within { border-color: #7c3aed; }
+  #chat-input {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--text); font-family: 'Noto Sans', sans-serif;
+    font-size: 14px; resize: none; line-height: 1.5; max-height: 120px; min-height: 22px;
+  }
+  #chat-input::placeholder { color: #aaa; }
+  .send-btn {
+    width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: opacity 0.15s;
+  }
+  .send-btn:hover { opacity: 0.8; }
+  .send-btn svg { width: 14px; height: 14px; }
+  .chat-hint { font-size: 11px; color: #333; margin-top: 6px; text-align: center; }
+
+  /* PROGRESS */
+  .progress-panel { padding: 28px 32px; max-width: 860px; }
+  .progress-panel h2 { font-size: 20px; font-weight: 700; color: #111111; margin-bottom: 4px; }
+  .progress-panel .sub { font-size: 13px; color: var(--text-dim); margin-bottom: 28px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 28px; }
+  .stat-card {
+    background: var(--dark2); border: 1px solid #e8e8e8;
+    border-radius: var(--radius); padding: 18px 20px; position: relative; overflow: hidden;
+  }
+  .stat-card::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  }
+  .stat-card:nth-child(1)::after { background: #7c3aed; }
+  .stat-card:nth-child(2)::after { background: #a78bfa; }
+  .stat-card:nth-child(3)::after { background: linear-gradient(90deg,#7c3aed,#a78bfa); }
+  .stat-value { font-size: 32px; font-weight: 700; color: #7c3aed; }
+  .stat-label { font-size: 11px; color: var(--text-dim); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .section-heading { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; }
+  .topic-progress-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+  .topic-row { display: flex; align-items: center; gap: 12px; }
+  .topic-name { font-size: 13px; color: #555555; width: 160px; flex-shrink: 0; }
+  .progress-bar-bg { flex: 1; height: 5px; background: var(--dark4); border-radius: 3px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #7c3aed, #a78bfa);  transition: width 0.8s ease; }
+  .topic-pct { font-size: 12px; color: #7c3aed; width: 36px; text-align: right; flex-shrink: 0; }
+  .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .history-table th { text-align: left; padding: 9px 12px; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); border-bottom: 1px solid #e8e8e8; font-weight: 400; }
+  .history-table td { padding: 11px 12px; color: #ccc; border-bottom: 1px solid #eeeeee; }
+  .history-table tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .badge-good { background: rgba(124,58,237,0.1); color: #7c3aed; border: 1px solid rgba(124,58,237,0.25); }
+  .badge-ok { background: rgba(167,139,250,0.15); color: #5b21b6; border: 1px solid rgba(124,58,237,0.2); }
+  .badge-weak { background: rgba(224,90,90,0.1); color: #e05a5a; border: 1px solid rgba(224,90,90,0.2); }
+
+  /* ADMIN */
+  .admin-panel { padding: 28px 32px; max-width: 860px; }
+  .admin-panel h2 { font-size: 20px; font-weight: 700; color: #111111; margin-bottom: 4px; }
+  .admin-panel .sub { font-size: 13px; color: var(--text-dim); margin-bottom: 28px; }
+  .api-notice {
+    background: rgba(124,58,237,0.05); border: 1px solid rgba(124,58,237,0.15);
+    border-radius: 10px; padding: 16px 18px; font-size: 13px; color: #aaa; margin-bottom: 22px;
+  }
+  .api-notice strong { color: var(--green); display: block; margin-bottom: 4px; }
+  .api-key-input-row { display: flex; gap: 8px; margin-top: 10px; }
+  .api-key-input-row input {
+    flex: 1; background: #ffffff; border: 1px solid #dddddd; border-radius: 7px;
+    padding: 9px 12px; color: var(--text); font-family: 'Noto Sans', sans-serif; font-size: 13px; outline: none;
+  }
+  .api-key-input-row input:focus { border-color: var(--green); }
+  .btn-save-key {
+    padding: 9px 16px; background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    border: none; border-radius: 7px; color: #ffffff;
+    font-family: 'Noto Sans', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  }
+  .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .admin-card { background: var(--dark2); border: 1px solid #e8e8e8; border-radius: var(--radius); padding: 22px; }
+  .admin-card h3 { font-size: 14px; color: #111111; font-weight: 600; margin-bottom: 16px; }
+  .admin-card input, .admin-card select {
+    width: 100%; background: #ffffff; border: 1px solid #dddddd; border-radius: 7px;
+    padding: 9px 12px; color: var(--text); font-family: 'Noto Sans', sans-serif; font-size: 13px;
+    outline: none; margin-bottom: 10px; transition: border-color 0.15s;
+  }
+  .admin-card input:focus, .admin-card select:focus { border-color: #7c3aed; }
+  .admin-card select option { background: var(--dark3); }
+  .btn-add {
+    width: 100%; padding: 10px;
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    border: none; border-radius: 7px; color: #ffffff;
+    font-family: 'Noto Sans', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity 0.15s;
+  }
+  .btn-add:hover { opacity: 0.85; }
+  .users-list { display: flex; flex-direction: column; gap: 7px; }
+  .user-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; background: var(--dark3); border-radius: 7px; border: 1px solid #e5e5e5;
+  }
+  .user-info { display: flex; flex-direction: column; gap: 2px; }
+  .user-name { font-size: 13px; color: #111111; }
+  .user-meta { font-size: 11px; color: var(--text-dim); }
+  .btn-delete {
+    background: transparent; border: none; color: #444; cursor: pointer;
+    font-size: 12px; padding: 3px 8px; border-radius: 5px; transition: all 0.12s;
+  }
+  .btn-delete:hover { color: #7c3aed; background: rgba(124,58,237,0.08); }
+  .success-toast {
+    position: fixed; bottom: 28px; right: 28px;
+    background: #ffffff; border: 1px solid #7c3aed;
+    border-radius: 8px; padding: 11px 18px; font-size: 13px; color: var(--green);
+    opacity: 0; transform: translateY(6px); transition: all 0.25s; pointer-events: none; z-index: 999;
+  }
+  .success-toast.show { opacity: 1; transform: translateY(0); color: #7c3aed; }
+
+  @media (max-width: 600px) {
+    .topnav { padding: 0 14px; height: 52px; }
+    .nav-brand { font-size: 13px; }
+    .nav-brand-text { font-size: 13px; }
+    .nav-brand-dot { width: 22px; height: 22px; font-size: 10px; }
+    .nav-user { display: none; }
+    .tabbar { padding: 8px 14px 0; }
+    .tab-btn { padding: 8px 12px; font-size: 12px; }
+    .practice-layout { grid-template-columns: 1fr; height: auto; }
+    .practice-sidebar { display: none; }
+    .mobile-topic-bar {
+      display: flex !important;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: #ffffff;
+      border-bottom: 1px solid #ede9fe;
+      flex-shrink: 0;
+    }
+    .mobile-topic-select {
+      flex: 1;
+      background: #f3f0ff;
+      border: 1px solid #ddd6fe;
+      border-radius: 8px;
+      padding: 9px 12px;
+      color: #1e1b4b;
+      font-family: 'Noto Sans', sans-serif;
+      font-size: 14px;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    .chat-area { height: calc(100vh - 160px); }
+    .chat-messages { padding: 14px 14px; gap: 14px; }
+    .msg-bubble { font-size: 14px; padding: 11px 14px; }
+    .chat-input-area { padding: 10px 14px 16px; }
+    #chat-input { font-size: 15px; }
+    .progress-panel { padding: 20px 14px; }
+    .stats-grid { grid-template-columns: repeat(3,1fr); gap: 10px; }
+    .stat-value { font-size: 24px; }
+    .admin-panel { padding: 20px 14px; }
+    .admin-grid { grid-template-columns: 1fr; gap: 16px; }
+    .login-box { padding: 32px 22px; }
+    .login-title { font-size: 20px; }
+  }
+
+  .share-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px;
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    border: none; border-radius: 8px;
+    color: #ffffff; font-family: 'Noto Sans', sans-serif;
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .share-btn:hover { opacity: 0.85; }
+  .share-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 500; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .share-modal-overlay.show { opacity: 1; pointer-events: all; }
+  .share-modal {
+    background: #ffffff; border-radius: 16px;
+    padding: 28px 24px; width: 90%; max-width: 340px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    transform: translateY(10px); transition: transform 0.2s;
+  }
+  .share-modal-overlay.show .share-modal { transform: translateY(0); }
+  .share-modal h3 { font-size: 17px; color: #1e1b4b; font-weight: 700; margin-bottom: 6px; }
+  .share-modal p { font-size: 13px; color: #6d6a8a; margin-bottom: 20px; }
+  .share-link-box {
+    display: flex; gap: 8px; align-items: center;
+    background: #f3f0ff; border: 1px solid #ddd6fe;
+    border-radius: 8px; padding: 10px 12px; margin-bottom: 16px;
+  }
+  .share-link-box span { flex: 1; font-size: 12px; color: #5b21b6; word-break: break-all; }
+  .btn-copy-link {
+    background: #7c3aed; border: none; border-radius: 6px;
+    color: white; font-size: 12px; padding: 6px 12px;
+    cursor: pointer; white-space: nowrap; font-family: 'Noto Sans', sans-serif;
+    transition: opacity 0.15s;
+  }
+  .btn-copy-link:hover { opacity: 0.85; }
+  .btn-whatsapp {
+    width: 100%; padding: 12px;
+    background: #25D366; border: none; border-radius: 10px;
+    color: white; font-family: 'Noto Sans', sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: opacity 0.15s; margin-bottom: 10px;
+  }
+  .btn-whatsapp:hover { opacity: 0.88; }
+  .btn-close-modal {
+    width: 100%; padding: 10px;
+    background: transparent; border: 1px solid #ede9fe;
+    border-radius: 10px; color: #6d6a8a;
+    font-family: 'Noto Sans', sans-serif; font-size: 13px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn-close-modal:hover { border-color: #7c3aed; color: #7c3aed; }
+
+  .fill-blank {
+    display: inline-block;
+    border: none; border-bottom: 2.5px solid #7c3aed;
+    background: #f3f0ff; border-radius: 4px;
+    padding: 3px 10px; margin: 2px 4px;
+    font-family: 'Noto Sans', sans-serif; font-size: 14px;
+    color: #1e1b4b; outline: none;
+    min-width: 80px; width: auto;
+    transition: border-color 0.15s, background 0.15s, width 0.1s;
+    box-sizing: content-box;
+  }
+  .fill-blank:focus { border-color: #5b21b6; background: #ede9fe; }
+  .fill-blank.correct { border-color: #4caf7a; background: #e8f5ee; color: #1a6b3a; }
+  .fill-blank.wrong { border-color: #e05a5a; background: #fef2f2; color: #c0392b; }
+  .submit-answers-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 14px; padding: 10px 20px;
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    border: none; border-radius: 9px; color: white;
+    font-family: 'Noto Sans', sans-serif; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  .submit-answers-btn:hover { opacity: 0.85; }
+
+  .photo-upload-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 14px;
+    background: #f3f0ff; border: 1.5px solid #ddd6fe;
+    border-radius: 9px; color: #7c3aed;
+    font-family: 'Noto Sans', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+  }
+  .photo-upload-btn:hover { background: #ede9fe; border-color: #7c3aed; }
+  #photo-file-input { display: none; }
+  .photo-preview-wrap {
+    padding: 10px 14px 0; display: none;
+  }
+  .photo-preview-wrap img {
+    max-width: 200px; max-height: 160px;
+    border-radius: 10px; border: 2px solid #ddd6fe;
+    display: block; margin-bottom: 8px;
+  }
+  .photo-preview-wrap .remove-photo {
+    font-size: 11px; color: #e05a5a; cursor: pointer; background: none; border: none; padding: 0;
+    font-family: 'Noto Sans', sans-serif;
+  }
+
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cccccc; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="screen active" id="login-screen">
+  <div class="login-box">
+    <div class="logo-mark">C</div>
+    <div class="login-title">Cathy's AL1 English Coach</div>
+    <div class="login-sub">Singapore PSLE · P5 & P6 · <span>Target AL1</span></div>
+    <div class="role-tabs">
+      <div class="role-tab active" onclick="setRole('student')">Student</div>
+      <div class="role-tab" onclick="setRole('admin')">Admin (Cathy)</div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Username</label>
+      <input type="text" id="login-username" placeholder="Enter your username"/>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Password</label>
+      <input type="password" id="login-password" placeholder="Enter your password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Sign in →</button>
+    <div class="login-error" id="login-error">Incorrect username or password.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="screen" id="app-screen">
+  <div class="topnav">
+    <div class="nav-brand">
+      <div class="nav-brand-dot">C</div>
+      <span class="nav-brand-text">Cathy's AL1 English Coach</span>
+    </div>
+    <div class="nav-right">
+      <div class="nav-user">Logged in as <span id="nav-username">—</span></div>
+      <button class="settings-btn" onclick="showSettings()" title="Settings">⚙️</button>
+      <button class="share-btn" onclick="openShare()">🔗 Share</button>
+      <button class="btn-logout" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+  <div class="tabbar" id="tabbar">
+    <button class="tab-btn active" onclick="showTab('practice')">✦ Practice</button>
+    <button class="tab-btn" onclick="showTab('progress')">Progress</button>
+    <button class="tab-btn admin-only" onclick="showTab('admin')" style="display:none">Admin</button>
+  </div>
+
+  <!-- TODAY -->
+  <div class="tab-panel active" id="tab-today">
+    <div style="max-width:600px;margin:0 auto;padding:32px 24px;">
+
+      <!-- Header -->
+      <div style="margin-bottom:28px;">
+        <div style="font-size:22px;font-weight:700;color:#1e1b4b;" id="today-greeting">Good morning! 👋</div>
+        <div style="font-size:14px;color:#6d6a8a;margin-top:4px;" id="today-date"></div>
+      </div>
+
+      <!-- Daily goal banner -->
+      <div id="today-complete-banner" style="display:none;background:linear-gradient(135deg,#4caf7a,#2d8a5a);border-radius:14px;padding:20px 24px;margin-bottom:24px;color:white;text-align:center;">
+        <div style="font-size:24px;margin-bottom:6px;">🎉</div>
+        <div style="font-size:17px;font-weight:700;">Daily Goal Achieved!</div>
+        <div style="font-size:13px;opacity:0.9;margin-top:4px;">Amazing work today! Come back tomorrow for more practice.</div>
+      </div>
+
+      <!-- Task cards -->
+      <div style="font-size:11px;color:#6d6a8a;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Today's Tasks</div>
+      <div id="today-task-list" style="display:flex;flex-direction:column;gap:12px;margin-bottom:28px;"></div>
+
+      <!-- Start button -->
+      <button id="today-start-btn" onclick="startNextTask()" style="width:100%;padding:15px;background:linear-gradient(135deg,#7c3aed,#5b21b6);border:none;border-radius:12px;color:white;font-family:'Noto Sans',sans-serif;font-size:16px;font-weight:700;cursor:pointer;transition:opacity 0.15s;">
+        Start Practice →
+      </button>
+
+      <!-- Streak section -->
+      <div style="margin-top:24px;background:#f3f0ff;border:1px solid #ede9fe;border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:14px;">
+        <div style="font-size:32px;" id="today-streak-icon">🔥</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#1e1b4b;" id="today-streak-text">0 day streak</div>
+          <div style="font-size:12px;color:#6d6a8a;">Complete all 4 tasks daily to build your streak!</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PRACTICE -->
+  <div class="tab-panel" id="tab-practice">
+    <div class="practice-layout">
+      <div class="practice-sidebar">
+        <div class="sidebar-section-title">Paper 2</div>
+        <button class="topic-btn active" onclick="selectTopic(this,'vocab')">📚 Vocabulary</button>
+        <button class="topic-btn" onclick="selectTopic(this,'grammar')">📝 Grammar</button>
+        <button class="topic-btn" onclick="selectTopic(this,'synthesis')">🔄 Synthesis & Transf.</button>
+        <button class="topic-btn" onclick="selectTopic(this,'cloze')">🔍 Comprehension Cloze</button>
+        <div class="sidebar-section-title">Paper 1</div>
+        <button class="topic-btn" onclick="selectTopic(this,'situational')">✉️ Situational Writing</button>
+        <button class="topic-btn" onclick="selectTopic(this,'continuous')">📖 Continuous Writing</button>
+        <div class="sidebar-section-title">Quick Drill</div>
+        <button class="topic-btn" onclick="selectTopic(this,'mixed')">⚡ Mixed Practice</button>
+        <button class="topic-btn" onclick="selectTopic(this,'weakspot')">🎯 My Weak Spots</button>
+      </div>
+
+      <!-- MOBILE TOPIC BAR -->
+      <div class="mobile-topic-bar" style="display:none" id="mobile-topic-bar">
+        <select class="mobile-topic-select" onchange="selectTopicMobile(this.value)">
+          <optgroup label="Paper 2">
+            <option value="vocab">📚 Vocabulary</option>
+            <option value="grammar">📝 Grammar</option>
+            <option value="synthesis">🔄 Synthesis &amp; Transformation</option>
+            <option value="cloze">🔍 Comprehension Cloze</option>
+          </optgroup>
+          <optgroup label="Paper 1">
+            <option value="situational">✉️ Situational Writing</option>
+            <option value="continuous">📖 Continuous Writing</option>
+          </optgroup>
+          <optgroup label="Quick Drill">
+            <option value="mixed">⚡ Mixed Practice</option>
+            <option value="weakspot">🎯 My Weak Spots</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="chat-area">
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input-area">
+          <div class="photo-preview-wrap" id="photo-preview-wrap">
+            <img id="photo-preview-img" src="" alt="preview"/>
+            <button class="remove-photo" onclick="removePhoto()">✕ Remove photo</button>
+          </div>
+          <div class="chat-input-row">
+            <button class="photo-upload-btn" onclick="document.getElementById('photo-file-input').click()" title="Upload photo">
+              📷 Photo
+            </button>
+            <input type="file" id="photo-file-input" accept="image/*" capture="environment" onchange="handlePhotoUpload(event)"/>
+            <textarea id="chat-input" rows="1" placeholder="Type your answer or ask a question…" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+            <button class="send-btn" onclick="sendMessage()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+          <div class="chat-hint">Enter to send · Shift+Enter for new line</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="tab-panel" id="tab-progress">
+    <div class="progress-panel">
+      <h2>Your Progress</h2>
+      <div class="sub">Track your journey to AL1</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-value" id="stat-sessions">0</div><div class="stat-label">Sessions</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-questions">0</div><div class="stat-label">Questions attempted</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-streak">0🔥</div><div class="stat-label">Day streak</div></div>
+      </div>
+      <div class="section-heading">Topic Mastery</div>
+      <div class="topic-progress-list" id="topic-progress-list"></div>
+      <div class="section-heading">Recent Sessions</div>
+      <table class="history-table">
+        <thead><tr><th>Date</th><th>Topic</th><th>Questions</th><th>Performance</th></tr></thead>
+        <tbody id="history-tbody"><tr><td colspan="4" style="color:#444;text-align:center;padding:24px">No sessions yet — start practising!</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div class="tab-panel" id="tab-admin">
+    <div class="admin-panel">
+      <h2>Admin Dashboard</h2>
+      <div class="sub">Manage students and API settings</div>
+      <div class="api-notice">
+        <strong style="color:#7c3aed">🔑 Anthropic API Key</strong>
+        Paste your API Key here. Stored in your browser only — never shared.
+        <div class="api-key-input-row">
+          <input type="password" id="api-key-input" placeholder="sk-ant-api03-…"/>
+          <button class="btn-save-key" onclick="saveApiKey()">Save Key</button>
+        </div>
+      </div>
+      <div class="admin-grid">
+        <div class="admin-card">
+          <h3>➕ Add New Student</h3>
+          <input type="text" id="new-username" placeholder="Username (e.g. sarah2025)"/>
+          <input type="password" id="new-password" placeholder="Password"/>
+          <input type="text" id="new-display" placeholder="Display name (e.g. Sarah Tan)"/>
+          <select id="new-level"><option value="P5">Primary 5</option><option value="P6" selected>Primary 6</option></select>
+          <button class="btn-add" onclick="addStudent()">Create Account</button>
+        </div>
+        <div class="admin-card">
+          <h3>👥 Current Students</h3>
+          <div class="users-list" id="users-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- SHARE MODAL -->
+<div class="share-modal-overlay" id="share-overlay" onclick="closeShareIfOutside(event)">
+  <div class="share-modal">
+    <h3>📤 Share this app</h3>
+    <p>Invite students to practise PSLE English with Cathy's AL1 Coach!</p>
+    <div class="share-link-box">
+      <span id="share-url"></span>
+      <button class="btn-copy-link" onclick="copyLink()">Copy</button>
+    </div>
+    <button class="btn-whatsapp" onclick="shareWhatsApp()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      Share on WhatsApp
+    </button>
+    <button class="btn-close-modal" onclick="closeShare()">Cancel</button>
+  </div>
+</div>
+
+
+<!-- SETTINGS MODAL -->
+<div id="settings-overlay" style="display:none;position:fixed;inset:0;background:rgba(30,27,75,0.6);z-index:99999;align-items:center;justify-content:center;backdrop-filter:blur(4px);" onclick="if(event.target===this)hideSettings()">
+  <div style="background:#ffffff;border-radius:20px;padding:32px 28px;width:90%;max-width:380px;box-shadow:0 24px 60px rgba(124,58,237,0.2);border:1px solid #ede9fe;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <div style="width:36px;height:36px;background:linear-gradient(135deg,#7c3aed,#5b21b6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;">⚙️</div>
+      <div>
+        <div style="font-size:17px;font-weight:700;color:#1e1b4b;">Change Password</div>
+        <div style="font-size:12px;color:#6d6a8a;">Update your account password</div>
+      </div>
+    </div>
+    <div id="password-error" style="display:none;margin:14px 0 0;padding:10px 14px;background:rgba(224,90,90,0.08);border:1px solid rgba(224,90,90,0.3);border-radius:8px;font-size:13px;color:#e05a5a;"></div>
+    <div style="margin-top:20px;">
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;color:#6d6a8a;letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:6px;">Current Password</label>
+        <input type="password" id="current-password" placeholder="Enter current password" style="width:100%;background:#f8f7ff;border:1.5px solid #ddd6fe;border-radius:9px;padding:11px 14px;color:#1e1b4b;font-family:'Noto Sans',sans-serif;font-size:14px;outline:none;" onfocus="this.style.borderColor='#7c3aed';this.style.background='#fff'" onblur="this.style.borderColor='#ddd6fe';this.style.background='#f8f7ff'"/>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;color:#6d6a8a;letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:6px;">New Password</label>
+        <input type="password" id="new-password-1" placeholder="At least 6 characters" style="width:100%;background:#f8f7ff;border:1.5px solid #ddd6fe;border-radius:9px;padding:11px 14px;color:#1e1b4b;font-family:'Noto Sans',sans-serif;font-size:14px;outline:none;" onfocus="this.style.borderColor='#7c3aed';this.style.background='#fff'" onblur="this.style.borderColor='#ddd6fe';this.style.background='#f8f7ff'"/>
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="font-size:11px;color:#6d6a8a;letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:6px;">Confirm New Password</label>
+        <input type="password" id="new-password-2" placeholder="Confirm new password" style="width:100%;background:#f8f7ff;border:1.5px solid #ddd6fe;border-radius:9px;padding:11px 14px;color:#1e1b4b;font-family:'Noto Sans',sans-serif;font-size:14px;outline:none;" onfocus="this.style.borderColor='#7c3aed';this.style.background='#fff'" onblur="this.style.borderColor='#ddd6fe';this.style.background='#f8f7ff'"/>
+      </div>
+      <button onclick="savePassword()" style="width:100%;padding:13px;background:linear-gradient(135deg,#7c3aed,#5b21b6);border:none;border-radius:10px;color:white;font-family:'Noto Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px;">Save New Password</button>
+      <button onclick="hideSettings()" style="width:100%;padding:11px;background:transparent;border:1.5px solid #ede9fe;border-radius:10px;color:#6d6a8a;font-family:'Noto Sans',sans-serif;font-size:14px;cursor:pointer;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="success-toast" id="toast"></div>
+
+<script>
+const USERS_KEY='cal1_users',SESSION_KEY='cal1_session',PROGRESS_KEY='cal1_progress',API_KEY='cal1_apikey';
+function getUsers(){const d=localStorage.getItem(USERS_KEY);if(d)return JSON.parse(d);const defaults=[{username:'cathy',password:'admin123',role:'admin',display:'Cathy',level:'Admin'},{username:'demo',password:'demo123',role:'student',display:'Demo Student',level:'P6'}];localStorage.setItem(USERS_KEY,JSON.stringify(defaults));return defaults;}
+function saveUsers(u){localStorage.setItem(USERS_KEY,JSON.stringify(u));}
+function getProgress(username){const all=JSON.parse(localStorage.getItem(PROGRESS_KEY)||'{}');if(!all[username])all[username]={sessions:0,questions:0,streak:0,topics:{vocab:0,grammar:0,synthesis:0,cloze:0,situational:0,continuous:0},history:[]};return all[username];}
+function saveProgress(username,p){const all=JSON.parse(localStorage.getItem(PROGRESS_KEY)||'{}');all[username]=p;localStorage.setItem(PROGRESS_KEY,JSON.stringify(all));}
+let currentUser=null,currentRole='student';
+function setRole(r){currentRole=r;document.querySelectorAll('.role-tab').forEach((t,i)=>{t.classList.toggle('active',(i===0&&r==='student')||(i===1&&r==='admin'));});}
+function doLogin(){const u=document.getElementById('login-username').value.trim();const p=document.getElementById('login-password').value;const found=getUsers().find(x=>x.username===u&&x.password===p);if(!found){document.getElementById('login-error').style.display='block';return;}currentUser=found;localStorage.setItem(SESSION_KEY,JSON.stringify(found));enterApp();}
+function doLogout(){
+  if(window._sessCheck)clearInterval(window._sessCheck);currentUser=null;localStorage.removeItem(SESSION_KEY);document.getElementById('app-screen').classList.remove('active');document.getElementById('login-screen').classList.add('active');document.getElementById('login-username').value='';document.getElementById('login-password').value='';document.getElementById('login-error').style.display='none';}
+function enterApp(){
+  if(currentUser&&currentUser.role==='student'){
+    const tKey='tok_'+currentUser.username;
+    const myTok=Math.random().toString(36).substr(2,10)+Date.now();
+    currentUser._myToken=myTok;
+    localStorage.setItem(SESSION_KEY,JSON.stringify(currentUser));
+    localStorage.setItem(tKey,myTok);
+    if(window._sessCheck)clearInterval(window._sessCheck);
+    window._sessCheck=setInterval(()=>{
+      const cur=localStorage.getItem('tok_'+currentUser.username);
+      if(cur&&cur!==currentUser._myToken){
+        clearInterval(window._sessCheck);
+        alert('Your account has been signed in from another device. You have been signed out.');
+        doLogout();
+      }
+    },15000);
+  }
+  document.getElementById('login-screen').classList.remove('active');
+  document.getElementById('app-screen').classList.add('active');
+  document.getElementById('nav-username').textContent=currentUser.display;
+  document.querySelectorAll('.admin-only').forEach(el=>{el.style.display=currentUser.role==='admin'?'':'none';});
+  showTab('today');initChat();renderProgress();
+  if(currentUser.role==='admin')renderAdminUsers();
+  const saved=localStorage.getItem(API_KEY);
+  if(saved)document.getElementById('api-key-input').value=saved;
+}
+window.addEventListener('DOMContentLoaded',()=>{const s=localStorage.getItem(SESSION_KEY);if(s){currentUser=JSON.parse(s);enterApp();}});
+
+// ── TODAY TAB ──
+const TASK_ORDER = ['vocab','grammar','synthesis','cloze'];
+const TASK_CONFIG = {
+  vocab:     {label:'Vocabulary',     desc:'5 MCQ questions',        icon:'📚', count:'5 Questions'},
+  grammar:   {label:'Grammar',        desc:'5 MCQ questions',        icon:'📝', count:'5 Questions'},
+  synthesis: {label:'Synthesis & Transformation', desc:'5 rewrite questions', icon:'🔄', count:'5 Questions'},
+  cloze:     {label:'Comprehension Cloze', desc:'1 passage, 15 blanks', icon:'🔍', count:'15 Blanks'},
+};
+
+function renderTodayTab(){
+  if(!currentUser)return;
+  const dp=getDailyProgress();
+  const now=new Date();
+  const hours=now.getHours();
+  const greeting=hours<12?'Good morning':hours<17?'Good afternoon':'Good evening';
+  const greetEl=document.getElementById('today-greeting');
+  if(greetEl)greetEl.textContent=(hours<12?'Good morning':hours<17?'Good afternoon':'Good evening')+', '+currentUser.display+'! 👋';
+  const dateEl=document.getElementById('today-date');
+  if(dateEl)dateEl.textContent=now.toLocaleDateString('en-SG',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+  // Tasks
+  const list=document.getElementById('today-task-list');
+  if(list){
+    list.innerHTML=TASK_ORDER.map(t=>{
+      const done=dp[t];
+      const cfg=TASK_CONFIG[t];
+      return `<div onclick="${done?'':"selectTaskAndGo('" +t+ "')"}" style="background:${done?'rgba(76,175,122,0.08)':'#ffffff'};border:1.5px solid ${done?'rgba(76,175,122,0.3)':'#ede9fe'};border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:14px;cursor:${done?'default':'pointer'};transition:all 0.15s;" ${done?'':''}>
+        <div style="width:40px;height:40px;border-radius:10px;background:${done?'#4caf7a':'#f3f0ff'};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">${done?'✅':cfg.icon}</div>
+        <div style="flex:1;">
+          <div style="font-size:15px;font-weight:600;color:${done?'#1a6b3a':'#1e1b4b'};">${cfg.label}</div>
+          <div style="font-size:12px;color:${done?'#4caf7a':'#6d6a8a'};margin-top:2px;">${done?'Completed today!':cfg.count+' · '+cfg.desc}</div>
+        </div>
+        ${done?'':'<div style="color:#7c3aed;font-size:18px;">›</div>'}
+      </div>`;
+    }).join('');
+  }
+
+  // Start button
+  const allDone=TASK_ORDER.every(t=>dp[t]);
+  const nextTask=TASK_ORDER.find(t=>!dp[t]);
+  const btn=document.getElementById('today-start-btn');
+  const banner=document.getElementById('today-complete-banner');
+  if(btn&&banner){
+    if(allDone){
+      btn.style.display='none';
+      banner.style.display='block';
+    } else {
+      btn.style.display='block';
+      banner.style.display='none';
+      const cfg=TASK_CONFIG[nextTask];
+      btn.textContent='Start '+cfg.label+' →';
+    }
+  }
+
+  // Streak
+  const p=getProgress(currentUser.username);
+  const streakEl=document.getElementById('today-streak-text');
+  const streakIcon=document.getElementById('today-streak-icon');
+  if(streakEl){
+    const s=p.streak||0;
+    streakEl.textContent=s+' day streak';
+    if(streakIcon)streakIcon.textContent=s>=7?'🔥':s>=3?'⚡':'🌱';
+  }
+}
+
+function selectTaskAndGo(topic){
+  // Switch to practice tab and select the topic
+  showTab('practice');
+  const btn=document.querySelector('.topic-btn[onclick*="' + topic + '"]');
+  if(btn){selectTopic(btn,topic);}
+  else{currentTopic=topic;clearChat();initChat();}
+}
+
+function startNextTask(){
+  const dp=getDailyProgress();
+  const next=TASK_ORDER.find(t=>!dp[t]);
+  if(next)selectTaskAndGo(next);
+}
+
+function showTab(name){
+  if(name==='practice')setTimeout(()=>{try{renderDailyProgress();}catch(e){}},200);
+  // Update tab buttons
+  ['today','practice','progress','admin'].forEach(t=>{
+    const btn=document.getElementById('tab-btn-'+t);
+    if(btn)btn.classList.toggle('active',t===name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  const panel=document.getElementById('tab-'+name);
+  if(panel)panel.classList.add('active');
+  if(name==='progress')renderProgress();
+  if(name==='today')renderTodayTab();
+  if(name==='admin')renderAdminUsers();}
+let chatHistory=[],currentTopic='vocab';
+const TOPIC_LABELS={vocab:'Vocabulary',grammar:'Grammar',synthesis:'Synthesis & Transformation',cloze:'Comprehension Cloze',situational:'Situational Writing',continuous:'Continuous Writing',mixed:'Mixed Practice',weakspot:'Weak Spots'};
+const SYSTEM_PROMPT=`You are Cathy's PSLE English AL1 tutor — a warm, encouraging coach who knows Singapore's PSLE Paper 1 and Paper 2 inside-out. The student's goal is AL1 (highest grade).
+
+STUDENT PROFILE:
+- Goal: AL1 in PSLE English
+- Strengths: Grammar (SVA, Tenses), Reported Speech, Passive Voice
+- Weaknesses: Phrasal verbs (Cloze), Situational Writing, Spelling under pressure
+- Watch for: exhaustion spelling, missing possessive in Despite rewrites, call off vs call out confusion
+
+FEEDBACK STYLE — VERY IMPORTANT:
+- After student submits answers, ONLY say ✅ correct or ❌ incorrect for each question
+- Give the correct answer if wrong, in ONE short line
+- Do NOT explain concepts, pitfalls or strategies unless the student explicitly asks (e.g. "why?", "explain", "how?", "I don't understand")
+- When student asks for explanation, THEN give full Concept + Common Pitfall + Killer Strategy
+- For writing tasks: give score estimate + 3 bullet improvements, no long explanations unless asked
+- Keep initial feedback SHORT — 1-2 lines per question maximum
+
+KEY RULES:
+- Use **bold** for correct answers
+- Warm and encouraging tone always
+- Increase difficulty as student improves
+- Flag known errors when they reappear
+
+PSLE TOPICS: Vocabulary (collocations, word forms), Grammar (tenses, SVA, question tags, conditionals), Synthesis & Transformation (reported speech, passive voice, connectors), Comprehension Cloze (phrasal verbs, CLAPS strategy), Situational Writing (formal email, article, speech), Continuous Writing (5-paragraph structure, strong openings)
+
+HIGH-FREQUENCY 2025 VOCAB: resilient, deem, surge, paramount, jeopardise, nostalgia, empathetic, meticulous, authentic, irreplaceable`;
+function getTopicPrompt(topic){const prompts={vocab:`You are setting a PSLE Vocabulary MCQ paper. Follow ALL rules STRICTLY:
+
+DIFFICULTY STANDARD: This must match P6 Prelim difficulty from top schools (Nanyang, Raffles Girls, SCGS, Tao Nan). Do NOT make easy questions.
+
+WHAT MAKES PSLE VOCAB HARD:
+1. NEAR-SYNONYMS that differ in nuance/intensity: e.g. concerned/worried/alarmed/perturbed — only one fits the context precisely
+2. CONNOTATION: e.g. notorious (negative) vs famous (neutral) vs renowned (positive) — context determines which
+3. WORD FORMS in context: e.g. when to use "determination" vs "determined" vs "determinedly"
+4. INTENSITY differences: e.g. displeased < annoyed < furious < livid — pick the one that matches the level in the passage
+5. COLLOCATION TRAPS: e.g. "make" vs "do" vs "take" — only one collocates correctly with the noun
+
+FORMAT: EXACTLY 5 questions. Each has a sentence with ONE blank and 4 options (A)(B)(C)(D).
+
+DIFFICULTY DISTRIBUTION:
+- Q1: Medium — near-synonym nuance
+- Q2: Hard — connotation or intensity difference
+- Q3: Medium-Hard — word form or collocation
+- Q4: Hard — subtle meaning difference, all 4 options seem plausible
+- Q5: Hard — requires understanding full sentence context
+
+USE THESE HIGH-LEVEL PSLE WORDS (rotate, never repeat same words):
+Tier 1 (must include 2-3): lucid, meticulously, visionary, tenacious, lapse, astute, candid, composure, dispel, futile, hamper, instil, lament, obstinate, perturbed, prudent, relentless, reproach, revere, sceptical, spontaneous, squelch, steadfast, turbulent, unfazed, vehement, wary, zeal
+Tier 2 (use 1-2): accustomed, apprehensive, benevolent, conscientious, contemplate, daunting, diligent, empathetic, endeavour, exasperate, formidable, inevitable, irreplaceable, jeopardise, nostalgia, paramount, resilient, surge
+
+FORMAT EXAMPLE (this is the standard to follow):
+Q1. Despite the hostile crowd, the speaker maintained his ________ throughout the debate, never once raising his voice.
+(A) courage
+(B) composure
+(C) confidence
+(D) conviction
+
+[Note: All 4 options are plausible — but only "composure" means staying calm under pressure]
+
+- Do NOT explain yet
+- End with: "Choose the correct answer (A/B/C/D) for each question."
+Begin now.`,grammar:`You are running a Grammar drill. STRICT RULES:
+- Output EXACTLY 4 grammar questions
+- ONLY these types: tenses, SVA, question tags, or conditionals
+- Format as fill-in-the-blank (use ________ for blanks)
+- Do NOT explain anything yet
+- End with: "Fill in the blanks and submit your answers!"
+Begin now.`,synthesis:`You are setting a PSLE Synthesis & Transformation paper. STRICT RULES:
+
+DIFFICULTY: Questions MUST target common student errors. Use these guidelines:
+1. Reported Speech — MUST include tense shifts, pronoun changes, AND time/place word changes (yesterday→the day before, tomorrow→the next day, here→there). NEVER use simple sentences with no transformation traps.
+2. Passive Voice — Use irregular past participles (written/broken/stolen/forbidden/hidden), or passive with two objects, or passive with modal verbs (must be done/should be given)
+3. Connectors — despite/in spite of MUST be followed by a noun phrase (not a clause). Use: despite + [noun phrase]. Test: so...that, such a...that, not only...but also, provided that, as long as
+4. Conditional — Type 2 (were/would) or mixed conditionals. NOT simple Type 1.
+5. Combining — Use: so...that, not only...but also, whose, whom, which (with correct punctuation)
+
+FORMAT — use EXACTLY this structure:
+Q1. (Reported Speech — tense+pronoun+time shift)
+[Original in direct speech]
+Rewrite: [starter with given words] ________.
+
+Q2. (Passive Voice — irregular/modal)
+[Original in active voice]
+Rewrite: [starter] ________.
+
+Q3. (Connector: despite)
+[Two sentences]
+Rewrite: Despite ________.
+
+Q4. (Conditional Type 2)
+[Original sentence]
+Rewrite: If ________.
+
+Q5. (Combining: not only...but also OR whose/whom)
+[Two sentences]
+Rewrite: ________.
+
+- Use ________ (8 underscores) for ALL blanks
+- Do NOT explain yet
+- End with: "Complete all 5 rewrites and submit!"
+Begin now.`,cloze:`You are setting a PSLE Comprehension Cloze passage. Follow ALL rules STRICTLY:
+
+PASSAGE REQUIREMENTS:
+- Write a passage of 250-300 words (this matches real PSLE length — do not write shorter)
+- TOPIC: Pick ONE topic randomly — rotate every session, NEVER repeat the same topic twice in a row. Topics: (1) wildlife conservation, (2) space exploration, (3) ocean pollution, (4) young athlete training, (5) technology in daily life, (6) community garden, (7) school outdoor adventure, (8) helping the elderly, (9) student science competition, (10) recycling drive, (11) Singapore hawker food culture, (12) learning music, (13) love of reading, (14) rescue animals, (15) charity volunteering, (16) cultural festivals, (17) public transport, (18) neighbourhood library, (19) school sports day, (20) a rainy day adventure. Vary widely — do not favour any one topic.
+- Writing style: informative or narrative, similar to newspaper/magazine articles for young readers
+- Use Singapore names and contexts naturally: Marcus, Priya, Wei Ting, Aisha, Jun Wei / HDB, MRT, void deck, community centre, school hall
+- Include EXACTLY 15 blanks numbered (1) to (15) inline in the passage
+- Space blanks evenly throughout — not all clustered at the start or end
+- Each blank = EXACTLY ONE word
+- Every answer must be deducible from CONTEXT — not from memorising fixed phrases
+- Difficulty level: target P6 students aiming for AL1 — blanks should require genuine inference, not just obvious guesses
+- Each blank must have ONE clear correct answer that a strong P6 student can deduce
+
+WHAT TO TEST (distribute across 15 blanks — mix all types):
+1. CONTRAST CLUES (2-3 blanks): Signal words — however/but/instead/unlike/yet/while/on the other hand/nevertheless. Answer is the contrasting idea. E.g. "Unlike her noisy brother, she was always (1) quiet." Difficulty: make the contrast require inference, not just an obvious opposite.
+2. CAUSE-EFFECT CLUES (2-3 blanks): Because/so/therefore/thus/as a result/consequently. E.g. "The storm was severe; (2), the match was cancelled." Answer: therefore/consequently/hence
+3. DEFINITION/EXPLANATION CLUES (1-2 blanks): Passage defines or restates the missing word. E.g. "Scientists call this process (3), where water turns directly into vapour without becoming liquid first." Answer: sublimation — but use P6-appropriate vocabulary.
+4. SYNONYM/PARALLEL CLUES (1-2 blanks): Similar word appears nearby. E.g. "He was exhausted and utterly (4) after the gruelling race." Answer: drained/spent/worn
+5. TENSE CONSISTENCY (2-3 blanks): Match tense to passage. Mix simple past, past perfect, present perfect. E.g. "By the time they arrived, the team (5) already set up the equipment." Answer: had
+6. PRONOUN/POSSESSIVE REFERENCE (1-2 blanks): Identify correct pronoun. E.g. "Neither of the boys could find (6) keys." Answer: his/their (test tricky cases like neither/either)
+7. PREPOSITION IN CONTEXT (1-2 blanks): Preposition deducible from sentence meaning. E.g. "She had always been fascinated (7) the mysteries of the deep ocean." Answer: by/with
+8. CONJUNCTION/CONNECTOR (1-2 blanks): Logical connection between ideas. E.g. "The project was difficult; (8), the team refused to give up." Answer: however/nevertheless/yet
+9. VERB FORM (1-2 blanks): Correct verb tense or form. E.g. "The data (9) collected over three years before the report was published." Answer: was/had been
+
+DIFFICULTY CALIBRATION:
+- 5 blanks: straightforward (clear context clue, common word)
+- 7 blanks: moderate (requires reading 2 sentences, less obvious)
+- 3 blanks: challenging (requires understanding full paragraph, precise vocabulary)
+- Do NOT make all blanks easy — AL1 students need to be challenged
+
+STRICT RULES:
+- Do NOT test phrasal verbs (call off, put up, etc.)
+- Do NOT test idioms
+- Every blank must have ONE clear correct answer
+- Passage must be coherent and interesting
+- Use Singapore-relevant names (Marcus, Priya, Wei Ting, Aisha, Jun Wei) and local contexts (HDB, MRT, void deck, community centre, school hall) — NOT hawker centre
+
+FORMAT:
+**[Title]**
+[Full passage with (1)(2)...(15) inline — no space between number and brackets]
+---
+Read the passage carefully. Fill in each blank with ONE suitable word. Submit all 15 answers when ready!
+Begin now.`,situational:`You are setting a PSLE Situational Writing task. Follow STRICTLY:
+FORMAT: Alternate between these formats each session: Formal Email, Article for school newsletter, Speech, Report
+
+Give ONE task with:
+- Clear context (who you are, who you are writing to, why)
+- EXACTLY 5 bullet points to address
+- Word count guide: 150-200 words
+
+Example format:
+TASK: Your school is organising a recycling campaign. As the Environmental Club President, write an EMAIL to your principal, Mr Tan, to propose this campaign.
+
+In your email, you should:
+• explain why recycling is important for your school
+• describe 2 specific activities for the campaign  
+• suggest how students can be encouraged to participate
+• state the proposed date and venue
+• request for his approval and support
+
+Write 150-200 words. Begin your email appropriately.
+
+- Then wait for student to write their response
+- Do NOT write the answer`,continuous:"Give me a 2025-style Continuous Writing prompt and ask me to write the opening 2 paragraphs. Then wait for my response.",mixed:`You are setting a PSLE Mixed Practice paper. Follow STRICTLY:
+- Give EXACTLY 5 questions
+- Include ONE question from each of these 5 areas:
+  1. Vocabulary MCQ (A/B/C/D)
+  2. Grammar MCQ (A/B/C/D)  
+  3. Synthesis & Transformation (rewrite)
+  4. Comprehension Cloze (3 blanks from a short paragraph)
+  5. Situational Writing (give ONE bullet point to write 2-3 sentences about)
+- Label each question clearly: [Vocabulary] [Grammar] [S&T] [Cloze] [Writing]
+- Use ________ for fill-in blanks
+- Do NOT explain yet
+- End with: "Answer all 5 questions and submit!"
+Begin now.`,weakspot:"Give me 4 targeted questions focusing on my weak areas: phrasal verbs in cloze, situational writing format, and spelling under pressure. Number them clearly, then wait."};return prompts[topic]||prompts.vocab;}
+
+function selectTopicMobile(topic) {
+  currentTopic = topic;
+  clearChat();
+  initChat();
+}
+function handleResize() {
+  const bar = document.getElementById('mobile-topic-bar');
+  if (bar) bar.style.display = window.innerWidth <= 600 ? 'flex' : 'none';
+}
+window.addEventListener('resize', handleResize);
+window.addEventListener('DOMContentLoaded', handleResize);
+
+// ── DAILY PROGRESS ──
+const DAILY_TOPICS_P2 = ['vocab','grammar','synthesis','cloze'];
+const DAILY_TOPICS_P1 = [];
+
+// Daily targets: how many questions each topic requires
+const DAILY_TARGETS = {vocab:5, grammar:5, synthesis:5, cloze:15};
+const TOPIC_LABELS_DAILY = {vocab:'Vocabulary (5 Qs)',grammar:'Grammar (5 Qs)',synthesis:'S&T (5 Qs)',cloze:'Cloze (15 blanks)'};
+
+function getTodayKey(){return 'daily_'+currentUser.username+'_'+new Date().toISOString().split('T')[0];}
+
+function getDailyProgress(){
+  try{return JSON.parse(localStorage.getItem(getTodayKey())||'{}');}catch(e){return {};}
+}
+
+function markTopicDone(topic){
+  const dp=getDailyProgress();
+  dp[topic]=true;
+  localStorage.setItem(getTodayKey(),JSON.stringify(dp));
+  renderDailyProgress();
+  // Check if all tasks done — update streak
+  const allDone=TASK_ORDER.every(t=>dp[t]);
+  if(allDone){
+    const p=getProgress(currentUser.username);
+    // Only increment streak once per day
+    const streakKey='streak_date_'+currentUser.username;
+    const today=new Date().toISOString().split('T')[0];
+    if(localStorage.getItem(streakKey)!==today){
+      p.streak=(p.streak||0)+1;
+      p.sessions=(p.sessions||0)+1;
+      saveProgress(currentUser.username,p);
+      localStorage.setItem(streakKey,today);
+    }
+  }
+  // Refresh today tab if visible
+  const todayPanel=document.getElementById('tab-today');
+  if(todayPanel&&todayPanel.classList.contains('active'))renderTodayTab();
+}
+
+function renderDailyProgress(){
+  const fillEl=document.getElementById('daily-progress-fill');
+  const textEl=document.getElementById('daily-progress-text');
+  const barsEl=document.getElementById('daily-progress-bars');
+  const badgeEl=document.getElementById('daily-complete-badge');
+  if(!fillEl||!textEl||!barsEl)return;
+  const dp=getDailyProgress();
+  const all=[...DAILY_TOPICS_P2,...DAILY_TOPICS_P1];
+  const done=all.filter(t=>dp[t]).length;
+  const pct=Math.round((done/all.length)*100);
+  fillEl.style.width=pct+'%';
+  textEl.textContent=done+' / '+all.length+' completed';
+  barsEl.innerHTML=all.map(t=>{
+    const isDone=dp[t];
+    return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding:5px 8px;background:${isDone?'rgba(76,175,122,0.1)':'rgba(124,58,237,0.04)'};border-radius:7px;border:1px solid ${isDone?'rgba(76,175,122,0.3)':'#ede9fe'};">
+      <span style="font-size:11px;color:${isDone?'#1a6b3a':'#6d6a8a'};font-weight:${isDone?'600':'400'};">${TOPIC_LABELS_DAILY[t]}</span>
+      <span style="font-size:14px;">${isDone?'✅':'⬜'}</span>
+    </div>`;
+  }).join('');
+  if(badgeEl){
+    badgeEl.style.display=done===all.length?'block':'none';
+    badgeEl.innerHTML=done===all.length?'🎉 Daily Goal Achieved! Great work today!':'';
+  }
+}
+
+function selectTopic(btn,topic){document.querySelectorAll('.topic-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentTopic=topic;clearChat();initChat();}
+function clearChat(){chatHistory=[];document.getElementById('chat-messages').innerHTML='';}
+function initChat(){addMessage('ai',`Hi ${currentUser.display}! 👋 Ready to practise **${TOPIC_LABELS[currentTopic]}**? Let's go!`);setTimeout(()=>startDrill(),500);}
+async function startDrill(){chatHistory.push({role:'user',content:getTopicPrompt(currentTopic)});showTyping();const reply=await callClaude();hideTyping();if(reply){addMessage('ai',reply);chatHistory.push({role:'assistant',content:reply});}}
+
+let pendingPhoto = null;
+
+function handlePhotoUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    pendingPhoto = ev.target.result;
+    const wrap = document.getElementById('photo-preview-wrap');
+    const img = document.getElementById('photo-preview-img');
+    img.src = pendingPhoto;
+    wrap.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePhoto() {
+  pendingPhoto = null;
+  document.getElementById('photo-preview-wrap').style.display = 'none';
+  document.getElementById('photo-preview-img').src = '';
+  document.getElementById('photo-file-input').value = '';
+}
+
+function renderFillBlanks(container) {
+  const bubbles = container.querySelectorAll('.msg.ai .msg-bubble');
+  bubbles.forEach(bubble => {
+    if (bubble.dataset.processed) return;
+    if (bubble.innerHTML.includes('______') || bubble.innerHTML.includes('___')) {
+      bubble.dataset.processed = 'true';
+      let html = bubble.innerHTML;
+      let idx = 0;
+      html = html.replace(/_{3,}/g, () => {
+        idx++;
+        return `<input class="fill-blank" type="text" placeholder="fill in" data-idx="${idx}" id="blank-${Date.now()}-${idx}"/>`;
+      });
+      bubble.innerHTML = html;
+      const btn = document.createElement('button');
+      btn.className = 'submit-answers-btn';
+      btn.innerHTML = '✏️ Submit my answers';
+      btn.onclick = () => submitBlanks(bubble);
+      bubble.appendChild(btn);
+    }
+  });
+}
+
+function submitBlanks(bubble) {
+  const inputs = bubble.querySelectorAll('.fill-blank');
+  if (!inputs.length) return;
+  let answersText = 'My answers:\n';
+  inputs.forEach((inp, i) => {
+    answersText += `Q${i+1}: ${inp.value || '(blank)'}\n`;
+    inp.disabled = true;
+  });
+  bubble.querySelector('.submit-answers-btn').style.display = 'none';
+  const container = document.getElementById('chat-messages');
+  addMessage('user', answersText.trim());
+  chatHistory.push({role:'user', content: answersText.trim()});
+  const p = getProgress(currentUser.username);
+  p.questions++;
+  saveProgress(currentUser.username, p);
+  showTyping();
+  callClaude().then(reply => {
+    hideTyping();
+    if (reply) {
+      addMessage('ai', reply);
+      chatHistory.push({role:'assistant', content: reply});
+      renderFillBlanks(container);
+    }
+  });
+}
+
+const _origAddMessage = addMessage;
+function addMessage(role,text){const container=document.getElementById('chat-messages');const div=document.createElement('div');div.className=`msg ${role}`;const avatar=role==='ai'?'C':(currentUser?currentUser.display[0].toUpperCase():'S');div.innerHTML=`<div class="msg-avatar">${avatar}</div><div class="msg-bubble">${formatMessage(text)}</div>`;container.appendChild(div);container.scrollTop=container.scrollHeight;if(role==='ai')renderFillBlanks(container);}
+function formatMessage(text){
+  let blankIdx=0;
+  const msgId='msg'+Date.now();
+  let result=text
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/_{4,}/g,()=>{
+      blankIdx++;
+      return '<input class="fill-blank" type="text" placeholder="your answer" data-blank="'+blankIdx+'" id="'+msgId+'-'+blankIdx+'" oninput="autoExpandBlank(this)"/>';
+    })
+    .replace(/\n\n/g,'</p><p>')
+    .replace(/\n/g,'<br>')
+    .replace(/^/,'<p>')
+    .replace(/$/,'</p>');
+  if(blankIdx>0){
+    result+='<br><button class="submit-answers-btn" onclick="submitBlanksFromMsg(this)">✏️ Submit my answers</button>';
+  }
+  return result;
+}
+function autoExpandBlank(el){
+  el.style.width='auto';
+  const tmp=document.createElement('span');
+  tmp.style.cssText='position:absolute;visibility:hidden;white-space:pre;font-family:Noto Sans,sans-serif;font-size:14px;padding:3px 10px;';
+  tmp.textContent=el.value||el.placeholder;
+  document.body.appendChild(tmp);
+  el.style.width=Math.max(80,tmp.offsetWidth+20)+'px';
+  document.body.removeChild(tmp);
+}
+function submitBlanksFromMsg(btn){
+  const bubble=btn.closest('.msg-bubble');
+  const inputs=bubble.querySelectorAll('.fill-blank');
+  if(!inputs.length)return;
+  let answersText='My answers:\n';
+  inputs.forEach((inp,i)=>{answersText+=`Q${i+1}: ${inp.value||'(blank)'}\n`;inp.disabled=true;});
+  btn.style.display='none';
+  addMessage('user',answersText.trim());
+  chatHistory.push({role:'user',content:answersText.trim()});
+  const p=getProgress(currentUser.username);p.questions++;saveProgress(currentUser.username,p);
+  // Mark topic done based on completion criteria
+  if(currentTopic==='cloze'){
+    // Cloze: count blanks submitted — need 15
+    const blankCount=(answersText.match(/Q\d+:/g)||[]).length;
+    if(blankCount>=15)markTopicDone('cloze');
+  } else {
+    // Other topics: mark done after submitting answers
+    markTopicDone(currentTopic);
+  }
+  showTyping();
+  callClaude().then(reply=>{
+    hideTyping();
+    if(reply){
+      addMessage('ai',reply);
+      chatHistory.push({role:'assistant',content:reply});
+      recordWrongAnswers(reply,currentTopic,answersText);
+    }
+  });
+}
+
+function recordWrongAnswers(feedbackText,topic,answersText){
+  try{
+    if(!currentUser||currentUser.role==='admin')return;
+    if(!feedbackText.includes('❌'))return;
+    const wrongKey='wronganswers_'+currentUser.username;
+    const wrongs=JSON.parse(localStorage.getItem(wrongKey)||'[]');
+    wrongs.unshift({
+      date:new Date().toISOString().split('T')[0],
+      topic:topic,
+      answers:(answersText||'').substring(0,300),
+      feedback:feedbackText.substring(0,400)
+    });
+    localStorage.setItem(wrongKey,JSON.stringify(wrongs.slice(0,50)));
+  }catch(e){}
+}
+
+function getWrongAnswers(){
+  try{return JSON.parse(localStorage.getItem('wronganswers_'+(currentUser?currentUser.username:''))||'[]');}
+  catch(e){return [];}
+}
+let typingEl=null;
+function showTyping(){const container=document.getElementById('chat-messages');typingEl=document.createElement('div');typingEl.className='msg ai';typingEl.id='typing-msg';typingEl.innerHTML=`<div class="msg-avatar">C</div><div class="msg-bubble"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>`;container.appendChild(typingEl);container.scrollTop=container.scrollHeight;}
+function hideTyping(){const el=document.getElementById('typing-msg');if(el)el.remove();}
+async function sendMessage(){const input=document.getElementById('chat-input');const text=input.value.trim();if(!text&&!pendingPhoto)return;input.value='';autoResize(input);
+  if(pendingPhoto){
+    const photoData=pendingPhoto.split(',')[1];
+    const mediaType=pendingPhoto.split(';')[0].split(':')[1];
+    const displayMsg=text?text:'[Photo uploaded for feedback]';
+    addMessage('user',displayMsg);
+    const msgContent=[{type:'image',source:{type:'base64',media_type:mediaType,data:photoData}},{type:'text',text:text||'Please read my handwritten work in this photo and give me detailed PSLE-style feedback with score estimate, strengths, and 3 specific improvements.'}];
+    chatHistory.push({role:'user',content:msgContent});
+    removePhoto();
+  } else {
+    addMessage('user',text);chatHistory.push({role:'user',content:text});
+  }const p=getProgress(currentUser.username);p.questions++;saveProgress(currentUser.username,p);showTyping();const reply=await callClaude();hideTyping();if(reply){addMessage('ai',reply);chatHistory.push({role:'assistant',content:reply});}}
+async function callClaude(){const apiKey=localStorage.getItem(API_KEY);if(!apiKey)return"⚠️ No API Key found. Please go to the Admin tab and enter your API Key.";try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:1000,system:SYSTEM_PROMPT,messages:chatHistory})});if(!res.ok){const err=await res.json();if(err.error?.type==='authentication_error')return"⚠️ Invalid API Key. Please check it in the Admin tab.";if(err.error?.type==='credit_balance_too_low'||err.error?.message?.includes('credit'))return"⚠️ API credits have run out. Please top up at console.anthropic.com.";return`⚠️ Error: ${err.error?.message||'Something went wrong.'}`;}const data=await res.json();return data.content?.[0]?.text||"Sorry, I couldn't generate a response.";}catch(e){return"⚠️ Connection error. Please check your internet and try again.";}}
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
+function renderProgress(){
+  if(!currentUser)return;
+  const p=getProgress(currentUser.username);
+  document.getElementById('stat-sessions').textContent=p.sessions||0;
+  document.getElementById('stat-questions').textContent=p.questions||0;
+  document.getElementById('stat-streak').textContent=(p.streak||0)+'🔥';
+
+  // Only show the 4 active topics (no writing)
+  const topicNames={vocab:'Vocabulary',grammar:'Grammar',synthesis:'Synthesis & Transf.',cloze:'Cloze'};
+
+  // Calculate mastery from daily completion history
+  const wrongKey='wronganswers_'+currentUser.username;
+  const wrongs=JSON.parse(localStorage.getItem(wrongKey)||'[]');
+  const totalSessions=p.questions||0;
+
+  // Count how many times each topic was completed (from daily records)
+  // Check all daily keys for this user
+  const allKeys=Object.keys(localStorage).filter(k=>k.startsWith('daily_'+currentUser.username+'_'));
+  const topicCompletions={vocab:0,grammar:0,synthesis:0,cloze:0};
+  allKeys.forEach(key=>{
+    try{
+      const dp=JSON.parse(localStorage.getItem(key)||'{}');
+      Object.keys(topicCompletions).forEach(t=>{if(dp[t])topicCompletions[t]++;});
+    }catch(e){}
+  });
+  const maxDays=Math.max(...Object.values(topicCompletions),1);
+
+  const list=document.getElementById('topic-progress-list');
+  list.innerHTML=Object.entries(topicNames).map(([k,label])=>{
+    // Mastery = % of days this topic was completed
+    const completions=topicCompletions[k]||0;
+    const pct=allKeys.length>0?Math.round((completions/Math.max(allKeys.length,1))*100):0;
+    const wrongCount=wrongs.filter(w=>w.topic===k).length;
+    const masteryColor=pct>=80?'#4caf7a':pct>=50?'#7c3aed':'#e05a5a';
+    return`<div class="topic-row">
+      <div class="topic-name">${label}</div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%;background:${masteryColor}"></div></div>
+      <div class="topic-pct" style="color:${masteryColor}">${pct}%</div>
+    </div>
+    <div style="font-size:10px;color:#aaa;margin:-6px 0 8px 0;padding-left:2px;">
+      ${completions} session${completions!==1?'s':''} completed${wrongCount>0?' · '+wrongCount+' error'+( wrongCount!==1?'s':'')+' recorded':''}
+    </div>`;
+  }).join('');const tbody=document.getElementById('history-tbody');if(!p.history||p.history.length===0){tbody.innerHTML='<tr><td colspan="4" style="color:#444;text-align:center;padding:24px">No sessions yet — start practising!</td></tr>';}else{tbody.innerHTML=p.history.slice(-10).reverse().map(h=>`<tr><td>${h.date}</td><td>${h.topic}</td><td>${h.questions}</td><td><span class="badge badge-${h.perf}">${h.perfLabel}</span></td></tr>`).join('');}}
+function saveApiKey(){const key=document.getElementById('api-key-input').value.trim();if(!key)return;localStorage.setItem(API_KEY,key);showToast('✅ API Key saved!');}
+function addStudent(){const username=document.getElementById('new-username').value.trim();const password=document.getElementById('new-password').value;const display=document.getElementById('new-display').value.trim();const level=document.getElementById('new-level').value;if(!username||!password||!display){showToast('⚠️ Please fill in all fields.');return;}const users=getUsers();if(users.find(u=>u.username===username)){showToast('⚠️ Username already exists.');return;}users.push({username,password,role:'student',display,level});saveUsers(users);document.getElementById('new-username').value='';document.getElementById('new-password').value='';document.getElementById('new-display').value='';renderAdminUsers();showToast(`✅ Account created for ${display}!`);}
+function deleteStudent(username){if(username==='cathy'){showToast('⚠️ Cannot delete admin account.');return;}saveUsers(getUsers().filter(u=>u.username!==username));renderAdminUsers();showToast('🗑 Account removed.');}
+function renderAdminUsers(){const users=getUsers().filter(u=>u.role==='student');const list=document.getElementById('users-list');if(!list)return;if(users.length===0){list.innerHTML='<div style="font-size:13px;color:#444;padding:8px 0">No students yet.</div>';return;}list.innerHTML=users.map(u=>`<div class="user-row"><div class="user-info"><div class="user-name">${u.display}</div><div class="user-meta">@${u.username} · ${u.level}</div></div><button class="btn-delete" onclick="deleteStudent('${u.username}')">Remove</button></div>`).join('');}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+
+
+function showSettings(){
+  const el=document.getElementById('settings-overlay');
+  el.style.display='flex';
+  document.getElementById('current-password').value='';
+  document.getElementById('new-password-1').value='';
+  document.getElementById('new-password-2').value='';
+  document.getElementById('password-error').style.display='none';
+}
+function hideSettings(){
+  document.getElementById('settings-overlay').style.display='none';
+}
+function openSettings(){
+  document.getElementById('current-password').value='';
+  document.getElementById('new-password-1').value='';
+  document.getElementById('new-password-2').value='';
+  document.getElementById('password-error').style.display='none';
+  document.getElementById('settings-overlay').classList.add('show');
+}
+function closeSettings(){document.getElementById('settings-overlay').classList.remove('show');}
+function closeSettingsOutside(e){if(e.target===document.getElementById('settings-overlay'))closeSettings();}
+function savePassword(){
+  const current=document.getElementById('current-password').value;
+  const newP1=document.getElementById('new-password-1').value;
+  const newP2=document.getElementById('new-password-2').value;
+  const errEl=document.getElementById('password-error');
+  errEl.style.display='none';
+  if(!current||!newP1||!newP2){errEl.textContent='Please fill in all fields.';errEl.style.display='block';return;}
+  if(current!==currentUser.password){errEl.textContent='Current password is incorrect.';errEl.style.display='block';return;}
+  if(newP1.length<6){errEl.textContent='New password must be at least 6 characters.';errEl.style.display='block';return;}
+  if(newP1!==newP2){errEl.textContent='New passwords do not match.';errEl.style.display='block';return;}
+  const users=getUsers();
+  const idx=users.findIndex(u=>u.username===currentUser.username);
+  if(idx>-1){users[idx].password=newP1;saveUsers(users);}
+  currentUser.password=newP1;
+  localStorage.setItem(SESSION_KEY,JSON.stringify(currentUser));
+  hideSettings();
+  showToast('✅ Password changed successfully!');
+}
+
+function openShare(){
+  const url=window.location.href.split('?')[0].split('#')[0];
+  document.getElementById('share-url').textContent=url;
+  document.getElementById('share-overlay').classList.add('show');
+}
+function closeShare(){
+  document.getElementById('share-overlay').classList.remove('show');
+}
+function closeShareIfOutside(e){
+  if(e.target===document.getElementById('share-overlay'))closeShare();
+}
+function copyLink(){
+  const url=document.getElementById('share-url').textContent;
+  navigator.clipboard.writeText(url).then(()=>showToast('✅ Link copied!'));
+  closeShare();
+}
+function shareWhatsApp(){
+  const url=document.getElementById('share-url').textContent;
+  const msg=encodeURIComponent('🎓 Practice PSLE English with AI! Try Cathy\'s AL1 English Coach: '+url);
+  window.open('https://wa.me/?text='+msg,'_blank');
+  closeShare();
+}
+</script>
+</body>
+</html>
