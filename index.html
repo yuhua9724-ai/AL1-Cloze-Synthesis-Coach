@@ -447,6 +447,13 @@ async function doLogin(){
     const rows=await sbFetch(`username?username=eq.${encodeURIComponent(u)}&password=eq.${encodeURIComponent(p)}&select=*`);
     if(!rows||rows.length===0){showLoginError('Incorrect username or password. Please try again.');return;}
     const user=rows[0];
+    if(user.role !== 'admin') {
+  const allowed = user.allowed_apps || 'all';
+  if(allowed !== 'all' && !allowed.split(',').map(s=>s.trim()).includes('english')) {
+    showLoginError('Your account does not have access to this app. Please contact Cathy.');
+    return;
+  }
+}
     // Check app permission
 if(user.role !== 'admin') {
   const allowed = user.allowed_apps || 'all';
