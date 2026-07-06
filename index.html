@@ -90,8 +90,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .dp-track-label{font-size:11px;color:var(--text-dim);margin-bottom:3px;display:flex;justify-content:space-between;}
 .dp-bar-bg{background:var(--dark4);border-radius:4px;height:6px;overflow:hidden;}
 .dp-bar-fill{height:6px;border-radius:4px;transition:width 0.5s ease;}
-.dp-bar-fill.vocab{background:#7c3aed;}
-.dp-bar-fill.grammar{background:#db2777;}
 .dp-bar-fill.cloze{background:#9e5ae0;}
 .dp-bar-fill.synthesis{background:#16a34a;}
 
@@ -283,22 +281,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   <div id="panel-practice" class="app-body">
     <div class="sidebar">
       <div class="sidebar-label">Paper 2</div>
-      <button class="topic-btn active" id="sb-vocab" onclick="selectTopic(this,'vocab')">Vocabulary <span class="topic-done-badge" id="done-vocab"></span></button>
-      <button class="topic-btn" id="sb-grammar" onclick="selectTopic(this,'grammar')">Grammar <span class="topic-done-badge" id="done-grammar"></span></button>
+      <button class="topic-btn active" id="sb-cloze" onclick="selectTopic(this,'cloze')">Comprehension Cloze <span class="topic-done-badge" id="done-cloze"></span></button>
       <button class="topic-btn" id="sb-synthesis" onclick="selectTopic(this,'synthesis')">Synthesis &amp; Trans. <span class="topic-done-badge" id="done-synthesis"></span></button>
-      <button class="topic-btn" id="sb-cloze" onclick="selectTopic(this,'cloze')">Comprehension Cloze <span class="topic-done-badge" id="done-cloze"></span></button>
-      <div class="sidebar-label" style="margin-top:8px;">Mixed</div>
-      <button class="topic-btn" id="sb-mixed" onclick="selectTopic(this,'mixed')">Full Mixed Drill</button>
     </div>
 
     <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
       <div class="mobile-topic">
         <select onchange="selectTopicMobile(this.value)">
-          <option value="vocab">Vocabulary</option>
-          <option value="grammar">Grammar</option>
-          <option value="synthesis">Synthesis &amp; Transformation</option>
           <option value="cloze">Comprehension Cloze</option>
-          <option value="mixed">Full Mixed Drill</option>
+          <option value="synthesis">Synthesis &amp; Transformation</option>
         </select>
       </div>
 
@@ -306,14 +297,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div class="daily-progress-bar" id="daily-bar">
         <div class="dp-title">📅 Today's Tasks</div>
         <div class="dp-tracks">
-          <div class="dp-track" id="task-vocab" onclick="selectTopicById('vocab')" style="cursor:pointer;">
-            <div class="dp-track-label"><span>📘 Vocab</span><span id="dp-vocab-txt">0/5</span></div>
-            <div class="dp-bar-bg"><div class="dp-bar-fill vocab" id="dp-vocab-bar" style="width:0%"></div></div>
-          </div>
-          <div class="dp-track" id="task-grammar" onclick="selectTopicById('grammar')" style="cursor:pointer;">
-            <div class="dp-track-label"><span>✏️ Grammar</span><span id="dp-grammar-txt">0/5</span></div>
-            <div class="dp-bar-bg"><div class="dp-bar-fill grammar" id="dp-grammar-bar" style="width:0%"></div></div>
-          </div>
           <div class="dp-track" id="task-cloze" onclick="selectTopicById('cloze')" style="cursor:pointer;">
             <div class="dp-track-label"><span>📝 Cloze</span><span id="dp-cloze-txt">0/1</span></div>
             <div class="dp-bar-bg"><div class="dp-bar-fill cloze" id="dp-cloze-bar" style="width:0%"></div></div>
@@ -327,7 +310,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
       <div class="chat-wrap">
         <div class="chat-header">
-          <h2 id="chat-title">Vocabulary Practice</h2>
+          <h2 id="chat-title">Comprehension Cloze</h2>
           <button class="btn-new-session" onclick="newSession()">New Session</button>
         </div>
         <div class="chat-messages" id="chat-messages"></div>
@@ -523,8 +506,8 @@ async function changePassword(){
 // ══════════════════════════════════
 // DAILY PROGRESS
 // ══════════════════════════════════
-let todayProgress={vocab_done:0,grammar_done:0,cloze_done:0,synthesis_done:0,weak_vocab:'',weak_grammar:'',weak_cloze:'',weak_synthesis:''};
-const DAILY_TARGETS={vocab:5,grammar:5,cloze:1,synthesis:5};
+let todayProgress={cloze_done:0,synthesis_done:0,weak_cloze:'',weak_synthesis:''};
+const DAILY_TARGETS={cloze:1,synthesis:5};
 const TODAY=new Date().toISOString().split('T')[0];
 
 async function loadDailyProgress(){
@@ -532,7 +515,7 @@ async function loadDailyProgress(){
   try{
     const rows=await sbFetch(`daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&date=eq.${TODAY}&select=*`);
     if(rows&&rows.length>0)todayProgress=rows[0];
-    else todayProgress={vocab_done:0,grammar_done:0,cloze_done:0,synthesis_done:0,weak_vocab:'',weak_grammar:'',weak_cloze:'',weak_synthesis:''};
+    else todayProgress={cloze_done:0,synthesis_done:0,weak_cloze:'',weak_synthesis:''};
     updateProgressBars();
     updateWeakness();
   }catch(e){console.error('Progress load error',e);}
@@ -554,7 +537,7 @@ async function saveDailyProgress(){
 
 function updateProgressBars(){
   const tp=DAILY_TARGETS;
-  ['vocab','grammar','cloze','synthesis'].forEach(t=>{
+  ['cloze','synthesis'].forEach(t=>{
     const done=todayProgress[t+'_done']||0;
     const target=tp[t];
     const pct=Math.min(100,Math.round(done/target*100));
@@ -704,8 +687,8 @@ async function loadProgressPage(){
     html+=`<div style="background:var(--dark2);border:1px solid rgba(201,168,76,0.15);border-radius:12px;padding:16px;margin-bottom:16px;">
       <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Last 7 Days</div>`;
     rows.forEach(r=>{
-      const total=(r.vocab_done||0)+(r.grammar_done||0)+(r.cloze_done||0)+(r.synthesis_done||0);
-      const maxTotal=5+5+1+5;
+      const total=(r.cloze_done||0)+(r.synthesis_done||0);
+      const maxTotal=1+5;
       const pct=Math.min(100,Math.round(total/maxTotal*100));
       html+=`<div style="margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:4px;">
@@ -715,7 +698,7 @@ async function loadProgressPage(){
           <div style="width:${pct}%;height:8px;border-radius:4px;background:var(--gold);transition:width 0.5s;"></div>
         </div>
         <div style="display:flex;gap:10px;margin-top:4px;font-size:11px;color:var(--text-dim);">
-          <span>V:${r.vocab_done||0}/5</span><span>G:${r.grammar_done||0}/5</span><span>C:${r.cloze_done||0}/1</span><span>S&T:${r.synthesis_done||0}/5</span>
+          <span>C:${r.cloze_done||0}/1</span><span>S&T:${r.synthesis_done||0}/5</span>
         </div>
       </div>`;
     });
@@ -790,7 +773,7 @@ function showTab(tab){
 // ══════════════════════════════════
 // PRACTICE / CHAT
 // ══════════════════════════════════
-let currentTopic='vocab';
+let currentTopic='cloze';
 let chatHistory=[];
 let isThinking=false;
 let clozeSubmitted=false;
@@ -798,7 +781,7 @@ let clozeSubmitted=false;
 // ── SESSION LOCK — prevents concurrent startSession() calls ──
 window._sessionRunning = false;
 
-const TOPIC_LABELS={vocab:'Vocabulary',grammar:'Grammar',synthesis:'Synthesis & Transformation',cloze:'Comprehension Cloze',mixed:'Full Mixed Drill'};
+const TOPIC_LABELS={synthesis:'Synthesis & Transformation',cloze:'Comprehension Cloze'};
 
 const SYS_BASE=`You are the AL1 Cloze & Synthesis Coach's PSLE English AI tutor for Singapore P5-P6 students aiming for AL1.
 
@@ -812,7 +795,7 @@ CORE RULES:
 
 MARKING RULES — ALWAYS follow this exact format:
 
-STEP 1 — Show summary first (for MCQ/Grammar/Vocab):
+STEP 1 — Show summary first (for MCQ/Cloze/Synthesis):
 Q1: ✅ [correct answer] or ❌ [correct answer]
 Q2: ✅ [correct answer] or ❌ [correct answer]
 Q3: ✅ [correct answer] or ❌ [correct answer]
@@ -830,130 +813,6 @@ STEP 2:
 WEAKNESS LINE: Only add "WEAKNESS: [error types]" if student got something wrong. Never add it for a perfect score.`;
 
 const TOPIC_PROMPTS={
-  vocab:`CRITICAL: Output EXACTLY 5 questions in ONE message. Stop after Question 5. Do NOT output a second set.
-
-MODULE: Vocabulary (Paper 2 Section A) — PSLE 2015–2024 Authentic
-
-MASTER WORD BANK (verified from actual PSLE/Prelim papers):
-
-TIER 1 — PSLE 2015–2024 confirmed answers (HIGHEST PRIORITY):
-• PSLE 2023: overwhelmed (NOT overtook/outweighed/outwitted) — "curiosity got the better of me"
-• PSLE 2022: relishing (feasting with enjoyment; NOT savouring/enjoying/appreciating in that context)
-• PSLE 2022: adjustment (lost→loss | slight adjustments | came to a conclusion — word form)
-• PSLE 2021–2024 recurring: resilient, meticulous, tenacious, composure, astute, candid, lucid
-• PSLE 2019–2024: steadfast, vehement, wary, zeal, apprehensive, endeavour, formidable, paramount
-• PSLE 2018–2023: nostalgia/nostalgic, empathetic, jeopardise, irreplaceable, sceptical, determination
-
-TIER 2 — Top Prelim schools 2020–2025 (Nan Hua, Nanyang, SCGS, Rosyth, ACSJ, Tao Nan, CHIJ, MGS, RGPS, Rulang):
-adversity, perplexity, exemplary, righteous, unanimous, foresee, adverse, revert, convene, enrich,
-bellow, stagger, swagger, adjourn, gnawing, badger, antiquated, frigid, yearns, craves, aspires,
-rustling, charred, seared, dislodge, teeming, atrocity, sanctuary, accustomed, visionary, muffled,
-impose, subscribe, significant, conservationist, unanimous, foresee
-
-TIER 3 — Word forms from PSLE 2022–2024 (verb/adj → noun conversion):
-• PSLE 2022 authentic: lose→loss, conclude→conclusion, adjust→adjustment, advise→advice (PSLE 2023)
-• Your student list: bore→boredom, amaze→amazement, excite→excitement, enjoy→enjoyment
-• decide→decision, develop→development, improve→improvement, confuse→confusion
-• perform→performance, protect→protection, describe→description, depend→dependence
-• humble→humility, frugal→frugality, patient→patience, confident→confidence
-• independent→independence, brave→bravery, responsible→responsibility, suspicious→suspicion
-
-TIER 4 — Confusable pairs (PSLE loves these):
-carcass (animal) vs corpse (human), stagger (unsteady) vs swagger (arrogant),
-yearn vs crave vs aspire (degrees of longing), adverse vs averse,
-effective (adj) vs effectively (adv), relish vs savour vs enjoy (context-specific)
-
-TRICKY SPELLINGS that appear in PSLE Editing:
-maintenance (NOT maintainance), accommodation (NOT accomodation),
-embarrassment (NOT embarassment), occurrence (NOT occurance),
-explanation (NOT explaination), revelation (NOT revelaton)
-
-IDIOMS from Prelim papers:
-at her fingertips, in hot water, on the spur of the moment, at the drop of a hat,
-through the grapevine, till the cows come here, a joint effort, fall through, fall out,
-two peas in a pod, fish out of water, skeletons in the cupboard
-
-5 QUESTION TYPES — cover variety across 5 questions:
-Type 1 — Near-synonym (PSLE 2023 style): 4 believable options, only one fits exactly
-Type 2 — Word form (PSLE 2022 style): e.g. "Despite his ___" → excitement NOT excited
-Type 3 — Collocation: "show great ___" → composure NOT calmness/stillness
-Type 4 — Confusable pair: stagger vs swagger, carcass vs corpse, adverse vs averse
-Type 5 — Fixed phrase/idiom in context
-
-SENTENCE CONTEXT: Use Singapore-specific settings: school, community, nature, kampong, conservation.
-
-QUESTION FORMAT — EXACT layout:
-**Question 1**
-[Rich P6-level sentence with ___]
-[A] option
-[B] option
-[C] option
-[D] option
-
-...up to Question 5. End with: "Select your answers above then click **Submit**."
-
-TRAP RULE: At least 3 distractors must be believable near-synonyms — never obviously wrong.
-After submission: Q1–Q5 ✅/❌ + score. Explain ONLY wrong answers: correct meaning + why distractors fail.`,
-  grammar:`CRITICAL: Output EXACTLY 5 questions in ONE message. Stop after Question 5. Do NOT output a second set. Do NOT number beyond Q5.
-
-MODULE: Grammar (Paper 2 Section B) — PSLE 2015–2024 Authentic
-
-10-YEAR PSLE PATTERN (mirror this distribution across sessions):
-• SVA: ~40% of questions (most tested — 4/10 in PSLE 2024)
-• Tenses: ~20%
-• Question Tags: ~15%
-• Verb Patterns: ~10%
-• Conditionals/Passive/Relative Pronouns/Special Nouns: ~15%
-
-FULL TOPIC BANK — rotate across sessions, never repeat same topic twice in one set:
-
-SVA — PSLE authentic hard cases:
-• Gerund subject: "Reading different types of books ___ me" → helps NOT help (PSLE 2023)
-• "A number of students ___ absent" → were | "The number ___ increasing" → is
-• "Neither the teacher nor the students ___ ready" → were
-• Relative clause trap: "The box of chocolates on the table ___ mine" → is
-• Collective noun: "The committee ___ reached a decision" → has
-• Special plural nouns (PSLE 2022 Q10): scissors/trousers/glasses/tongs/pliers ALWAYS plural
-  "My scissors ___ missing" → are (NOT is — PSLE trap)
-
-TENSES — PSLE authentic time markers:
-• "up to now"/"since"/"for three months" → Present Perfect (PSLE 2023 trap: students write present)
-• "just now" → MUST be Past Simple NOT present (PSLE trap: "She called just now" NOT "has called")
-• Past Perfect Continuous: "had been playing for over an hour" (PSLE 2017 authentic)
-• Inverted 3rd conditional: "___ James put the compass in his bag, we would not be lost" → Had (PSLE 2024 Q6 authentic)
-• "If she ___ the dentist earlier, she would not have lost her tooth" → had visited (PSLE 2016)
-
-QUESTION TAGS — every year in PSLE:
-• "You've conducted this experiment before, ___ you?" → haven't you (PSLE 2017 authentic)
-• "He seldom makes mistakes, ___ he?" → does he (negative adverb → positive tag)
-• "I am right, ___ I?" → aren't I (special case — students write "am I not" — wrong)
-• "Let's take a break, ___ we?" → shall we
-
-VERB PATTERNS — PSLE 2023–2024:
-• "had trouble ___ing": "My grandparents had trouble ___ how to use computer" → learning (PSLE 2024 Q4)
-• "look forward to ___ing" NOT "look forward to + infinitive"
-• "be used to ___ing" vs "used to + base verb"
-• SENSORY VERBS (PSLE classic): "I saw him ___ across the road" → run OR running (both accepted)
-  "She heard the baby ___" → cry OR crying
-
-PASSIVE / RELATIVE PRONOUNS / QUANTIFIERS:
-• "The workers ___ the supervisor has assigned are laying the groundwork" → whom NOT who (PSLE 2025 trend)
-• "She seems to have ___ of luck" → a great deal (NOT a lot of — PSLE 2023 Q8)
-• Passive with complex tense: "The proposal ___ reviewed by the board since January" → has been
-
-QUESTION FORMAT — EXACT layout for all 5:
-**Question 1**
-[Singapore-context sentence with ___]
-[A] option
-[B] option
-[C] option
-[D] option
-
-...up to Question 5. End with: "Select your answers above then click **Submit**."
-
-TRAP RULE: At least 3 distractors must be grammatically plausible but wrong — like PSLE 2023 where "help" seems right but "helps" is correct. Include the special nouns trap (scissors/glasses are/is) at least once per 3 sessions.
-
-After submission: Q1–Q5 ✅/❌ + score. Explain ONLY wrong answers: rule name + one clear reason.`,
   synthesis:`MODULE: Synthesis & Transformation (Paper 2 Section C)
 
 SOURCE: Use questions directly from PSLE 2015–2024 or Prelim papers (Canberra, Tao Nan, SCGS, Rosyth, ACSJ, RGPS, Rulang, Nanyang). If adapting, match EXACT PSLE difficulty — sentences must be P6 level.
@@ -1063,30 +922,15 @@ OUTPUT FORMAT — ONE PASSAGE ONLY, NO EXCEPTIONS:
 AFTER STUDENT SUBMITS — mark each blank:
 ✅ (word) or ❌ correct answer: [word]
 For each ❌ state which of the 8 types it tested + one-line explanation using CLAPS
-(Context, Part of speech, Affirmative/negative, Phrasal verb, Subject-verb agreement)`,
-  mixed:`MODULE: Full Mixed Paper 2 Drill
-
-SOURCE: Draw from actual PSLE/Prelim papers (Canberra, Tao Nan, SCGS, Rosyth, ACSJ, RGPS, Rulang, Nanyang 2015–2025). All questions must match authentic PSLE difficulty.
-
-Present exactly 10 questions in this order:
-- Q1–Q2: Vocabulary MCQ (near-synonyms, word forms, collocations from PSLE vocab bank)
-- Q3–Q4: Grammar MCQ (SVA, tenses, question tags, verb patterns — PSLE 2015-2024 style)
-- Q5–Q6: Synthesis & Transformation (use Begin with: ___ format for inline input)
-- Q7–Q9: Comprehension Cloze blanks (from a short 60-word passage, 3 blanks testing phrasal verbs/connectors/collocations)
-- Q10: Bonus — hardest question type from any section
-
-FORMAT: Use [A][B][C][D] for MCQ options. Use Begin with: ___ for S&T. Number blanks (1)(2)(3) for Cloze.
-End with: "Select/fill your answers then click **Submit**."
-
-After submission: Q1–Q10 ✅/❌ summary + score X/10. Explain ONLY wrong answers.`
+(Context, Part of speech, Affirmative/negative, Phrasal verb, Subject-verb agreement)`
 };
 
-function getSysPrompt(){return SYS_BASE+'\n\n'+(TOPIC_PROMPTS[currentTopic]||TOPIC_PROMPTS.mixed);}
+function getSysPrompt(){return SYS_BASE+'\n\n'+(TOPIC_PROMPTS[currentTopic]||TOPIC_PROMPTS.cloze);}
 
 // ── DATABASE QUESTION FETCH ──────────────────────────────
-let dbQuestions = {vocab:[], grammar:[], synthesis:[], cloze:[]};
-let dbLoaded = {vocab:false, grammar:false, synthesis:false, cloze:false};
-let usedIds = {vocab:new Set(), grammar:new Set(), synthesis:new Set(), cloze:new Set()};
+let dbQuestions = {synthesis:[], cloze:[]};
+let dbLoaded = {synthesis:false, cloze:false};
+let usedIds = {synthesis:new Set(), cloze:new Set()};
 
 async function loadQuestionsFromDB(type) {
   const used = usedIds[type]?.size || 0;
@@ -1130,20 +974,6 @@ function getUnusedQuestions(type, count) {
   return selected;
 }
 
-function formatDBVocabGrammar(questions) {
-  let text = '';
-  questions.forEach((q, i) => {
-    text += `**Question ${i+1}**\n`;
-    text += `${q.question}\n`;
-    text += `[A] ${q.option_a}\n`;
-    text += `[B] ${q.option_b}\n`;
-    text += `[C] ${q.option_c}\n`;
-    text += `[D] ${q.option_d}\n\n`;
-  });
-  text += 'Select your answers above then click **Submit**.';
-  return text;
-}
-
 function formatDBSynthesis(questions) {
   let text = '';
   questions.forEach((q, i) => {
@@ -1177,16 +1007,7 @@ async function startDBSession(type) {
 
   let msgText = '';
 
-  if (type === 'vocab' || type === 'grammar') {
-    const qs = getUnusedQuestions(type, 5);
-    currentDBQuestions = qs;
-    currentDBType = type;
-    msgText = formatDBVocabGrammar(qs);
-    const greeting = `Hi ${currentUser?.display||'there'}! Ready to practise **${TOPIC_LABELS[type]}**? Here are your questions — give it your best shot! 💪`;
-    addMessage('ai', greeting);
-    chatHistory.push({role:'assistant', content: greeting});
-
-  } else if (type === 'synthesis') {
+  if (type === 'synthesis') {
     const qs = getUnusedQuestions(type, 5);
     currentDBQuestions = qs;
     currentDBType = type;
@@ -1223,14 +1044,7 @@ async function markDBAnswers(studentAnswer, type) {
 
   let markingPrompt = '';
 
-  if (type === 'vocab' || type === 'grammar') {
-    const qs = currentDBQuestions;
-    let questionsText = qs.map((q,i) =>
-      `Q${i+1}: ${q.question}\nCorrect Answer: ${q.answer} (${q['option_'+q.answer.toLowerCase()]})\nExplanation: ${q.explanation}`
-    ).join('\n\n');
-    markingPrompt = `The student answered: ${studentAnswer}\n\nHere are the correct answers:\n${questionsText}\n\nMark the student's answers following the MARKING RULES in your system prompt. Show Q1-Q5 summary with tick or cross, then explain ONLY wrong answers.`;
-
-  } else if (type === 'synthesis') {
+  if (type === 'synthesis') {
     const qs = currentDBQuestions;
     let questionsText = qs.map((q,i) =>
       `Q${i+1} Original: ${q.original_sentence}\nKeyword: ${q.keyword}\nStarter: ${q.starter}\nModel answer: ${q.model_answer}\nAcceptable: ${q.acceptable_answers}\nExplanation: ${q.explanation}`
@@ -1263,16 +1077,6 @@ async function markDBAnswers(studentAnswer, type) {
     chatHistory.push({role:'assistant', content: reply});
     addMessage('ai', reply);
     incrementProgress(type);
-    if ((type === 'vocab' || type === 'grammar') && currentDBQuestions) {
-      const answers = studentAnswer.split(',').map(s => s.trim());
-      currentDBQuestions.forEach((q, i) => {
-        const userAns = answers[i] ? answers[i].replace(/^Q\d+:\s*/,'').trim() : '';
-        if (userAns && userAns !== q.answer) {
-          const opts = {A: q.option_a, B: q.option_b, C: q.option_c, D: q.option_d};
-          saveWrongQuestion(q.question, q.answer, userAns, type, opts);
-        }
-      });
-    }
     if (type === 'cloze' && currentDBQuestions?.id) {
       try {
         const cur = currentDBQuestions.used_count || 0;
@@ -1325,7 +1129,7 @@ async function startSession(){
   currentDBQuestions = null;
   currentDBType = null;
 
-  const dbTopics = ['vocab','grammar','synthesis','cloze'];
+  const dbTopics = ['synthesis','cloze'];
   if (dbTopics.includes(currentTopic)) {
     const ok = await startDBSession(currentTopic);
     if (ok) return; // _sessionRunning already cleared inside startDBSession
@@ -1531,7 +1335,7 @@ async function askClaude(forcedMsg,countProgress){
     const reply=data.content?.[0]?.text||'Sorry, no response.';
     chatHistory.push({role:'assistant',content:reply});
     addMessage('ai',reply);
-    if(countProgress&&['vocab','grammar','cloze','synthesis'].includes(currentTopic)){
+    if(countProgress&&['cloze','synthesis'].includes(currentTopic)){
       incrementProgress(currentTopic);
     }
   }catch(e){addMessage('ai','⚠️ Connection error. Check your internet.');}
