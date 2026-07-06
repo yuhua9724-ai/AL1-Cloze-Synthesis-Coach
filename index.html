@@ -373,14 +373,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   <div id="panel-admin" style="display:none;overflow-y:auto;padding:0;height:calc(100vh - 95px);position:absolute;top:95px;left:0;right:0;bottom:0;">
     <div class="admin-panel">
       <div class="admin-section">
-        <h3>🔑 Anthropic API Key</h3>
-        <div class="api-key-row">
-          <input type="password" id="api-key-input" placeholder="sk-ant-api03-…"/>
-          <button class="btn-save-key" onclick="saveApiKey()">Save Key</button>
-        </div>
-        <p style="font-size:12px;color:var(--text-dim);margin-top:6px;">Saved in your browser only. Not shared with students.</p>
-      </div>
-      <div class="admin-section">
         <h3>➕ Add New Student</h3>
         <div class="admin-form">
           <input type="text" id="new-user" placeholder="Phone/Username (e.g. 91234567)"/>
@@ -488,15 +480,6 @@ async function enterApp(){
   document.getElementById('nav-user').textContent=currentUser.display||currentUser.username;
   const isAdmin=currentUser.role==='admin';
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=isAdmin?'block':'none');
-  try{
-    const rows=await sbFetch('app_settings?key=eq.anthropic_api_key&select=value');
-    if(rows&&rows.length>0&&rows[0].value){
-      localStorage.setItem('cal1_apikey',rows[0].value);
-      if(isAdmin&&document.getElementById('api-key-input')){
-        document.getElementById('api-key-input').value=rows[0].value;
-      }
-    }
-  }catch(e){console.error('API key load error:',e);}
   loadDailyProgress();
   startSession();
 }
@@ -789,16 +772,6 @@ async function deleteStudent(username){
     await sbFetch(`username?username=eq.${encodeURIComponent(username)}`,{method:'DELETE',prefer:'return=minimal'});
     showToast('🗑 Account removed.');loadStudentList();
   }catch(e){showToast('❌ Error: '+e.message);}
-}
-
-async function saveApiKey(){
-  const k=document.getElementById('api-key-input').value.trim();
-  if(!k){showToast('⚠️ Enter API key first.');return;}
-  try{
-    await sbFetch('app_settings?key=eq.anthropic_api_key',{method:'PATCH',prefer:'return=minimal',body:{value:k}});
-    localStorage.setItem('cal1_apikey',k);
-    showToast('✅ API key saved!');
-  }catch(e){showToast('❌ Error saving: '+e.message);}
 }
 
 // ══════════════════════════════════
@@ -1248,9 +1221,6 @@ async function startDBSession(type) {
 async function markDBAnswers(studentAnswer, type) {
   if (!currentDBQuestions) return false;
 
-  const apiKey = localStorage.getItem('cal1_apikey');
-  if (!apiKey) { addMessage('ai', '⚠️ No API key. Ask Cathy to set up the API key.'); return true; }
-
   let markingPrompt = '';
 
   if (type === 'vocab' || type === 'grammar') {
@@ -1282,9 +1252,9 @@ async function markDBAnswers(studentAnswer, type) {
   document.getElementById('chat-input').disabled = true;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('/api/claude', {
       method: 'POST',
-      headers: {'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      headers: {'Content-Type':'application/json'},
       body: JSON.stringify({model:'claude-haiku-4-5-20251001', max_tokens:1200, system:getSysPrompt(), messages:[...chatHistory, {role:'user', content:markingPrompt}]})
     });
     if (!res.ok) { addMessage('ai', '⚠️ Marking error. Please try again.'); return true; }
@@ -1537,8 +1507,6 @@ async function sendWithText(text){
 }
 
 async function askClaude(forcedMsg,countProgress){
-  const apiKey=localStorage.getItem('cal1_apikey');
-  if(!apiKey){addMessage('ai','⚠️ No API key. '+(currentUser?.role==='admin'?'Add it in the Admin tab.':'Ask Cathy to set up the API key.'));return;}
   isThinking=true;
   document.getElementById('thinking').style.display='block';
   document.getElementById('btn-send').disabled=true;
@@ -1546,16 +1514,16 @@ async function askClaude(forcedMsg,countProgress){
   const messages=[...chatHistory];
   if(forcedMsg)messages.push({role:'user',content:forcedMsg});
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const res=await fetch('/api/claude',{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1500,system:getSysPrompt(),messages})
     });
     if(!res.ok){
       const err=await res.json().catch(()=>({}));
       const msg=err.error?.message||'';
       if(msg.includes('credit'))addMessage('ai','⚠️ API credits run out. Please top up at console.anthropic.com.');
-      else if(msg.includes('api-key')||msg.includes('authentication'))addMessage('ai','⚠️ Invalid API key. Check the Admin tab.');
+      else if(msg.includes('api-key')||msg.includes('authentication'))addMessage('ai','⚠️ Server API key issue. Contact Cathy.');
       else addMessage('ai','⚠️ Error: '+(msg||'Something went wrong.'));
       return;
     }
