@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>English Ace — PSLE English AL1</title>
+<title>AL1 Cloze & Synthesis Coach — PSLE English AL1</title>
 
 <!-- PWA manifest (inline) -->
 <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22English%20Ace%22%2C%22short_name%22%3A%22English%20Ace%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%237c3aed%22%2C%22theme_color%22%3A%22%237c3aed%22%2C%22orientation%22%3A%22portrait%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%2527..%2527%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D"/>
@@ -11,7 +11,7 @@
 <!-- iOS PWA -->
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<meta name="apple-mobile-web-app-title" content="English Ace"/>
+<meta name="apple-mobile-web-app-title" content="AL1 Cloze & Synthesis"/>
 <meta name="theme-color" content="#7c3aed"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 
@@ -246,8 +246,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div id="login-screen" class="screen active">
   <div class="login-box">
     <div class="login-logo">
-      <h1>English Ace</h1>
-      <p>by Cathy · PSLE English · Score AL1</p>
+      <h1>Comprehension Cloze<br>Synthesis &amp; Transformation</h1>
+      <p>PSLE English · Score AL1</p>
     </div>
     <div class="login-field">
       <label>Phone / Username</label>
@@ -266,7 +266,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <!-- APP -->
 <div id="app-screen" class="screen">
   <div class="topnav">
-    <div class="topnav-brand">English Ace</div>
+    <div class="topnav-brand">AL1 Cloze & Synthesis</div>
     <div class="topnav-right">
       <span class="topnav-user" id="nav-user"></span>
       <span class="admin-badge admin-only">Admin</span>
@@ -331,7 +331,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           <button class="btn-new-session" onclick="newSession()">New Session</button>
         </div>
         <div class="chat-messages" id="chat-messages"></div>
-        <div class="thinking" id="thinking">Cathy is thinking…</div>
+        <div class="thinking" id="thinking">AL1 Coach is thinking…</div>
         </div>
         <div class="chat-input-area">
           <textarea id="chat-input" rows="1" placeholder="Type your answer here…" oninput="autoGrow(this)" onkeydown="handleKey(event)"></textarea>
@@ -441,11 +441,11 @@ async function doLogin(){
     if(user.role !== 'admin') {
       const allowed = user.allowed_apps || 'all';
       if(allowed !== 'all' && !allowed.split(',').map(s=>s.trim()).includes('english')) {
-        showLoginError('Your account does not have access to this app. Please contact Cathy.');
+        showLoginError('Your account does not have access to this app. Please contact your teacher.');
         return;
       }
     }
-    if(user.expiry&&new Date(user.expiry)<new Date()){showLoginError('Your account has expired. Please contact Cathy to renew.');return;}
+    if(user.expiry&&new Date(user.expiry)<new Date()){showLoginError('Your account has expired. Please contact your teacher to renew.');return;}
     currentUser=user;
     const sessionToken = Date.now().toString(36) + Math.random().toString(36).slice(2);
     currentUser.sessionToken = sessionToken;
@@ -800,7 +800,7 @@ window._sessionRunning = false;
 
 const TOPIC_LABELS={vocab:'Vocabulary',grammar:'Grammar',synthesis:'Synthesis & Transformation',cloze:'Comprehension Cloze',mixed:'Full Mixed Drill'};
 
-const SYS_BASE=`You are Cathy's PSLE English AI tutor for Singapore P5-P6 students aiming for AL1.
+const SYS_BASE=`You are the AL1 Cloze & Synthesis Coach's PSLE English AI tutor for Singapore P5-P6 students aiming for AL1.
 
 IDENTITY: You are an expert in the Singapore PSLE English syllabus (SEAB). You have deep knowledge of actual PSLE papers from 2015–2024 and all major Prelim papers (Canberra, Tao Nan, SCGS, Rosyth, ACSJ, RGPS, Rulang, Nanyang, RVPS, Nanyang 2022–2025).
 
@@ -1523,7 +1523,7 @@ async function askClaude(forcedMsg,countProgress){
       const err=await res.json().catch(()=>({}));
       const msg=err.error?.message||'';
       if(msg.includes('credit'))addMessage('ai','⚠️ API credits run out. Please top up at console.anthropic.com.');
-      else if(msg.includes('api-key')||msg.includes('authentication'))addMessage('ai','⚠️ Server API key issue. Contact Cathy.');
+      else if(msg.includes('api-key')||msg.includes('authentication'))addMessage('ai','⚠️ Server API key issue. Contact your teacher.');
       else addMessage('ai','⚠️ Error: '+(msg||'Something went wrong.'));
       return;
     }
