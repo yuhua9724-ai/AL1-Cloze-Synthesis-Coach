@@ -1039,59 +1039,93 @@ async function startDBSession(type) {
   return true;
 }
 
+// ── Local answer matching (no AI call — uses pre-written model answers/explanations) ──
+// Supports multiple acceptable phrasings per answer: store as an array, or as a string
+// using " OR " between full alternate sentences (matches your existing materials'
+// convention), or "/" between short word-level alternates (e.g. "the day before/the previous day").
+function normalizeAnswerText(s) {
+  return (s == null ? '' : String(s)).trim().toLowerCase().replace(/[.!?,;:'"]+$/, '').replace(/\s+/g, ' ');
+}
+
+function toAnswerList(val) {
+  if (val == null) return [];
+  if (Array.isArray(val)) return val;
+  let list = String(val).split(/\s+OR\s+/i);
+  if (list.length === 1) list = String(val).split('/');
+  return list.map(s => s.trim()).filter(Boolean);
+}
+
+function isAnswerCorrect(studentAns, ...correctVals) {
+  const norm = normalizeAnswerText(studentAns);
+  if (!norm) return false;
+  const pool = correctVals.flatMap(v => toAnswerList(v));
+  return pool.some(v => normalizeAnswerText(v) === norm);
+}
+
+function parseNumberedAnswers(text, pattern) {
+  const map = {};
+  text.split('\n').forEach(line => {
+    const m = line.match(pattern);
+    if (m) map[m[1]] = m[2].trim();
+  });
+  return map;
+}
+
 async function markDBAnswers(studentAnswer, type) {
   if (!currentDBQuestions) return false;
-
-  let markingPrompt = '';
-
-  if (type === 'synthesis') {
-    const qs = currentDBQuestions;
-    let questionsText = qs.map((q,i) =>
-      `Q${i+1} Original: ${q.original_sentence}\nKeyword: ${q.keyword}\nStarter: ${q.starter}\nModel answer: ${q.model_answer}\nAcceptable: ${q.acceptable_answers}\nExplanation: ${q.explanation}`
-    ).join('\n\n');
-    markingPrompt = `The student's answers:\n${studentAnswer}\n\nCorrect answers:\n${questionsText}\n\nSTRICT MARKING RULES — follow exactly:\n1. Compare the student's answer for each question against the Model answer AND Acceptable answers listed.\n2. If the student's answer matches the Model answer OR any Acceptable answer exactly (ignoring only a missing full stop at the end), mark ✅.\n3. If the student's answer does NOT match any listed answer exactly, mark ❌ — even if the meaning seems similar or close.\n4. Do NOT use your own judgment to accept paraphrases or near-matches. Only exact matches are ✅.\n5. Show Q1-Q5 summary with ✅ or ❌ and the model answer. Explain ONLY the ❌ answers using TPPP rubric (Tense, Pronoun, Place/Time, Punctuation).`;
-
-  } else if (type === 'cloze') {
-    const p = currentDBQuestions;
-    const answers = p.answers || p.blanks;
-    const explanations = p.explanations || {};
-    const answersText = Object.entries(answers).map(([k,v]) => `(${k}) ${v}`).join(', ');
-    const explText = Object.entries(explanations).map(([k,v]) => `(${k}) ${v}`).join('\n');
-    markingPrompt = `The student's cloze answers:\n${studentAnswer}\n\nCorrect answers: ${answersText}\n\nExplanations:\n${explText}\n\nMark each blank with tick or cross and the correct word. For wrong answers, give one-line reason using CLAPS. Apply PSLE marking standards.`;
-  }
 
   isThinking = true;
   document.getElementById('thinking').style.display = 'block';
   document.getElementById('btn-send').disabled = true;
   document.getElementById('chat-input').disabled = true;
 
-  try {
-    const res = await fetch('/api/claude', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({model:'claude-haiku-4-5-20251001', max_tokens:1200, system:getSysPrompt(), messages:[...chatHistory, {role:'user', content:markingPrompt}]})
+  let reply = '';
+
+  if (type === 'synthesis') {
+    const qs = currentDBQuestions;
+    const studentMap = parseNumberedAnswers(studentAnswer, /^Q(\d+):\s*(.*)$/i);
+    let correct = 0;
+    const lines = qs.map((q, i) => {
+      const qNum = i + 1;
+      const studentAns = studentMap[qNum] || '';
+      const ok = isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
+      if (ok) { correct++; return `Q${qNum}: ✅ ${studentAns}`; }
+      return `Q${qNum}: ❌ Your answer: ${studentAns || '(blank)'}\nModel answer: ${q.model_answer}${q.explanation ? '\n' + q.explanation : ''}`;
     });
-    if (!res.ok) { addMessage('ai', '⚠️ Marking error. Please try again.'); return true; }
-    const data = await res.json();
-    const reply = data.content?.[0]?.text || 'Sorry, could not mark.';
-    chatHistory.push({role:'assistant', content: reply});
-    addMessage('ai', reply);
+    reply = `**Score: ${correct}/${qs.length}**\n\n${lines.join('\n\n')}`;
     incrementProgress(type);
-    if (type === 'cloze' && currentDBQuestions?.id) {
+
+  } else if (type === 'cloze') {
+    const p = currentDBQuestions;
+    const answers = p.answers || p.blanks || {};
+    const explanations = p.explanations || {};
+    const studentMap = parseNumberedAnswers(studentAnswer, /^\((\d+)\)\s*(.*)$/);
+    const keys = Object.keys(answers).sort((a, b) => Number(a) - Number(b));
+    let correct = 0;
+    const lines = keys.map(k => {
+      const studentAns = studentMap[k] || '';
+      const ok = isAnswerCorrect(studentAns, answers[k]);
+      if (ok) { correct++; return `(${k}) ✅ ${studentAns}`; }
+      const correctDisplay = toAnswerList(answers[k])[0] || answers[k];
+      return `(${k}) ❌ Your answer: ${studentAns || '(blank)'} → Correct: ${correctDisplay}${explanations[k] ? '\n   ' + explanations[k] : ''}`;
+    });
+    reply = `**Score: ${correct}/${keys.length}**\n\n${lines.join('\n')}`;
+    incrementProgress(type);
+    if (p.id) {
       try {
-        const cur = currentDBQuestions.used_count || 0;
-        await sbFetch(`cloze_passages?id=eq.${currentDBQuestions.id}`,
-          {method:'PATCH', prefer:'return=minimal', body:{used_count: cur + 1}});
-      } catch(e) { console.warn('used_count update failed', e); }
+        const cur = p.used_count || 0;
+        await sbFetch(`cloze_passages?id=eq.${p.id}`, { method: 'PATCH', prefer: 'return=minimal', body: { used_count: cur + 1 } });
+      } catch (e) { console.warn('used_count update failed', e); }
     }
-  } catch(e) {
-    addMessage('ai', '⚠️ Connection error.');
-  } finally {
-    isThinking = false;
-    document.getElementById('thinking').style.display = 'none';
-    document.getElementById('btn-send').disabled = false;
-    document.getElementById('chat-input').disabled = false;
   }
+
+  chatHistory.push({ role: 'assistant', content: reply });
+  addMessage('ai', reply);
+
+  isThinking = false;
+  document.getElementById('thinking').style.display = 'none';
+  document.getElementById('btn-send').disabled = false;
+  document.getElementById('chat-input').disabled = false;
   return true;
 }
 
