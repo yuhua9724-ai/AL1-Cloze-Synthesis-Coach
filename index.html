@@ -54,8 +54,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 /* APP */
 #app-screen{flex-direction:column;min-height:100vh;min-height:100dvh;display:flex;position:relative;}
-.app-header-group{position:sticky;top:0;z-index:100;}
-.topnav{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:linear-gradient(135deg,var(--gold-dim),var(--gold));}
+.topnav{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:linear-gradient(135deg,var(--gold-dim),var(--gold));position:sticky;top:0;z-index:100;}
 .topnav-brand{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600;color:#fff;letter-spacing:-0.3px;}
 .header-logo{font-family:'Black Han Sans','Arial Black',sans-serif;font-size:20px;font-weight:900;letter-spacing:-0.5px;display:inline-flex;align-items:center;gap:2px;}
 .header-logo .al-text{color:transparent;-webkit-text-stroke:1px rgba(196,181,253,0.75);filter:drop-shadow(0 0 3px rgba(139,92,246,0.5));}
@@ -68,13 +67,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .admin-badge{background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.3);color:#fff;font-size:10px;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:0.5px;}
 
 /* TABS */
-.tabnav{display:flex;background:var(--dark2);border-bottom:1px solid rgba(124,58,237,0.1);}
+.tabnav{display:flex;background:var(--dark2);border-bottom:1px solid rgba(124,58,237,0.1);overflow-x:auto;}
 .tabnav-btn{flex:1;padding:11px;font-size:13px;font-weight:700;color:var(--text-dim);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;}
 .tabnav-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
 .admin-only{display:none;}
 
 /* LAYOUT */
-.app-body-stacked{flex:1;overflow-y:auto;padding:16px;max-width:640px;margin:0 auto;width:100%;display:flex;flex-direction:column;height:calc(100vh - 95px);height:calc(100dvh - 95px);}
+.app-body-stacked{padding:16px;max-width:640px;margin:0 auto;width:100%;}
 .module-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
 @media(max-width:480px){.module-grid{grid-template-columns:1fr;}}
 .module-card{position:relative;border:1.5px solid rgba(124,58,237,0.12);border-radius:14px;padding:16px;cursor:pointer;transition:all 0.2s;background:#ffffff;}
@@ -84,7 +83,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .module-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;}
 .module-count{font-size:11px;color:var(--text-dim);}
 .module-card .topic-done-badge{position:absolute;top:12px;right:12px;font-size:12px;color:var(--green);}
-.practice-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;background:#ffffff;border:1.5px solid rgba(124,58,237,0.1);border-radius:14px;}
+.practice-main{background:#ffffff;border:1.5px solid rgba(124,58,237,0.1);border-radius:14px;display:flex;flex-direction:column;}
 
 /* DAILY PROGRESS BAR */
 .daily-progress-bar{padding:10px 16px;background:var(--dark3);border-bottom:1px solid rgba(201,168,76,0.08);}
@@ -98,11 +97,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .dp-bar-fill.synthesis{background:#16a34a;}
 
 /* CHAT */
-.chat-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.chat-wrap{display:flex;flex-direction:column;}
 .chat-header{padding:12px 16px;border-bottom:1px solid rgba(201,168,76,0.08);display:flex;align-items:center;justify-content:space-between;}
 .chat-header h2{font-size:16px;font-weight:600;color:var(--text);}
 .btn-new-session{background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.2);color:var(--gold);font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;}
-.chat-messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;}
+.chat-messages{padding:14px;display:flex;flex-direction:column;gap:12px;min-height:200px;}
 .msg{display:flex;gap:8px;max-width:90%;}
 .msg.ai{align-self:flex-start;}
 .msg.user{align-self:flex-end;flex-direction:row-reverse;}
@@ -210,7 +209,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   .admin-badge{display:none!important;}
   .btn-logout{font-size:11px;padding:4px 8px;}
   .tabnav-btn{font-size:12px;padding:10px 6px;}
-  .app-body-stacked{height:calc(100vh - 88px);height:calc(100dvh - 88px);}
+  .app-body-stacked{padding:12px;}
   .daily-progress-bar{padding:10px 12px;}
   .dp-title{font-size:11px;margin-bottom:6px;}
   .dp-tracks{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
@@ -287,26 +286,24 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 <!-- APP -->
 <div id="app-screen" class="screen">
-  <div class="app-header-group">
-    <div class="topnav">
-      <div>
-        <div class="header-logo"><span class="al-text">AL</span><span class="one-text">1</span></div>
-        <div class="header-brand-sub">Cloze &amp; S&amp;T Hunter</div>
-      </div>
-      <div class="topnav-right">
-        <span class="topnav-user" id="nav-user"></span>
-        <span class="admin-badge admin-only">Admin</span>
-        <button class="btn-logout" onclick="doLogout()">Sign out</button>
-      </div>
+  <div class="topnav">
+    <div>
+      <div class="header-logo"><span class="al-text">AL</span><span class="one-text">1</span></div>
+      <div class="header-brand-sub">Cloze &amp; S&amp;T Hunter</div>
     </div>
-    <div class="tabnav">
-      <button class="tabnav-btn active" id="tab-practice" onclick="showTab('practice')">Practice</button>
-      <button class="tabnav-btn" id="tab-progress" onclick="showTab('progress')">Progress</button>
-      <button class="tabnav-btn" id="tab-mistakes" onclick="showTab('mistakes')">My Mistakes</button>
-      <button class="tabnav-btn" id="tab-ranks" onclick="showTab('ranks')">Ranks</button>
-      <button class="tabnav-btn" id="tab-account" onclick="showTab('account')">Account</button>
-      <button class="tabnav-btn admin-only" id="tab-admin" onclick="showTab('admin')">Admin</button>
+    <div class="topnav-right">
+      <span class="topnav-user" id="nav-user"></span>
+      <span class="admin-badge admin-only">Admin</span>
+      <button class="btn-logout" onclick="doLogout()">Sign out</button>
     </div>
+  </div>
+  <div class="tabnav">
+    <button class="tabnav-btn active" id="tab-practice" onclick="showTab('practice')">Practice</button>
+    <button class="tabnav-btn" id="tab-progress" onclick="showTab('progress')">Progress</button>
+    <button class="tabnav-btn" id="tab-mistakes" onclick="showTab('mistakes')">My Mistakes</button>
+    <button class="tabnav-btn" id="tab-ranks" onclick="showTab('ranks')">Ranks</button>
+    <button class="tabnav-btn" id="tab-account" onclick="showTab('account')">Account</button>
+    <button class="tabnav-btn admin-only" id="tab-admin" onclick="showTab('admin')">Admin</button>
   </div>
 
   <!-- PRACTICE TAB -->
@@ -362,14 +359,14 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 
   <!-- PROGRESS TAB -->
-  <div id="panel-progress" style="display:none;overflow-y:auto;padding:20px;height:calc(100vh - 95px);height:calc(100dvh - 95px);position:absolute;top:95px;left:0;right:0;bottom:0;">
+  <div id="panel-progress" style="display:none;padding:20px;max-width:640px;margin:0 auto;">
     <div style="max-width:600px;margin:0 auto;padding-bottom:40px;">
       <div id="progress-content">Loading…</div>
     </div>
   </div>
 
   <!-- MY MISTAKES TAB -->
-  <div id="panel-mistakes" style="display:none;overflow-y:auto;padding:20px;height:calc(100vh - 95px);height:calc(100dvh - 95px);position:absolute;top:95px;left:0;right:0;bottom:0;">
+  <div id="panel-mistakes" style="display:none;padding:20px;max-width:640px;margin:0 auto;">
     <div style="max-width:600px;margin:0 auto;padding-bottom:40px;">
       <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:6px;">My Mistakes</h2>
       <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;">Last 30 days · retype the answer to clear a mistake — get it right twice in a row to master it</div>
@@ -380,7 +377,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 
   <!-- RANKS TAB -->
-  <div id="panel-ranks" style="display:none;overflow-y:auto;padding:20px;height:calc(100vh - 95px);height:calc(100dvh - 95px);position:absolute;top:95px;left:0;right:0;bottom:0;">
+  <div id="panel-ranks" style="display:none;padding:20px;max-width:640px;margin:0 auto;">
     <div style="max-width:600px;margin:0 auto;padding-bottom:40px;">
       <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:6px;">🏆 Rankings</h2>
       <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;">Based on total questions attempted and accuracy — all-time</div>
@@ -389,7 +386,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 
   <!-- ACCOUNT TAB -->
-  <div id="panel-account" style="display:none;overflow-y:auto;padding:20px;height:calc(100vh - 95px);height:calc(100dvh - 95px);position:absolute;top:95px;left:0;right:0;bottom:0;">
+  <div id="panel-account" style="display:none;padding:20px;max-width:640px;margin:0 auto;">
     <div style="max-width:600px;margin:0 auto;padding-bottom:40px;">
       <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:18px;">Account</h2>
       <div id="account-info">Loading…</div>
@@ -406,7 +403,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 
   <!-- ADMIN TAB -->
-  <div id="panel-admin" style="display:none;overflow-y:auto;padding:0;height:calc(100vh - 95px);height:calc(100dvh - 95px);position:absolute;top:95px;left:0;right:0;bottom:0;">
+  <div id="panel-admin" style="display:none;padding:0;max-width:640px;margin:0 auto;">
     <div class="admin-panel">
       <div class="admin-section">
         <h3>➕ Add New Student</h3>
@@ -955,7 +952,7 @@ async function deleteStudent(username){
 function showTab(tab){
   document.querySelectorAll('.tabnav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
-  document.getElementById('panel-practice').style.display=tab==='practice'?'flex':'none';
+  document.getElementById('panel-practice').style.display=tab==='practice'?'block':'none';
   document.getElementById('panel-progress').style.display=tab==='progress'?'block':'none';
   document.getElementById('panel-mistakes').style.display=tab==='mistakes'?'block':'none';
   document.getElementById('panel-ranks').style.display=tab==='ranks'?'block':'none';
@@ -1403,7 +1400,7 @@ function addMessage(role,text){
   const div=document.createElement('div');div.className='msg '+role;
   const av=role==='ai'?'C':(currentUser?.display?.[0]?.toUpperCase()||'S');
   div.innerHTML=`<div class="msg-avatar">${av}</div><div class="msg-bubble">${formatMessage(text)}</div>`;
-  c.appendChild(div);c.scrollTop=c.scrollHeight;
+  c.appendChild(div);div.scrollIntoView({block:'end',behavior:'smooth'});
   if(role==='ai'){
     const bubble=div.querySelector('.msg-bubble');
     const hasSubmitText=bubble&&(bubble.textContent.includes('click Submit')||bubble.textContent.includes('Click Submit'));
