@@ -1191,7 +1191,7 @@ function formatAllSTQuestions(questions) {
     text += `**Question ${i+1}**${src}\n`;
     text += `§ORIG§**${q.original_sentence}**\n`;
     const starter = q.starter ? q.starter + ' ' : '';
-    const ending = q.ending ? ' ' + q.ending : '';
+    const ending = q.ending ? (/^[,.!?;:]/.test(q.ending) ? q.ending : ' ' + q.ending) : '';
     text += `§ST§${starter}____________________${ending}\n`;
   });
   return text.trim();
