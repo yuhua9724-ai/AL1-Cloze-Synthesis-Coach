@@ -54,7 +54,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 /* APP */
 #app-screen{flex-direction:column;min-height:100vh;display:flex;position:relative;}
-.topnav{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:linear-gradient(135deg,var(--gold-dim),var(--gold));position:sticky;top:0;z-index:100;}
+.app-header-group{position:sticky;top:0;z-index:100;}
+.topnav{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:linear-gradient(135deg,var(--gold-dim),var(--gold));}
 .topnav-brand{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600;color:#fff;letter-spacing:-0.3px;}
 .header-logo{font-family:'Black Han Sans','Arial Black',sans-serif;font-size:20px;font-weight:900;letter-spacing:-0.5px;display:inline-flex;align-items:center;gap:2px;}
 .header-logo .al-text{color:transparent;-webkit-text-stroke:1px rgba(196,181,253,0.75);filter:drop-shadow(0 0 3px rgba(139,92,246,0.5));}
@@ -68,7 +69,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 /* TABS */
 .tabnav{display:flex;background:var(--dark2);border-bottom:1px solid rgba(124,58,237,0.1);}
-.tabnav-btn{flex:1;padding:11px;font-size:13px;font-weight:500;color:var(--text-dim);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;}
+.tabnav-btn{flex:1;padding:11px;font-size:13px;font-weight:700;color:var(--text-dim);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;}
 .tabnav-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
 .admin-only{display:none;}
 
@@ -286,27 +287,30 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 <!-- APP -->
 <div id="app-screen" class="screen">
-  <div class="topnav">
-    <div>
-      <div class="header-logo"><span class="al-text">AL</span><span class="one-text">1</span></div>
-      <div class="header-brand-sub">Cloze &amp; S&amp;T Hunter</div>
+  <div class="app-header-group">
+    <div class="topnav">
+      <div>
+        <div class="header-logo"><span class="al-text">AL</span><span class="one-text">1</span></div>
+        <div class="header-brand-sub">Cloze &amp; S&amp;T Hunter</div>
+      </div>
+      <div class="topnav-right">
+        <span class="topnav-user" id="nav-user"></span>
+        <span class="admin-badge admin-only">Admin</span>
+        <button class="btn-logout" onclick="doLogout()">Sign out</button>
+      </div>
     </div>
-    <div class="topnav-right">
-      <span class="topnav-user" id="nav-user"></span>
-      <span class="admin-badge admin-only">Admin</span>
-      <button class="btn-logout" onclick="doLogout()">Sign out</button>
+    <div class="tabnav">
+      <button class="tabnav-btn active" id="tab-practice" onclick="showTab('practice')">Practice</button>
+      <button class="tabnav-btn" id="tab-progress" onclick="showTab('progress')">Progress</button>
+      <button class="tabnav-btn" id="tab-mistakes" onclick="showTab('mistakes')">My Mistakes</button>
+      <button class="tabnav-btn" id="tab-ranks" onclick="showTab('ranks')">Ranks</button>
+      <button class="tabnav-btn" id="tab-account" onclick="showTab('account')">Account</button>
+      <button class="tabnav-btn admin-only" id="tab-admin" onclick="showTab('admin')">Admin</button>
     </div>
-  </div>
-  <div class="tabnav">
-    <button class="tabnav-btn active" id="tab-practice" onclick="showTab('practice')">Practice</button>
-    <button class="tabnav-btn" id="tab-progress" onclick="showTab('progress')">Progress</button>
-    <button class="tabnav-btn" id="tab-mistakes" onclick="showTab('mistakes')">My Mistakes</button>
-    <button class="tabnav-btn" id="tab-ranks" onclick="showTab('ranks')">Ranks</button>
-    <button class="tabnav-btn" id="tab-account" onclick="showTab('account')">Account</button>
-    <button class="tabnav-btn admin-only" id="tab-admin" onclick="showTab('admin')">Admin</button>
   </div>
 
   <!-- PRACTICE TAB -->
+
   <div id="panel-practice" class="app-body-stacked">
     <div class="module-grid">
       <div class="module-card active" id="sb-cloze" onclick="selectTopic(this,'cloze')">
@@ -1616,4 +1620,3 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
-
