@@ -248,6 +248,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .st-input:focus{border-color:#5b21b6;box-shadow:0 0 0 3px rgba(124,58,237,0.15);}
 .st-input:disabled{opacity:0.6;background:#f5f3ff;}
 @media(max-width:600px){.st-input{max-width:100%;}}
+.st-submit-row{margin:6px 0 2px;}
+.st-submit-one{background:var(--gold);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;}
+.st-submit-one:disabled{opacity:0.5;cursor:not-allowed;}
+.st-feedback{font-size:14px;margin:4px 0 14px;line-height:1.6;}
+.st-feedback.correct{color:#16a34a;font-weight:600;}
+.st-feedback.wrong{color:#e05a5a;}
 
 /* MCQ clickable buttons */
 .mcq-btn{display:block;width:100%;text-align:left;background:#fff;border:1.5px solid rgba(124,58,237,0.2);border-radius:10px;padding:10px 14px;margin:5px 0;font-size:15px;color:#1a0a3d;cursor:pointer;transition:all 0.15s;font-family:'Outfit',sans-serif;}
@@ -1174,28 +1180,17 @@ function getUnusedQuestions(type, count) {
   return selected;
 }
 
-function formatOneSTQuestion(q, index) {
-  const src = q.source ? ` *(${q.source})*` : '';
-  let text = `**Question ${index+1}**${src}\n`;
-  text += `§ORIG§**${q.original_sentence}**\n`;
-  const starter = q.starter ? q.starter + ' ' : '';
-  const ending = q.ending ? ' ' + q.ending : '';
-  text += `§ST§${starter}____________________${ending}`;
-  return text;
-}
-
-function presentNextSTQuestion() {
-  if (!currentDBQuestions || stIndex >= currentDBQuestions.length) {
-    const msg = `**Set complete! Score: ${stCorrect}/${currentDBQuestions?.length || 0}** 🎉`;
-    addMessage('ai', msg);
-    chatHistory.push({role:'assistant', content: msg});
-    incrementProgress('synthesis', currentDBQuestions?.length || 0, stCorrect);
-    return;
-  }
-  const q = currentDBQuestions[stIndex];
-  const msgText = formatOneSTQuestion(q, stIndex);
-  addMessage('ai', msgText);
-  chatHistory.push({role:'assistant', content: msgText});
+function formatAllSTQuestions(questions) {
+  let text = '';
+  questions.forEach((q, i) => {
+    const src = q.source ? ` *(${q.source})*` : '';
+    text += `**Question ${i+1}**${src}\n`;
+    text += `§ORIG§**${q.original_sentence}**\n`;
+    const starter = q.starter ? q.starter + ' ' : '';
+    const ending = q.ending ? ' ' + q.ending : '';
+    text += `§ST§${starter}____________________${ending}\n\n`;
+  });
+  return text.trim();
 }
 
 function formatDBCloze(passage) {
@@ -1207,6 +1202,7 @@ let currentDBQuestions = null;
 let currentDBType = null;
 let stIndex = 0;
 let stCorrect = 0;
+let stSubmittedCount = 0;
 
 async function startDBSession(type) {
   await loadQuestionsFromDB(type);
@@ -1228,11 +1224,16 @@ async function startDBSession(type) {
     currentDBType = type;
     stIndex = 0;
     stCorrect = 0;
-    const greeting = `Hi ${currentUser?.display||'there'}! Ready to practise **Synthesis & Transformation**? Here are your 5 questions — one at a time! 💪`;
+    stSubmittedCount = 0;
+    const greeting = `Hi ${currentUser?.display||'there'}! Ready to practise **Synthesis & Transformation**? Here are your 5 questions — submit each one as you go! 💪`;
     addMessage('ai', greeting);
     chatHistory.push({role:'assistant', content: greeting});
+    const msgText = formatAllSTQuestions(qs);
     window._sessionRunning = false;
-    setTimeout(() => presentNextSTQuestion(), 300);
+    setTimeout(() => {
+      addMessage('ai', msgText);
+      chatHistory.push({role:'assistant', content: msgText});
+    }, 300);
     return true;
 
   } else if (type === 'cloze') {
@@ -1488,11 +1489,13 @@ function formatMessage(text){
     if(isSTLine || l.includes('&gt;&gt;INPUT&lt;&lt;')){
       blankIdx++;
       const stId=msgId+'-st-'+blankIdx;
+      const qIdx=blankIdx-1;
       l=l.replace(/_{2,}/g,'<input class="st-input" type="text" placeholder="Type your answer here..." id="'+stId+'" data-stblank="'+blankIdx+'"/>');
       l=l.replace('&gt;&gt;INPUT&lt;&lt;','<input class="st-input" type="text" placeholder="Type your answer here..." id="'+stId+'" data-stblank="'+blankIdx+'"/>');
       if(!l.includes('st-input')){
         l=l+'<input class="st-input" type="text" placeholder="Type your answer here..." id="'+stId+'" data-stblank="'+blankIdx+'"/>';
       }
+      l+='<div class="st-submit-row"><button class="st-submit-one" data-qidx="'+qIdx+'" data-stid="'+stId+'" onclick="submitOneST(this)">Submit</button></div><div class="st-feedback" id="stfeedback-'+stId+'"></div>';
     }
     if(!clozeSubmitted)l=l.replace(/\((\d{1,2})\)\s*_{2,}/g,(m,n)=>{blankIdx++;return'<input class="fill-blank" type="text" placeholder="'+n+'" data-blank="'+n+'" id="'+msgId+'-'+blankIdx+'" oninput="autoExpandBlank(this)"\/>';});
     if(!clozeSubmitted)l=l.replace(/\((\d{1,2})\)/g,(m,n)=>{blankIdx++;return'<input class="fill-blank" type="text" placeholder="'+n+'" data-blank="'+n+'" id="'+msgId+'-'+blankIdx+'" oninput="autoExpandBlank(this)"\/>';});
@@ -1501,11 +1504,9 @@ function formatMessage(text){
   });
   let result=out.join('<br>');
   const hasSTInputs=(result.match(/class="st-input"/g)||[]).length>0;
-  if(hasSTInputs){
-    result+='<br><button class="submit-answers-btn st-submit" data-msgid="'+msgId+'" onclick="submitST(this)">Submit</button>';
-  } else if(hasMCQ){
+  if(hasMCQ){
     result+='<br><button class="mcq-submit submit-answers-btn" data-msgid="'+msgId+'">Submit Answers</button>';
-  } else if(blankIdx>0){
+  } else if(!hasSTInputs && blankIdx>0){
     result+='<br><button class="submit-answers-btn" data-msgid="'+msgId+'" data-blanks="'+blankIdx+'" onclick="submitBlanks(this)">Submit Answers</button>';
   }
   return result;
@@ -1534,28 +1535,34 @@ document.addEventListener('click', function(e){
   }
 });
 
-function submitST(btn){
-  const bubble=btn.closest('.msg-bubble');
-  const input=bubble.querySelector('.st-input');
+function submitOneST(btn){
+  const qIdx=parseInt(btn.getAttribute('data-qidx'));
+  const stId=btn.getAttribute('data-stid');
+  const input=document.getElementById(stId);
   const studentAns=(input.value||'').trim();
   input.disabled=true;
   btn.disabled=true;
 
-  const q = currentDBQuestions[stIndex];
-  const ok = isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
-  let feedback;
-  if (ok) {
+  const q=currentDBQuestions[qIdx];
+  const ok=isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
+  const fb=document.getElementById('stfeedback-'+stId);
+  if(ok){
     stCorrect++;
-    feedback = `✅ Correct!`;
-  } else {
+    fb.innerHTML='✅ Correct!';
+    fb.className='st-feedback correct';
+  }else{
     saveWrongQuestion(q.original_sentence, q.model_answer, studentAns, 'synthesis', null);
-    feedback = `❌ Your answer: ${studentAns || '(blank)'}\nModel answer: ${q.model_answer}${q.explanation ? '\n' + q.explanation : ''}`;
+    fb.innerHTML=`❌ Model answer: ${q.model_answer}${q.explanation?'<br>'+q.explanation:''}`;
+    fb.className='st-feedback wrong';
   }
-  addMessage('ai', feedback);
-  chatHistory.push({role:'assistant', content: feedback});
 
-  stIndex++;
-  setTimeout(() => presentNextSTQuestion(), 500);
+  stSubmittedCount++;
+  if(stSubmittedCount>=currentDBQuestions.length){
+    const msg=`**Set complete! Score: ${stCorrect}/${currentDBQuestions.length}** 🎉`;
+    addMessage('ai', msg);
+    chatHistory.push({role:'assistant', content: msg});
+    incrementProgress('synthesis', currentDBQuestions.length, stCorrect);
+  }
 }
 
 function autoExpandBlank(input){input.style.width=Math.max(75,input.value.length*10+20)+'px';}
