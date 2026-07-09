@@ -251,7 +251,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .st-submit-row{margin:6px 0 2px;}
 .st-submit-one{background:var(--gold);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;}
 .st-submit-one:disabled{opacity:0.5;cursor:not-allowed;}
-.st-feedback{font-size:14px;margin:4px 0 14px;line-height:1.6;}
+.st-feedback{font-size:14px;margin:4px 0;line-height:1.6;}
+.st-feedback:empty{margin:0;}
 .st-feedback.correct{color:#16a34a;font-weight:600;}
 .st-feedback.wrong{color:#e05a5a;}
 
@@ -1188,7 +1189,7 @@ function formatAllSTQuestions(questions) {
     text += `§ORIG§**${q.original_sentence}**\n`;
     const starter = q.starter ? q.starter + ' ' : '';
     const ending = q.ending ? ' ' + q.ending : '';
-    text += `§ST§${starter}____________________${ending}\n\n`;
+    text += `§ST§${starter}____________________${ending}\n`;
   });
   return text.trim();
 }
