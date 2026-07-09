@@ -110,7 +110,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .msg.ai .msg-bubble{border:1px solid rgba(201,168,76,0.08);}
 .msg-bubble p{margin-bottom:7px;}.msg-bubble p:last-child{margin-bottom:0;}
 .msg-bubble strong{color:#5b21b6;font-weight:600;}
-.st-original-line{margin:0 0 2px;}
+.q-header{color:#5b21b6;font-weight:700;margin:14px 0 4px;}
+.q-header:first-child{margin-top:0;}
+.st-original-line{margin:0 0 8px;}
+.st-answer-block{margin:0 0 16px;}
 .fill-blank{background:#ffffff;border:1.5px solid rgba(124,58,237,0.35);border-radius:8px;padding:5px 10px;color:#1a0a3d;font-size:16px;font-weight:600;outline:none;min-width:80px;width:80px;transition:all 0.2s;}
 .fill-blank:focus{border-color:#5b21b6;box-shadow:0 0 0 3px rgba(124,58,237,0.15);}
 .fill-blank:disabled{opacity:0.5;cursor:not-allowed;}
@@ -1476,7 +1479,7 @@ function formatMessage(text){
     const isOrigLine = line.startsWith('§ORIG§');
     if(isOrigLine) line = line.slice(6);
     const qm=line.match(/^\*\*Question\s*(\d+)\*\*(.*)/);
-    if(qm){currentQ=parseInt(qm[1]);return '<strong class="q-header">Question '+qm[1]+(qm[2]||'')+'</strong>';}
+    if(qm){currentQ=parseInt(qm[1]);return '<div class="q-header">Question '+qm[1]+(qm[2]||'')+'</div>';}
     const om=line.match(/^\[([ABCD])\]\s*(.+)/) || line.match(/^([ABCD])\.\s+(.+)/);
     if(om){
       hasMCQ=true;
@@ -1497,6 +1500,7 @@ function formatMessage(text){
         l=l+'<input class="st-input" type="text" placeholder="Type your answer here..." id="'+stId+'" data-stblank="'+blankIdx+'"/>';
       }
       l+='<div class="st-submit-row"><button class="st-submit-one" data-qidx="'+qIdx+'" data-stid="'+stId+'" onclick="submitOneST(this)">Submit</button></div><div class="st-feedback" id="stfeedback-'+stId+'"></div>';
+      l='<div class="st-answer-block">'+l+'</div>';
     }
     if(!clozeSubmitted)l=l.replace(/\((\d{1,2})\)\s*_{2,}/g,(m,n)=>{blankIdx++;return'<input class="fill-blank" type="text" placeholder="'+n+'" data-blank="'+n+'" id="'+msgId+'-'+blankIdx+'" oninput="autoExpandBlank(this)"\/>';});
     if(!clozeSubmitted)l=l.replace(/\((\d{1,2})\)/g,(m,n)=>{blankIdx++;return'<input class="fill-blank" type="text" placeholder="'+n+'" data-blank="'+n+'" id="'+msgId+'-'+blankIdx+'" oninput="autoExpandBlank(this)"\/>';});
@@ -1504,6 +1508,7 @@ function formatMessage(text){
     return l;
   });
   let result=out.join('<br>');
+  result=result.replace(/<br>\s*(<div)/g,'$1').replace(/(<\/div>)\s*<br>/g,'$1');
   const hasSTInputs=(result.match(/class="st-input"/g)||[]).length>0;
   if(hasMCQ){
     result+='<br><button class="mcq-submit submit-answers-btn" data-msgid="'+msgId+'">Submit Answers</button>';
