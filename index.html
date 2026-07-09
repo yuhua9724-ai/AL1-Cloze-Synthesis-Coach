@@ -412,6 +412,7 @@ async function sbFetch(path,opts={}){
   });
   if(res.status===204)return null;
   const text=await res.text();
+  if(!text){ if(res.ok)return null; throw new Error(res.statusText||'Empty error response'); }
   let data;
   try{data=JSON.parse(text);}catch(e){throw new Error('Invalid response: '+text.slice(0,100));}
   if(!res.ok)throw new Error(data.message||data.error||data.hint||res.statusText);
@@ -1324,7 +1325,7 @@ function submitST(btn){
   const bubble=btn.closest('.msg-bubble');
   const inputs=[...bubble.querySelectorAll('.st-input')];
   const answers=inputs.map((inp,i)=>{
-    const val=inp.value.trim()||'[blank]';
+    const val=inp.value.trim();
     inp.disabled=true;
     return 'Q'+(i+1)+': '+val;
   }).join('\n');
@@ -1340,7 +1341,7 @@ function submitBlanks(submitEl){
   const bubble=submitEl.closest('.msg-bubble');
   for(let i=1;i<=count;i++){
     const el=document.getElementById(msgId+'-'+i);
-    if(el){answers.push(`(${el.getAttribute('data-blank')}) ${el.value||'[blank]'}`);el.disabled=true;el.style.opacity='0.4';}
+    if(el){answers.push(`(${el.getAttribute('data-blank')}) ${el.value.trim()}`);el.disabled=true;el.style.opacity='0.4';}
   }
   submitEl.style.display='none';
   clozeSubmitted=true;
