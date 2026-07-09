@@ -356,7 +356,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         </div>
         <div class="chat-messages" id="chat-messages"></div>
         <div class="thinking" id="thinking">AL1 Coach is thinking…</div>
-        <div class="chat-input-area">
+        <div class="chat-input-area" id="chat-input-area">
           <textarea id="chat-input" rows="1" placeholder="Type your answer here…" oninput="autoGrow(this)" onkeydown="handleKey(event)"></textarea>
           <button class="btn-send" id="btn-send" onclick="sendMessage()">
             <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
@@ -1208,6 +1208,11 @@ let stIndex = 0;
 let stCorrect = 0;
 let stSubmittedCount = 0;
 
+function setChatInputVisible(visible){
+  const el=document.getElementById('chat-input-area');
+  if(el) el.style.display=visible?'flex':'none';
+}
+
 async function startDBSession(type) {
   await loadQuestionsFromDB(type);
 
@@ -1229,6 +1234,7 @@ async function startDBSession(type) {
     stIndex = 0;
     stCorrect = 0;
     stSubmittedCount = 0;
+    setChatInputVisible(false);
     const greeting = `Hi ${currentUser?.display||'there'}! Ready to practise **Synthesis & Transformation**? Here are your 5 questions — submit each one as you go! 💪`;
     addMessage('ai', greeting);
     chatHistory.push({role:'assistant', content: greeting});
@@ -1248,6 +1254,7 @@ async function startDBSession(type) {
     }
     currentDBQuestions = passages[0];
     currentDBType = type;
+    setChatInputVisible(false);
     msgText = formatDBCloze(passages[0]);
     const greeting = `Hi ${currentUser?.display||'there'}! Ready for **Comprehension Cloze**? Here is your passage! 💪`;
     addMessage('ai', greeting);
@@ -1395,6 +1402,7 @@ async function startSession(){
   if (target && doneToday >= target) {
     document.getElementById('chat-messages').innerHTML='';
     chatHistory=[];
+    setChatInputVisible(true);
     const limitMsg = `🎉 You've reached today's limit of ${target} for **${TOPIC_LABELS[currentTopic]}** (${doneToday}/${target} done). Come back tomorrow for more, or check your other mistakes in **My Mistakes**!`;
     addMessage('ai', limitMsg);
     chatHistory.push({role:'assistant', content: limitMsg});
@@ -1412,6 +1420,7 @@ async function startSession(){
     // DB empty — show message then fall through to API
     document.getElementById('chat-messages').innerHTML='';
     chatHistory=[];
+    setChatInputVisible(true);
     const noDBMsg = `Hi ${currentUser?.display||'there'}! The question bank is being updated. Starting an AI-generated session instead. 🔄`;
     addMessage('ai', noDBMsg);
     chatHistory.push({role:'assistant', content: noDBMsg});
