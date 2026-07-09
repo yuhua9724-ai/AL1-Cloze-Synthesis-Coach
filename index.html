@@ -438,7 +438,7 @@ async function doLogin(){
   document.getElementById('login-loading').style.display='block';
   document.getElementById('btn-login').disabled=true;
   try{
-    const rows=await sbFetch(`username?username=eq.${encodeURIComponent(u)}&password=eq.${encodeURIComponent(p)}&select=*`);
+    const rows=await sbFetch(`cloze_users?username=eq.${encodeURIComponent(u)}&password=eq.${encodeURIComponent(p)}&select=*`);
     if(!rows||rows.length===0){showLoginError('Incorrect username or password. Please try again.');return;}
     const user=rows[0];
     if(user.role !== 'admin') {
@@ -455,7 +455,7 @@ async function doLogin(){
     sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
     sessionStorage.setItem('cal1_token', sessionToken);
     try{
-      await sbFetch(`username?username=eq.${encodeURIComponent(user.username)}`,
+      await sbFetch(`cloze_users?username=eq.${encodeURIComponent(user.username)}`,
         {method:'PATCH',prefer:'return=minimal',body:{session_token:sessionToken}});
     }catch(e){console.warn('Token update failed',e);}
     enterApp();
@@ -472,7 +472,7 @@ async function enterApp(){
   window._sessionCheck = setInterval(async()=>{
     if(!currentUser) return;
     try{
-      const rows = await sbFetch(`username?username=eq.${encodeURIComponent(currentUser.username)}&select=session_token`);
+      const rows = await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}&select=session_token`);
       if(rows && rows[0] && rows[0].session_token !== currentUser.sessionToken){
         clearInterval(window._sessionCheck);
         alert('Your account has been logged in from another device. You have been signed out.');
@@ -513,7 +513,7 @@ async function changePassword(){
   if(nw!==cf){showToast('❌ New passwords do not match.');return;}
   if(nw.length<4){showToast('⚠️ Password must be at least 4 characters.');return;}
   try{
-    await sbFetch(`username?username=eq.${encodeURIComponent(currentUser.username)}`,{method:'PATCH',prefer:'return=minimal',body:{password:nw}});
+    await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}`,{method:'PATCH',prefer:'return=minimal',body:{password:nw}});
     currentUser.password=nw;
     sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
     document.getElementById('pw-current').value='';
@@ -533,7 +533,7 @@ const TODAY=new Date().toISOString().split('T')[0];
 async function loadDailyProgress(){
   if(!currentUser)return;
   try{
-    const rows=await sbFetch(`daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&date=eq.${TODAY}&select=*`);
+    const rows=await sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&date=eq.${TODAY}&select=*`);
     if(rows&&rows.length>0)todayProgress=rows[0];
     else todayProgress={cloze_done:0,synthesis_done:0,weak_cloze:'',weak_synthesis:''};
     updateProgressBars();
@@ -544,11 +544,11 @@ async function loadDailyProgress(){
 async function saveDailyProgress(){
   if(!currentUser)return;
   try{
-    const rows=await sbFetch(`daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&date=eq.${TODAY}&select=id`);
+    const rows=await sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&date=eq.${TODAY}&select=id`);
     if(rows&&rows.length>0){
-      await sbFetch(`daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&date=eq.${TODAY}`,{method:'PATCH',prefer:'return=minimal',body:todayProgress});
+      await sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&date=eq.${TODAY}`,{method:'PATCH',prefer:'return=minimal',body:todayProgress});
     }else{
-      await sbFetch('daily_progress',{method:'POST',prefer:'return=minimal',body:{...todayProgress,username:currentUser.username,date:TODAY}});
+      await sbFetch('cloze_daily_progress',{method:'POST',prefer:'return=minimal',body:{...todayProgress,username:currentUser.username,date:TODAY}});
     }
     updateProgressBars();
     updateWeakness();
@@ -573,13 +573,17 @@ function updateProgressBars(){
   });
 }
 
-function incrementProgress(topic){
+function incrementProgress(topic, attempted, correctCount){
   const key=topic+'_done';
   const target=DAILY_TARGETS[topic]||5;
   if((todayProgress[key]||0)<target*2){
     todayProgress[key]=(todayProgress[key]||0)+1;
-    saveDailyProgress();
   }
+  if(attempted){
+    todayProgress[topic+'_attempted']=(todayProgress[topic+'_attempted']||0)+attempted;
+    todayProgress[topic+'_correct']=(todayProgress[topic+'_correct']||0)+(correctCount||0);
+  }
+  saveDailyProgress();
 }
 
 function addWeakness(topic,item){
@@ -691,7 +695,7 @@ async function loadProgressPage(){
   const el=document.getElementById('progress-content');
   el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">Loading…</p>';
   try{
-    const rows=await sbFetch(`daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&order=date.desc&limit=7&select=*`);
+    const rows=await sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&order=date.desc&limit=7&select=*`);
     if(!rows||rows.length===0){el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">No practice records yet. Start practising!</p>';return;}
     const start=currentUser.start_date||currentUser.created_at?.split('T')[0]||'—';
     const end=currentUser.expiry||'—';
@@ -734,7 +738,7 @@ async function loadStudentList(){
   const list=document.getElementById('users-list');
   list.innerHTML='<p style="font-size:13px;color:var(--text-dim);">Loading…</p>';
   try{
-    const rows=await sbFetch('username?role=eq.student&select=*&order=display.asc');
+    const rows=await sbFetch('cloze_users?role=eq.student&select=*&order=display.asc');
     if(!rows||rows.length===0){list.innerHTML='<p style="font-size:13px;color:var(--text-dim);">No students yet.</p>';return;}
     list.innerHTML=rows.map(u=>{
       const days=u.expiry?Math.ceil((new Date(u.expiry)-new Date())/86400000):null;
@@ -760,7 +764,7 @@ async function addStudent(){
   const btn=document.getElementById('btn-create');
   btn.disabled=true;btn.textContent='Creating…';
   try{
-    await sbFetch('username',{method:'POST',prefer:'return=minimal',body:{username,password,display,level,role:'student',start_date:start_date||null,expiry:expiry||null}});
+    await sbFetch('cloze_users',{method:'POST',prefer:'return=minimal',body:{username,password,display,level,role:'student',start_date:start_date||null,expiry:expiry||null}});
     ['new-user','new-pass','new-display','new-start','new-end'].forEach(id=>document.getElementById(id).value='');
     showToast(`✅ Account created for ${display}!`);
     loadStudentList();
@@ -772,7 +776,7 @@ async function addStudent(){
 async function deleteStudent(username){
   if(!confirm(`Remove @${username}? Cannot be undone.`))return;
   try{
-    await sbFetch(`username?username=eq.${encodeURIComponent(username)}`,{method:'DELETE',prefer:'return=minimal'});
+    await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}`,{method:'DELETE',prefer:'return=minimal'});
     showToast('🗑 Account removed.');loadStudentList();
   }catch(e){showToast('❌ Error: '+e.message);}
 }
@@ -1110,10 +1114,11 @@ async function markDBAnswers(studentAnswer, type) {
       const studentAns = studentMap[qNum] || '';
       const ok = isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
       if (ok) { correct++; return `Q${qNum}: ✅ ${studentAns}`; }
+      saveWrongQuestion(q.original_sentence || `Synthesis Q${qNum}`, q.model_answer, studentAns, 'synthesis', null);
       return `Q${qNum}: ❌ Your answer: ${studentAns || '(blank)'}\nModel answer: ${q.model_answer}${q.explanation ? '\n' + q.explanation : ''}`;
     });
     reply = `**Score: ${correct}/${qs.length}**\n\n${lines.join('\n\n')}`;
-    incrementProgress(type);
+    incrementProgress(type, qs.length, correct);
 
   } else if (type === 'cloze') {
     const p = currentDBQuestions;
@@ -1127,10 +1132,11 @@ async function markDBAnswers(studentAnswer, type) {
       const ok = isAnswerCorrect(studentAns, answers[k]);
       if (ok) { correct++; return `(${k}) ✅ ${studentAns}`; }
       const correctDisplay = toAnswerList(answers[k])[0] || answers[k];
+      saveWrongQuestion(`${p.title} — blank (${k})`, correctDisplay, studentAns, 'cloze', null);
       return `(${k}) ❌ Your answer: ${studentAns || '(blank)'} → Correct: ${correctDisplay}${explanations[k] ? '\n   ' + explanations[k] : ''}`;
     });
     reply = `**Score: ${correct}/${keys.length}**\n\n${lines.join('\n')}`;
-    incrementProgress(type);
+    incrementProgress(type, keys.length, correct);
     if (p.id) {
       try {
         const cur = p.used_count || 0;
