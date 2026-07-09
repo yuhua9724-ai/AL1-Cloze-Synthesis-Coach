@@ -1002,7 +1002,8 @@ function getUnusedQuestions(type, count) {
 function formatDBSynthesis(questions) {
   let text = '';
   questions.forEach((q, i) => {
-    text += `**Question ${i+1}**\n`;
+    const src = q.source ? ` *(${q.source})*` : '';
+    text += `**Question ${i+1}**${src}\n`;
     text += `Original: ${q.original_sentence}\n`;
     text += `Rewrite using: ${q.keyword}\n`;
     text += `Begin with: ${q.starter} ____________________\n\n`;
@@ -1012,7 +1013,8 @@ function formatDBSynthesis(questions) {
 }
 
 function formatDBCloze(passage) {
-  return `### Passage: ${passage.title}\n\n${passage.passage}\n\nFill in all 15 blanks then click Submit Answers.`;
+  const src = passage.source ? ` *(${passage.source})*` : '';
+  return `### Passage: ${passage.title}${src}\n\n${passage.passage}\n\nFill in all 15 blanks then click Submit Answers.`;
 }
 
 let currentDBQuestions = null;
