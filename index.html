@@ -1330,7 +1330,7 @@ function submitST(btn){
     return 'Q'+(i+1)+': '+val;
   }).join('\n');
   btn.disabled=true;
-  sendWithText('My answers:\n'+answers);
+  sendWithText('My answers:\n'+answers,'✅ Submitted my answers for all 5 questions.');
 }
 
 function autoExpandBlank(input){input.style.width=Math.max(75,input.value.length*10+20)+'px';}
@@ -1345,7 +1345,7 @@ function submitBlanks(submitEl){
   }
   submitEl.style.display='none';
   clozeSubmitted=true;
-  sendWithText('My answers:\n'+answers.join('\n'));
+  sendWithText('My answers:\n'+answers.join('\n'),`✅ Submitted all ${count} blanks.`);
 }
 
 function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
@@ -1359,8 +1359,8 @@ function sendMessage(){
   sendWithText(text);
 }
 
-async function sendWithText(text){
-  addMessage('user',text);
+async function sendWithText(text,displayText){
+  addMessage('user',displayText||text);
   chatHistory.push({role:'user',content:text});
 
   if (currentDBQuestions && currentDBType) {
