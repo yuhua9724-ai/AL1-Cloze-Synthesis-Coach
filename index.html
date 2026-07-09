@@ -102,17 +102,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .chat-header h2{font-size:16px;font-weight:600;color:var(--text);}
 .btn-new-session{background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.2);color:var(--gold);font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;}
 .chat-messages{padding:14px;display:flex;flex-direction:column;gap:12px;min-height:200px;}
-.msg{display:flex;gap:8px;max-width:90%;}
+.msg{display:flex;max-width:100%;}
 .msg.ai{align-self:flex-start;}
-.msg.user{align-self:flex-end;flex-direction:row-reverse;}
-.msg-avatar{width:28px;height:28px;min-width:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;}
-.msg.ai .msg-avatar{background:rgba(201,168,76,0.15);color:var(--gold);border:1px solid rgba(201,168,76,0.25);}
-.msg.user .msg-avatar{background:rgba(90,158,224,0.15);color:var(--blue);border:1px solid rgba(90,158,224,0.25);}
-.msg-bubble{background:#f8f7fc;border-radius:14px;padding:14px 18px;font-size:16px;line-height:1.75;color:#1a0a3d;}
+.msg.user{align-self:flex-end;}
+.msg-bubble{flex:1;background:#f8f7fc;border-radius:14px;padding:14px 18px;font-size:16px;line-height:1.75;color:#1a0a3d;}
 .msg.user .msg-bubble{background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.12);}
 .msg.ai .msg-bubble{border:1px solid rgba(201,168,76,0.08);}
 .msg-bubble p{margin-bottom:7px;}.msg-bubble p:last-child{margin-bottom:0;}
 .msg-bubble strong{color:#5b21b6;font-weight:600;}
+.st-original-line{margin:6px 0 20px;}
 .fill-blank{background:#ffffff;border:1.5px solid rgba(124,58,237,0.35);border-radius:8px;padding:5px 10px;color:#1a0a3d;font-size:16px;font-weight:600;outline:none;min-width:80px;width:80px;transition:all 0.2s;}
 .fill-blank:focus{border-color:#5b21b6;box-shadow:0 0 0 3px rgba(124,58,237,0.15);}
 .fill-blank:disabled{opacity:0.5;cursor:not-allowed;}
@@ -138,7 +136,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .wrong-card-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
 .wrong-card-type{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold);background:rgba(201,168,76,0.1);padding:3px 8px;border-radius:4px;}
 .wrong-card-date{font-size:11px;color:var(--text-dim);}
-.wrong-card-q{font-size:14px;color:var(--text);margin-bottom:10px;line-height:1.6;}
+.wrong-card-q{font-size:14px;color:var(--text);margin-bottom:10px;line-height:2.2;}
+.wrong-inline-blank{margin:0 4px;}
 .wrong-card-answers{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
 .wrong-card-correct{background:rgba(22,163,74,0.1);border:1px solid rgba(22,163,74,0.3);color:#16a34a;font-size:12px;padding:4px 10px;border-radius:6px;}
 .wrong-card-user{background:rgba(224,90,90,0.1);border:1px solid rgba(224,90,90,0.3);color:#e05a5a;font-size:12px;padding:4px 10px;border-radius:6px;}
@@ -218,9 +217,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   .chat-header{padding:10px 14px;}
   .chat-header h2{font-size:15px;}
   .chat-messages{padding:12px;}
-  .msg{max-width:95%;}
+  .msg{max-width:100%;}
   .msg-bubble{font-size:15px;padding:11px 14px;}
-  .msg-avatar{width:26px;height:26px;min-width:26px;font-size:10px;}
   .chat-input-area{padding:8px 12px;}
   .chat-input-area textarea{font-size:16px;padding:9px 12px;}
   .btn-send{width:36px;height:36px;}
@@ -683,12 +681,19 @@ async function loadWrongBank() {
 function renderWrongCard(q) {
   const opts = q.options ? JSON.parse(typeof q.options === 'string' ? q.options : JSON.stringify(q.options)) : null;
   const streak = q.correct_streak || 0;
-  let bodyHtml;
+  let questionHtml, bodyHtml;
   if (opts) {
+    questionHtml = q.question_text;
     bodyHtml = `<div class="wrong-card-options">${Object.entries(opts).map(([k,v]) =>
       `<button class="wrong-option-btn" data-id="${q.id}" data-answer="${k}" data-correct="${q.correct_answer}" onclick="tryWrongAnswer(this)">${k}. ${v}</button>`
     ).join('')}</div>`;
+  } else if (q.question_type === 'cloze' && /\(\d{1,2}\)\s*_{2,}/.test(q.question_text || '')) {
+    const escaped = (q.question_text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    questionHtml = escaped.replace(/\((\d{1,2})\)\s*_{2,}/, `<input type="text" class="fill-blank wrong-inline-blank" id="wretry-${q.id}" onkeydown="if(event.key==='Enter')tryWrongFillIn('${q.id}','${(q.correct_answer||'').replace(/'/g,"\\'")}')"/>`);
+    bodyHtml = `<button class="wrong-retry-btn" onclick="tryWrongFillIn('${q.id}','${(q.correct_answer||'').replace(/'/g,"\\'")}')">Check</button>
+    <div class="wrong-retry-feedback" id="wfeedback-${q.id}"></div>`;
   } else {
+    questionHtml = q.question_text;
     bodyHtml = `<div class="wrong-retry-row">
       <input type="text" class="wrong-retry-input" id="wretry-${q.id}" placeholder="Type your answer…" onkeydown="if(event.key==='Enter')tryWrongFillIn('${q.id}','${(q.correct_answer||'').replace(/'/g,"\\'")}')"/>
       <button class="wrong-retry-btn" onclick="tryWrongFillIn('${q.id}','${(q.correct_answer||'').replace(/'/g,"\\'")}')">Check</button>
@@ -700,7 +705,7 @@ function renderWrongCard(q) {
       <span class="wrong-card-type">${q.question_type}</span>
       <span class="wrong-card-date">${q.wrong_date}</span>
     </div>
-    <div class="wrong-card-q">${q.question_text}</div>
+    <div class="wrong-card-q">${questionHtml}</div>
     ${bodyHtml}
     <div class="wrong-card-footer">
       <span class="wrong-streak">Streak: <b>${streak}/2</b> correct needed</span>
@@ -1169,18 +1174,28 @@ function getUnusedQuestions(type, count) {
   return selected;
 }
 
-function formatDBSynthesis(questions) {
-  let text = '';
-  questions.forEach((q, i) => {
-    const src = q.source ? ` *(${q.source})*` : '';
-    text += `**Question ${i+1}**${src}\n`;
-    text += `${q.original_sentence}\n`;
-    const starter = q.starter ? q.starter + ' ' : '';
-    const ending = q.ending ? ' ' + q.ending : '';
-    text += `§ST§${starter}____________________${ending}\n\n`;
-  });
-  text += 'Fill in all 5 answers then click **Submit**.';
+function formatOneSTQuestion(q, index) {
+  const src = q.source ? ` *(${q.source})*` : '';
+  let text = `**Question ${index+1}**${src}\n`;
+  text += `§ORIG§**${q.original_sentence}**\n`;
+  const starter = q.starter ? q.starter + ' ' : '';
+  const ending = q.ending ? ' ' + q.ending : '';
+  text += `§ST§${starter}____________________${ending}`;
   return text;
+}
+
+function presentNextSTQuestion() {
+  if (!currentDBQuestions || stIndex >= currentDBQuestions.length) {
+    const msg = `**Set complete! Score: ${stCorrect}/${currentDBQuestions?.length || 0}** 🎉`;
+    addMessage('ai', msg);
+    chatHistory.push({role:'assistant', content: msg});
+    incrementProgress('synthesis', currentDBQuestions?.length || 0, stCorrect);
+    return;
+  }
+  const q = currentDBQuestions[stIndex];
+  const msgText = formatOneSTQuestion(q, stIndex);
+  addMessage('ai', msgText);
+  chatHistory.push({role:'assistant', content: msgText});
 }
 
 function formatDBCloze(passage) {
@@ -1190,6 +1205,8 @@ function formatDBCloze(passage) {
 
 let currentDBQuestions = null;
 let currentDBType = null;
+let stIndex = 0;
+let stCorrect = 0;
 
 async function startDBSession(type) {
   await loadQuestionsFromDB(type);
@@ -1209,10 +1226,14 @@ async function startDBSession(type) {
     const qs = getUnusedQuestions(type, 5);
     currentDBQuestions = qs;
     currentDBType = type;
-    msgText = formatDBSynthesis(qs);
-    const greeting = `Hi ${currentUser?.display||'there'}! Ready to practise **Synthesis & Transformation**? Here are your 5 questions! 💪`;
+    stIndex = 0;
+    stCorrect = 0;
+    const greeting = `Hi ${currentUser?.display||'there'}! Ready to practise **Synthesis & Transformation**? Here are your 5 questions — one at a time! 💪`;
     addMessage('ai', greeting);
     chatHistory.push({role:'assistant', content: greeting});
+    window._sessionRunning = false;
+    setTimeout(() => presentNextSTQuestion(), 300);
+    return true;
 
   } else if (type === 'cloze') {
     const passages = getUnusedQuestions(type, 1);
@@ -1269,6 +1290,14 @@ function parseNumberedAnswers(text, pattern) {
   return map;
 }
 
+function extractSentenceForBlank(passage, blankNum) {
+  if (!passage) return `Blank (${blankNum})`;
+  const sentences = passage.match(/[^.!?]*[.!?]+/g) || [passage];
+  const marker = `(${blankNum})`;
+  const found = sentences.find(s => s.includes(marker));
+  return (found || passage).trim().replace(/\s+/g, ' ');
+}
+
 async function markDBAnswers(studentAnswer, type) {
   if (!currentDBQuestions) return false;
 
@@ -1306,7 +1335,7 @@ async function markDBAnswers(studentAnswer, type) {
       const ok = isAnswerCorrect(studentAns, answers[k]);
       if (ok) { correct++; return `(${k}) ✅ ${studentAns}`; }
       const correctDisplay = toAnswerList(answers[k])[0] || answers[k];
-      saveWrongQuestion(`${p.title} — blank (${k})`, correctDisplay, studentAns, 'cloze', null);
+      saveWrongQuestion(extractSentenceForBlank(p.passage, k), correctDisplay, studentAns, 'cloze', null);
       return `(${k}) ❌ Your answer: ${studentAns || '(blank)'} → Correct: ${correctDisplay}${explanations[k] ? '\n   ' + explanations[k] : ''}`;
     });
     reply = `**Score: ${correct}/${keys.length}**\n\n${lines.join('\n')}`;
@@ -1398,8 +1427,7 @@ async function startSession(){
 function addMessage(role,text){
   const c=document.getElementById('chat-messages');
   const div=document.createElement('div');div.className='msg '+role;
-  const av=role==='ai'?'C':(currentUser?.display?.[0]?.toUpperCase()||'S');
-  div.innerHTML=`<div class="msg-avatar">${av}</div><div class="msg-bubble">${formatMessage(text)}</div>`;
+  div.innerHTML=`<div class="msg-bubble">${formatMessage(text)}</div>`;
   c.appendChild(div);div.scrollIntoView({block:'end',behavior:'smooth'});
   if(role==='ai'){
     const bubble=div.querySelector('.msg-bubble');
@@ -1443,6 +1471,8 @@ function formatMessage(text){
   const out=lines.map(line=>{
     const isSTLine = line.startsWith('§ST§');
     if(isSTLine) line = line.slice(4);
+    const isOrigLine = line.startsWith('§ORIG§');
+    if(isOrigLine) line = line.slice(6);
     const qm=line.match(/^\*\*Question\s*(\d+)\*\*(.*)/);
     if(qm){currentQ=parseInt(qm[1]);return '<strong class="q-header">Question '+qm[1]+(qm[2]||'')+'</strong>';}
     const om=line.match(/^\[([ABCD])\]\s*(.+)/) || line.match(/^([ABCD])\.\s+(.+)/);
@@ -1454,6 +1484,7 @@ function formatMessage(text){
     }
     let l=line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     l=l.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>');
+    if(isOrigLine) return '<div class="st-original-line">'+l+'</div>';
     if(isSTLine || l.includes('&gt;&gt;INPUT&lt;&lt;')){
       blankIdx++;
       const stId=msgId+'-st-'+blankIdx;
@@ -1471,7 +1502,7 @@ function formatMessage(text){
   let result=out.join('<br>');
   const hasSTInputs=(result.match(/class="st-input"/g)||[]).length>0;
   if(hasSTInputs){
-    result+='<br><button class="submit-answers-btn st-submit" data-msgid="'+msgId+'" onclick="submitST(this)">Submit Answers</button>';
+    result+='<br><button class="submit-answers-btn st-submit" data-msgid="'+msgId+'" onclick="submitST(this)">Submit</button>';
   } else if(hasMCQ){
     result+='<br><button class="mcq-submit submit-answers-btn" data-msgid="'+msgId+'">Submit Answers</button>';
   } else if(blankIdx>0){
@@ -1505,14 +1536,26 @@ document.addEventListener('click', function(e){
 
 function submitST(btn){
   const bubble=btn.closest('.msg-bubble');
-  const inputs=[...bubble.querySelectorAll('.st-input')];
-  const answers=inputs.map((inp,i)=>{
-    const val=inp.value.trim();
-    inp.disabled=true;
-    return 'Q'+(i+1)+': '+val;
-  }).join('\n');
+  const input=bubble.querySelector('.st-input');
+  const studentAns=(input.value||'').trim();
+  input.disabled=true;
   btn.disabled=true;
-  sendWithText('My answers:\n'+answers,'✅ Submitted my answers for all 5 questions.');
+
+  const q = currentDBQuestions[stIndex];
+  const ok = isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
+  let feedback;
+  if (ok) {
+    stCorrect++;
+    feedback = `✅ Correct!`;
+  } else {
+    saveWrongQuestion(q.original_sentence, q.model_answer, studentAns, 'synthesis', null);
+    feedback = `❌ Your answer: ${studentAns || '(blank)'}\nModel answer: ${q.model_answer}${q.explanation ? '\n' + q.explanation : ''}`;
+  }
+  addMessage('ai', feedback);
+  chatHistory.push({role:'assistant', content: feedback});
+
+  stIndex++;
+  setTimeout(() => presentNextSTQuestion(), 500);
 }
 
 function autoExpandBlank(input){input.style.width=Math.max(75,input.value.length*10+20)+'px';}
