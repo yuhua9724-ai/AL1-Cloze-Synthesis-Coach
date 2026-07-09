@@ -1173,9 +1173,10 @@ function formatDBSynthesis(questions) {
   questions.forEach((q, i) => {
     const src = q.source ? ` *(${q.source})*` : '';
     text += `**Question ${i+1}**${src}\n`;
-    text += `Original: ${q.original_sentence}\n`;
-    text += `Rewrite using: ${q.keyword}\n`;
-    text += `Begin with: ${q.starter} ____________________\n\n`;
+    text += `${q.original_sentence}\n`;
+    const starter = q.starter ? q.starter + ' ' : '';
+    const ending = q.ending ? ' ' + q.ending : '';
+    text += `§ST§${starter}____________________${ending}\n\n`;
   });
   text += 'Fill in all 5 answers then click **Submit**.';
   return text;
@@ -1439,6 +1440,8 @@ function formatMessage(text){
   let blankIdx=0, currentQ=0, hasMCQ=false;
   const lines=text.split('\n');
   const out=lines.map(line=>{
+    const isSTLine = line.startsWith('§ST§');
+    if(isSTLine) line = line.slice(4);
     const qm=line.match(/^\*\*Question\s*(\d+)\*\*(.*)/);
     if(qm){currentQ=parseInt(qm[1]);return '<strong class="q-header">Question '+qm[1]+(qm[2]||'')+'</strong>';}
     const om=line.match(/^\[([ABCD])\]\s*(.+)/) || line.match(/^([ABCD])\.\s+(.+)/);
@@ -1450,8 +1453,7 @@ function formatMessage(text){
     }
     let l=line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     l=l.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>');
-    const isBeginWith = line.match(/^(Begin with:|Starting with:)/i);
-    if(isBeginWith || l.includes('&gt;&gt;INPUT&lt;&lt;')){
+    if(isSTLine || l.includes('&gt;&gt;INPUT&lt;&lt;')){
       blankIdx++;
       const stId=msgId+'-st-'+blankIdx;
       l=l.replace(/_{2,}/g,'<input class="st-input" type="text" placeholder="Type your answer here..." id="'+stId+'" data-stblank="'+blankIdx+'"/>');
@@ -1614,3 +1616,4 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+
