@@ -670,6 +670,30 @@ async function saveWrongQuestion(questionText, correctAnswer, userAnswer, type, 
   } catch(e) { console.warn('saveWrongQuestion error', e); }
 }
 
+async function saveWrongPassage(p) {
+  if (!currentUser || !p?.id) return;
+  try {
+    const questionText = `Redo passage: ${p.title}`;
+    const existing = await sbFetch(`coach_wrong_questions?username=eq.${encodeURIComponent(currentUser.username)}&question_text=eq.${encodeURIComponent(questionText)}&status=eq.active&select=id`);
+    if (existing && existing.length > 0) return;
+    await sbFetch('coach_wrong_questions', {
+      method: 'POST', prefer: 'return=minimal',
+      body: {
+        username: currentUser.username,
+        question_type: 'cloze_full',
+        question_text: questionText,
+        correct_answer: '',
+        user_answer: '',
+        options: { passage_id: p.id },
+        wrong_date: new Date().toISOString().split('T')[0],
+        next_review: new Date().toISOString().split('T')[0],
+        correct_streak: 0,
+        status: 'active'
+      }
+    });
+  } catch(e) { console.warn('saveWrongPassage error', e); }
+}
+
 async function loadWrongBank() {
   const el = document.getElementById('wrong-bank-content');
   if (!el || !currentUser) return;
@@ -689,8 +713,21 @@ async function loadWrongBank() {
 }
 
 function renderWrongCard(q) {
-  const opts = q.options ? JSON.parse(typeof q.options === 'string' ? q.options : JSON.stringify(q.options)) : null;
   const streak = q.correct_streak || 0;
+  if (q.question_type === 'cloze_full') {
+    const opts = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : {};
+    const passageId = opts.passage_id;
+    return `<div class="wrong-card" id="wcard-${q.id}">
+      <div class="wrong-card-meta">
+        <span class="wrong-card-type">cloze — full redo</span>
+        <span class="wrong-card-date">${q.wrong_date}</span>
+      </div>
+      <div class="wrong-card-q">${q.question_text}</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">You missed most of this passage — give the whole thing another go.</div>
+      <button class="wrong-retry-btn" onclick="redoFullPassage(${passageId}, '${q.id}')">Redo This Passage</button>
+    </div>`;
+  }
+  const opts = q.options ? JSON.parse(typeof q.options === 'string' ? q.options : JSON.stringify(q.options)) : null;
   let questionHtml, bodyHtml;
   if (opts) {
     questionHtml = q.question_text;
@@ -1207,10 +1244,53 @@ let currentDBType = null;
 let stIndex = 0;
 let stCorrect = 0;
 let stSubmittedCount = 0;
+let redoingWrongMistakeId = null;
 
 function setChatInputVisible(visible){
   const el=document.getElementById('chat-input-area');
   if(el) el.style.display=visible?'flex':'none';
+}
+
+async function redoFullPassage(passageId, wrongId) {
+  if (!passageId) { showToast('❌ Could not find this passage.'); return; }
+  redoingWrongMistakeId = wrongId;
+  showTab('practice');
+  document.querySelectorAll('.tabnav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-practice').classList.add('active');
+  document.querySelectorAll('.module-card').forEach(c=>c.classList.remove('active'));
+  document.getElementById('sb-cloze').classList.add('active');
+  currentTopic = 'cloze';
+  document.getElementById('chat-title').textContent = TOPIC_LABELS['cloze'];
+  await startSpecificClozePassage(passageId);
+}
+
+async function startSpecificClozePassage(passageId) {
+  window._sessionRunning = true;
+  chatHistory = [];
+  clozeSubmitted = false;
+  document.getElementById('chat-messages').innerHTML = '';
+  try {
+    const rows = await sbFetch(`cloze_passages?id=eq.${passageId}&select=*`);
+    if (!rows || rows.length === 0) {
+      showToast('❌ Could not load this passage.');
+      window._sessionRunning = false;
+      return;
+    }
+    currentDBQuestions = rows[0];
+    currentDBType = 'cloze';
+    setChatInputVisible(false);
+    const greeting = `Let's give this passage another go, ${currentUser?.display||'there'}! 💪`;
+    addMessage('ai', greeting);
+    chatHistory.push({role:'assistant', content: greeting});
+    const msgText = formatDBCloze(rows[0]);
+    setTimeout(() => {
+      addMessage('ai', msgText);
+      chatHistory.push({role:'assistant', content: msgText});
+    }, 300);
+  } catch(e) {
+    showToast('❌ Error loading passage.');
+  }
+  window._sessionRunning = false;
 }
 
 async function startDBSession(type) {
@@ -1342,14 +1422,31 @@ async function markDBAnswers(studentAnswer, type) {
     const studentMap = parseNumberedAnswers(studentAnswer, /^\((\d+)\)\s*(.*)$/);
     const keys = Object.keys(answers).sort((a, b) => Number(a) - Number(b));
     let correct = 0;
+    const wrongBlanks = [];
     const lines = keys.map(k => {
       const studentAns = studentMap[k] || '';
       const ok = isAnswerCorrect(studentAns, answers[k]);
       if (ok) { correct++; return `(${k}) ✅ ${studentAns}`; }
       const correctDisplay = toAnswerList(answers[k])[0] || answers[k];
-      saveWrongQuestion(extractSentenceForBlank(p.passage, k), correctDisplay, studentAns, 'cloze', null);
+      wrongBlanks.push({ k, correctDisplay, studentAns });
       return `(${k}) ❌ Your answer: ${studentAns || '(blank)'} → Correct: ${correctDisplay}${explanations[k] ? '\n   ' + explanations[k] : ''}`;
     });
+    const wrongCount = keys.length - correct;
+    if (wrongCount >= 8) {
+      // Missed most of the passage — flag the whole passage for a full redo instead of per-blank drills
+      saveWrongPassage(p);
+    } else if (wrongCount > 0) {
+      // Only a handful of blanks wrong — save each one individually with full sentence context
+      wrongBlanks.forEach(w => saveWrongQuestion(extractSentenceForBlank(p.passage, w.k), w.correctDisplay, w.studentAns, 'cloze', null));
+    }
+    if (redoingWrongMistakeId) {
+      if (wrongCount < 8) {
+        try {
+          await sbFetch(`coach_wrong_questions?id=eq.${redoingWrongMistakeId}`, {method:'PATCH', prefer:'return=minimal', body:{status:'mastered'}});
+        } catch(e) { console.warn('mark redo mastered failed', e); }
+      }
+      redoingWrongMistakeId = null;
+    }
     reply = `**Score: ${correct}/${keys.length}**\n\n${lines.join('\n')}`;
     incrementProgress(type, keys.length, correct);
     if (p.id) {
