@@ -272,6 +272,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 /* S&T keyword label shown between two inputs */
 .st-keyword{display:inline-block;font-size:14px;font-weight:600;color:var(--gold-dim);padding:0 6px;vertical-align:middle;}
+
+/* Hint sentence highlight — like a highlighter marker over the key phrase */
+mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radius:3px;font-weight:600;box-decoration-break:clone;-webkit-box-decoration-break:clone;}
 </style>
 </head>
 <body>
@@ -1426,7 +1429,12 @@ function formatExplanationEntry(exp) {
   if (exp.technique) parts.push(`[${exp.technique}]`);
   if (exp.explanation) parts.push(exp.explanation);
   let out = parts.join(' ');
-  if (exp.hint_sentence) out += `\n   💡 ${exp.hint_sentence}`;
+  if (exp.hint_sentence) {
+    // Convert **word** markers to a dedicated highlight marker (§H§...§H§)
+    // so formatMessage renders them as <mark> highlights, not generic bold.
+    const highlighted = exp.hint_sentence.replace(/\*\*(.+?)\*\*/g, '§H§$1§H§');
+    out += `\n   💡 ${highlighted}`;
+  }
   if (exp.examples && exp.examples.length) out += `\n   e.g. ${exp.examples[0]}`;
   return out;
 }
@@ -1629,6 +1637,7 @@ function formatMessage(text){
       return '<button class="mcq-btn" data-letter="'+lt+'" data-qnum="'+qn+'" data-msgid="'+msgId+'">'+label+'</button>';
     }
     let l=line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    l=l.replace(/§H§(.+?)§H§/g,'<mark class="hint-mark">$1</mark>');
     l=l.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>');
     if(isOrigLine) return '<div class="st-original-line">'+l+'</div>';
     if(isSTLine || l.includes('&gt;&gt;INPUT&lt;&lt;')){
