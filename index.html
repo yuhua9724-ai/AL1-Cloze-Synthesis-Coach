@@ -1416,6 +1416,21 @@ function extractSentenceForBlank(passage, blankNum) {
   return (found || passage).trim().replace(/\s+/g, ' ');
 }
 
+// Formats a single blank's explanation. Supports both:
+//  - legacy string format: "Verb: overcome (conquer/deal with) the challenge"
+//  - new structured format: {technique, explanation, hint_sentence?, examples?}
+function formatExplanationEntry(exp) {
+  if (exp == null) return '';
+  if (typeof exp === 'string') return exp;
+  const parts = [];
+  if (exp.technique) parts.push(`[${exp.technique}]`);
+  if (exp.explanation) parts.push(exp.explanation);
+  let out = parts.join(' ');
+  if (exp.hint_sentence) out += `\n   💡 ${exp.hint_sentence}`;
+  if (exp.examples && exp.examples.length) out += `\n   e.g. ${exp.examples[0]}`;
+  return out;
+}
+
 async function markDBAnswers(studentAnswer, type) {
   if (!currentDBQuestions) return false;
 
@@ -1455,7 +1470,8 @@ async function markDBAnswers(studentAnswer, type) {
       if (ok) { correct++; return `(${k}) ✅ ${studentAns}`; }
       const correctDisplay = toAnswerList(answers[k])[0] || answers[k];
       wrongBlanks.push({ k, correctDisplay, studentAns });
-      return `(${k}) ❌ Your answer: ${studentAns || '(blank)'} → Correct: ${correctDisplay}${explanations[k] ? '\n   ' + explanations[k] : ''}`;
+      const expText = formatExplanationEntry(explanations[k]);
+      return `(${k}) ❌ Your answer: ${studentAns || '(blank)'} → Correct: ${correctDisplay}${expText ? '\n   ' + expText : ''}`;
     });
     const wrongCount = keys.length - correct;
     if (wrongCount >= 8) {
@@ -1737,14 +1753,24 @@ function autoExpandBlank(input){input.style.width=Math.max(75,input.value.length
 function submitBlanks(submitEl){
   const msgId=submitEl.getAttribute("data-msgid");const count=parseInt(submitEl.getAttribute("data-blanks"));
   const answers=[];
+  let filledCount=0;
   const bubble=submitEl.closest('.msg-bubble');
   for(let i=1;i<=count;i++){
     const el=document.getElementById(msgId+'-'+i);
-    if(el){answers.push(`(${el.getAttribute('data-blank')}) ${el.value.trim()}`);el.disabled=true;el.style.opacity='0.4';}
+    if(el){
+      const val=el.value.trim();
+      if(val) filledCount++;
+      answers.push(`(${el.getAttribute('data-blank')}) ${val}`);
+      el.disabled=true;el.style.opacity='0.4';
+    }
   }
   submitEl.style.display='none';
   clozeSubmitted=true;
-  sendWithText('My answers:\n'+answers.join('\n'),`✅ Submitted all ${count} blanks.`);
+  const blankCount=count-filledCount;
+  const summaryMsg=blankCount>0
+    ? `✅ Submitted ${filledCount}/${count} blanks (${blankCount} left blank).`
+    : `✅ Submitted all ${count} blanks.`;
+  sendWithText('My answers:\n'+answers.join('\n'),summaryMsg);
 }
 
 function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
