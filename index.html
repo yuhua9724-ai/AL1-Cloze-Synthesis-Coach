@@ -44,7 +44,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .al1-logo{font-family:'Black Han Sans','Arial Black',sans-serif;font-weight:900;letter-spacing:-2px;line-height:1;display:inline-flex;align-items:center;gap:4px;}
 .al1-logo .al-text{font-size:64px;color:#4a9de5;}
 .al1-logo .one-text{font-size:76px;color:#85bbed;}
-.login-logo .al1-sub{display:inline-block;font-size:12px;color:#5b41ec;font-weight:700;margin-top:12px;letter-spacing:0.3px;background:rgba(91,65,236,0.1);border:1.5px solid rgba(91,65,236,0.25);border-radius:99px;padding:5px 16px;}
+.login-logo .al1-sub{display:block;font-size:12px;color:#5b41ec;font-weight:700;margin-top:12px;letter-spacing:0.3px;background:rgba(91,65,236,0.1);border:1.5px solid rgba(91,65,236,0.25);border-radius:99px;padding:5px 16px;width:fit-content;margin-left:auto;margin-right:auto;}
 .login-field{margin-bottom:14px;}
 .login-field label{display:block;font-size:11px;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;font-weight:500;}
 .login-field input{width:100%;background:var(--dark3);border:1px solid rgba(91,65,236,0.15);border-radius:10px;padding:12px 14px;color:var(--text);font-size:15px;outline:none;transition:border-color 0.2s;}
@@ -1821,6 +1821,56 @@ function formatExplanationEntry(exp) {
   }
   return parts.join('\n');
 }
+function addHTMLMessage(html){
+  const c=document.getElementById('chat-messages');
+  const div=document.createElement('div');
+  div.className='msg ai';
+  div.innerHTML=`<div class="msg-bubble">${html}</div>`;
+  c.appendChild(div);
+  div.scrollIntoView({block:'end',behavior:'smooth'});
+}
+
+function buildHintBlock(exp){
+  if(!exp)return'';
+  if(typeof exp==='string'){return exp?`<div class="exp-hint" style="margin:6px 0 10px;">💡 ${exp}</div>`:''; }
+  let inner='';
+  if(exp.technique)inner+=`<span class="exp-technique"><strong>${exp.technique}</strong></span>`;
+  if(exp.explanation)inner+=`<span style="display:block;font-size:13px;color:var(--text);margin:3px 0 4px;line-height:1.5;">${exp.explanation}</span>`;
+  if(exp.hint_sentence){
+    const hl=exp.hint_sentence.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.+?)\*\*/g,'<mark class="hint-mark">$1</mark>');
+    inner+=`<div class="exp-hint" style="margin-top:4px;">💡 ${hl}</div>`;
+  }
+  return inner?`<div style="margin:6px 0 12px;">${inner}</div>`:'';
+}
+
+function renderInlinePassage(p,answers,explanations,studentMap,keys){
+  const passage=p.passage||'';
+  const blankData={};
+  keys.forEach(k=>{
+    const studentAns=studentMap[k]||'';
+    const ok=isAnswerCorrect(studentAns,answers[k]);
+    const correctDisplay=toAnswerList(answers[k])[0]||String(answers[k]);
+    blankData[k]={ok,studentAns,correctDisplay};
+  });
+  const lines=passage.split('\n');
+  const processed=lines.map(line=>{
+    const wrongInLine=[];
+    const withAnswers=line.replace(/\((\d{1,2})\)/g,(m,n)=>{
+      const d=blankData[n];
+      if(!d)return m;
+      if(d.ok){
+        return `<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;margin:0 2px;"><span style="background:rgba(0,199,202,0.15);color:#086668;font-weight:600;padding:1px 7px;border-radius:4px;font-size:14px;border-bottom:2px solid #00c7ca;">(${n}) ${d.correctDisplay}</span></span>`;
+      } else {
+        wrongInLine.push(n);
+        return `<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;margin:0 2px;"><span style="font-size:10px;color:#9ca3af;text-decoration:line-through;line-height:1.2;">${d.studentAns||'(blank)'}</span><span style="background:rgba(224,36,94,0.12);color:#e0245e;font-weight:600;padding:1px 7px;border-radius:4px;font-size:14px;border-bottom:2px solid #e0245e;">(${n}) ${d.correctDisplay}</span></span>`;
+      }
+    });
+    const hints=wrongInLine.map(n=>buildHintBlock(explanations[n])).join('');
+    return withAnswers+(hints?`<div style="margin:2px 0;">${hints}</div>`:'');
+  });
+  return `<div style="font-size:15px;line-height:2;color:var(--text);">${processed.join('<br>')}</div>`;
+}
+
 async function markDBAnswers(studentAnswer, type) {
   if (!currentDBQuestions) return false;
 
@@ -1854,14 +1904,14 @@ async function markDBAnswers(studentAnswer, type) {
     const keys = Object.keys(answers).sort((a, b) => Number(a) - Number(b));
     let correct = 0;
     const wrongBlanks = [];
-    const lines = keys.map(k => {
+    keys.forEach(k => {
       const studentAns = studentMap[k] || '';
       const ok = isAnswerCorrect(studentAns, answers[k]);
-      if (ok) { correct++; return `(${k}) ✅ ${studentAns}`; }
-      const correctDisplay = toAnswerList(answers[k])[0] || answers[k];
-      wrongBlanks.push({ k, correctDisplay, studentAns });
-      const expText = formatExplanationEntry(explanations[k]);
-      return `(${k}) ❌ Your answer: ${studentAns || '(blank)'} → Correct: ${correctDisplay}${expText ? '\n   ' + expText : ''}`;
+      if (ok) { correct++; }
+      else {
+        const correctDisplay = toAnswerList(answers[k])[0] || answers[k];
+        wrongBlanks.push({ k, correctDisplay, studentAns });
+      }
     });
     const wrongCount = keys.length - correct;
     if (wrongCount >= 8) {
@@ -1877,7 +1927,6 @@ async function markDBAnswers(studentAnswer, type) {
       }
       redoingWrongMistakeId = null;
     }
-    reply = `**Score: ${correct}/${keys.length}**\n\n${lines.join('\n')}`;
     incrementProgress(type, keys.length, correct);
     if (p.id) {
       try {
@@ -1885,6 +1934,16 @@ async function markDBAnswers(studentAnswer, type) {
         await sbFetch(`cloze_passages?id=eq.${p.id}`, { method: 'PATCH', prefer: 'return=minimal', body: { used_count: cur + 1 } });
       } catch (e) { console.warn('used_count update failed', e); }
     }
+    const scoreColor = wrongCount === 0 ? '#10b981' : '#e0245e';
+    const scoreHtml = `<div style="font-weight:700;font-size:16px;color:${scoreColor};margin-bottom:14px;">Score: ${correct}/${keys.length}</div>`;
+    const passageHtml = renderInlinePassage(p, answers, explanations, studentMap, keys);
+    chatHistory.push({ role: 'assistant', content: `Score: ${correct}/${keys.length}` });
+    addHTMLMessage(scoreHtml + passageHtml);
+    isThinking = false;
+    document.getElementById('thinking').style.display = 'none';
+    document.getElementById('btn-send').disabled = false;
+    document.getElementById('chat-input').disabled = false;
+    return true;
   }
 
   chatHistory.push({ role: 'assistant', content: reply });
