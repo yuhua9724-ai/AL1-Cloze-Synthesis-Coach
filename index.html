@@ -1180,6 +1180,7 @@ async function loadAccountPage(){
     }
     const studentRefs=allReferrals.filter(u=>u.role==='student');
     const testerRefs=allReferrals.filter(u=>u.role==='tester'||u.role==='test');
+    const isStudent=currentUser.role==='student';
 
     // Credit calculation
     const creditsFromStudents=studentRefs.length*15;
@@ -1197,12 +1198,38 @@ async function loadAccountPage(){
       }catch(e){}
     }
 
+    // ── Referral code banner FIRST (same as home page) ──
+    if(isStudent&&currentUser.referral_code){
+      const code=currentUser.referral_code;
+      el.innerHTML=`<div class="invite-banner" style="margin-bottom:14px;">
+        <div class="invite-banner-header">
+          <div class="invite-banner-icon" style="font-size:40px;">🎁</div>
+          <div>
+            <div class="invite-banner-title">Share AL1 with friends</div>
+            <div class="invite-banner-desc">Friends get a 3-day free trial · You earn credits when they upgrade</div>
+          </div>
+        </div>
+        <div class="invite-banner-row">
+          <div class="invite-code-chip">${code}</div>
+          <div class="invite-actions">
+            <button class="btn-invite-copy" onclick="copyInviteCode('${code}')">Copy code</button>
+            <button class="btn-invite-share" onclick="shareInviteCode('${code}')">Invite →</button>
+          </div>
+        </div>
+      </div>`;
+      loadInviteBanner();
+    }else if(currentUser.role==='tester'){
+      el.innerHTML=`<div style="background:rgba(224,92,58,0.06);border:1.5px solid rgba(224,92,58,0.25);border-radius:12px;padding:14px;margin-bottom:14px;">
+        <div style="font-size:14px;font-weight:700;color:#c05a00;margin-bottom:6px;">🔖 Trial Member</div>
+        <p style="font-size:13px;color:var(--text-dim);line-height:1.6;">You're on a 3-day trial. Contact your teacher to upgrade to a full Student plan.</p>
+      </div>`;
+    }else{el.innerHTML='';}
+
     // ── Info card ──
-    const isStudent=currentUser.role==='student';
     const creditLine=isStudent?`<div class="acct-info-row"><span class="acct-info-label">Account Credit</span><span class="acct-info-val" style="color:var(--gold);font-weight:800;">${totalCreditsEarned} pts</span></div>`:'';
     const refLine=isStudent?`<div class="acct-info-row"><span class="acct-info-label">Successful Referrals</span><span class="acct-info-val" style="color:var(--green);font-weight:700;">${studentRefs.length} student${studentRefs.length===1?'':'s'}</span></div>`:'';
 
-    el.innerHTML=`<div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.12);border-radius:14px;overflow:hidden;">
+    el.innerHTML+=`<div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.12);border-radius:14px;overflow:hidden;margin-bottom:14px;">
       <div style="padding:6px 0 0;">
         <div class="acct-info-row"><span class="acct-info-label">Username</span><span class="acct-info-val">${currentUser.username}</span></div>
         <div class="acct-info-row"><span class="acct-info-label">Name</span><span class="acct-info-val">${currentUser.display||'—'}</span></div>
@@ -1212,26 +1239,6 @@ async function loadAccountPage(){
         ${creditLine}${refLine}
       </div>
     </div>`;
-
-    // ── Referral code card ──
-    if(isStudent&&currentUser.referral_code){
-      const code=currentUser.referral_code;
-      el.innerHTML+=`<div style="background:linear-gradient(135deg,#f39c12,#e05c3a);border-radius:14px;padding:18px;margin-top:14px;color:#fff;">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;opacity:0.8;font-weight:700;margin-bottom:10px;">🎁 My Referral Code</div>
-        <div style="font-family:monospace;font-size:24px;font-weight:700;letter-spacing:3px;margin-bottom:14px;">${code}</div>
-        <div style="font-size:12px;opacity:0.85;margin-bottom:14px;">Friends get 3-day free trial · You earn 15 pts when they subscribe</div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn-invite-copy" onclick="copyInviteCode('${code}')">Copy code</button>
-          <button class="btn-invite-share" onclick="shareInviteCode('${code}')">Invite →</button>
-        </div>
-      </div>`;
-      loadInviteBanner();
-    }else if(currentUser.role==='tester'){
-      el.innerHTML+=`<div style="background:rgba(224,92,58,0.06);border:1.5px solid rgba(224,92,58,0.25);border-radius:12px;padding:14px;margin-top:12px;">
-        <div style="font-size:14px;font-weight:700;color:#c05a00;margin-bottom:6px;">🔖 Trial Member</div>
-        <p style="font-size:13px;color:var(--text-dim);line-height:1.6;">You're on a 3-day trial. Contact your teacher to upgrade to a full Student plan.</p>
-      </div>`;
-    }
 
     // ── Referral History ──
     if(isStudent&&allReferrals.length>0){
