@@ -44,7 +44,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .al1-logo{font-family:'Black Han Sans','Arial Black',sans-serif;font-weight:900;letter-spacing:-2px;line-height:1;display:inline-flex;align-items:center;gap:4px;}
 .al1-logo .al-text{font-size:64px;color:#4a9de5;}
 .al1-logo .one-text{font-size:76px;color:#85bbed;}
-.login-logo .al1-sub{font-size:13px;color:var(--text-dim);margin-top:10px;letter-spacing:0.5px;line-height:1.5;}
+.login-logo .al1-sub{display:inline-block;font-size:12px;color:#5b41ec;font-weight:700;margin-top:12px;letter-spacing:0.3px;background:rgba(91,65,236,0.1);border:1.5px solid rgba(91,65,236,0.25);border-radius:99px;padding:5px 16px;}
 .login-field{margin-bottom:14px;}
 .login-field label{display:block;font-size:11px;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;font-weight:500;}
 .login-field input{width:100%;background:var(--dark3);border:1px solid rgba(91,65,236,0.15);border-radius:10px;padding:12px 14px;color:var(--text);font-size:15px;outline:none;transition:border-color 0.2s;}
@@ -54,6 +54,19 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .btn-login:disabled{opacity:0.5;cursor:not-allowed;}
 .login-error{display:none;background:rgba(224,90,90,0.12);border:1px solid rgba(224,90,90,0.3);border-radius:8px;padding:10px 14px;font-size:13px;color:#e05a5a;margin-top:10px;text-align:center;}
 .login-loading{display:none;text-align:center;font-size:13px;color:var(--text-dim);margin-top:10px;}
+/* Signup / trial */
+#signup-form-inner{display:none;}
+.btn-trial{width:100%;background:linear-gradient(135deg,#e05c3a,#f39c12);color:#fff;font-weight:700;font-size:14px;font-family:'Space Grotesk',sans-serif;border:none;border-radius:12px;padding:13px;cursor:pointer;margin-top:10px;transition:all 0.2s;box-shadow:0 4px 16px rgba(224,92,58,0.35);}
+.btn-trial:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(224,92,58,0.45);}
+.btn-signup{width:100%;background:linear-gradient(135deg,#5b41ec,#00c7ca);color:#fff;font-weight:700;font-size:15px;font-family:'Space Grotesk',sans-serif;border:none;border-radius:12px;padding:14px;cursor:pointer;margin-top:8px;transition:all 0.2s;opacity:0.4;pointer-events:none;}
+.btn-signup.ready{opacity:1;pointer-events:auto;box-shadow:0 4px 20px rgba(91,65,236,0.4);}
+.btn-signup.ready:hover{transform:translateY(-1px);}
+.signup-back{display:block;text-align:center;font-size:13px;color:var(--text-dim);margin-top:12px;cursor:pointer;background:none;border:none;font-family:'Outfit',sans-serif;width:100%;}
+.signup-back:hover{color:var(--gold);}
+.signup-err{display:none;background:rgba(224,90,90,0.12);border:1px solid rgba(224,90,90,0.3);border-radius:8px;padding:10px 14px;font-size:13px;color:#e05a5a;margin-top:10px;text-align:center;}
+.signup-title{text-align:center;margin-bottom:20px;}
+.signup-title h3{font-size:17px;font-weight:800;color:var(--text);}
+.signup-title p{font-size:12px;color:var(--text-dim);margin-top:4px;}
 
 /* APP */
 #app-screen{flex-direction:column;min-height:100vh;min-height:100dvh;display:flex;position:relative;}
@@ -273,6 +286,50 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 /* S&T keyword label shown between two inputs */
 .st-keyword{display:inline-block;font-size:14px;font-weight:600;color:var(--gold-dim);padding:0 6px;vertical-align:middle;}
 
+/* ── HOME PAGE WIDGETS ── */
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+.stat-card{background:var(--dark2);border:1px solid rgba(91,65,236,0.1);border-radius:12px;padding:13px 8px;text-align:center;}
+.stat-num{font-size:21px;font-weight:800;color:var(--text);line-height:1;}
+.stat-label{font-size:9px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:var(--text-dim);margin-top:3px;}
+@media(max-width:480px){.stats-bar{grid-template-columns:1fr 1fr;}.stat-num{font-size:18px;}}
+
+/* Streak */
+.streak-widget{display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#fff7e6,#ffedd5);border:1.5px solid #fbbf24;border-radius:var(--radius);padding:11px 16px;margin-bottom:12px;font-size:14px;font-weight:700;color:#92400e;}
+.streak-widget .streak-num{font-size:20px;font-weight:800;color:#d97706;}
+.streak-widget-new{background:var(--dark3);border-color:rgba(91,65,236,0.15);color:var(--text-dim);font-weight:600;}
+
+/* Continue CTA */
+.continue-cta-btn{width:100%;padding:15px;background:linear-gradient(135deg,var(--gold),var(--green));color:white;border:none;border-radius:var(--radius);font-family:'Outfit',sans-serif;font-size:15px;font-weight:800;cursor:pointer;letter-spacing:0.3px;margin-bottom:14px;transition:all 0.2s;box-shadow:0 4px 16px rgba(91,65,236,0.25);}
+.continue-cta-btn:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(91,65,236,0.35);}
+
+/* Today's Mission */
+.daily-task-wrap{background:linear-gradient(135deg,#1a1035 0%,#2d1f6e 100%);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;position:relative;overflow:hidden;}
+.daily-task-wrap::before{content:'';position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:rgba(255,255,255,0.04);border-radius:50%;}
+.daily-task-title{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:12px;}
+.daily-task-items{display:flex;flex-direction:column;gap:10px;}
+.daily-task-item{display:flex;align-items:center;gap:10px;cursor:pointer;}
+.task-check{width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;transition:all 0.3s;}
+.task-check.done{background:#27ae60;border-color:#27ae60;}
+.task-label{flex:1;font-size:14px;color:rgba(255,255,255,0.85);font-weight:500;}
+.task-label.done{color:rgba(255,255,255,0.4);text-decoration:line-through;}
+.task-progress-text{font-size:12px;color:rgba(255,255,255,0.45);}
+.daily-complete-wrap{background:linear-gradient(135deg,#f39c12,#e74c3c);border-radius:var(--radius);padding:22px;text-align:center;margin-bottom:14px;}
+.daily-medal{font-size:46px;margin-bottom:8px;}
+.daily-complete-title{font-size:17px;font-weight:800;color:white;margin-bottom:4px;}
+.daily-complete-sub{font-size:13px;color:rgba(255,255,255,0.85);}
+
+/* Invite banner */
+.invite-banner{background:linear-gradient(135deg,#f39c12,#e05c3a);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;color:white;}
+.invite-banner-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px;}
+.invite-banner-icon{font-size:30px;line-height:1;flex-shrink:0;}
+.invite-banner-title{font-size:16px;font-weight:800;margin-bottom:3px;}
+.invite-banner-desc{font-size:12px;color:rgba(255,255,255,0.85);line-height:1.5;}
+.invite-banner-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.invite-code-chip{background:rgba(255,255,255,0.18);border-radius:8px;padding:6px 12px;font-family:monospace;font-weight:700;letter-spacing:2px;font-size:13px;}
+.invite-actions{display:flex;gap:8px;}
+.btn-invite-copy{background:white;color:#1a1035;border:none;border-radius:20px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;}
+.btn-invite-share{background:var(--cream);color:white;border:none;border-radius:20px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;}
+
 /* Hint sentence highlight — like a highlighter marker over the key phrase */
 mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radius:3px;font-weight:600;box-decoration-break:clone;-webkit-box-decoration-break:clone;}
 </style>
@@ -284,7 +341,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
   <div class="login-box">
     <div class="login-logo">
       <div class="al1-logo"><span class="al-text">AL</span><span class="one-text">1</span></div>
-      <div class="al1-sub">Comprehension Cloze &amp; S&amp;T Hunter<br>for PSLE</div>
+      <div class="al1-sub">Cloze &amp; S&amp;T Hunter · for PSLE</div>
     </div>
     <div class="login-field">
       <label>Phone / Username</label>
@@ -297,9 +354,38 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
         <span onclick="togglePwVisibility()" id="pw-toggle-icon" style="position:absolute;right:14px;top:12px;cursor:pointer;font-size:18px;user-select:none">👁</span>
       </div>
     </div>
+    <div id="login-form-inner">
     <button class="btn-login" id="btn-login" onclick="doLogin()">Sign In</button>
     <div class="login-error" id="login-error"></div>
     <div class="login-loading" id="login-loading">Signing in…</div>
+    <button class="btn-trial" onclick="showSignup(event)">First time? Create a Trial Account →</button>
+    </div>
+
+    <div id="signup-form-inner">
+      <div class="signup-title">
+        <h3>Create Trial Account</h3>
+        <p>3-day free access · A referral code is required</p>
+      </div>
+      <div class="login-field">
+        <label>Phone / Username</label>
+        <input type="tel" id="signup-user" placeholder="e.g. 91234567" autocomplete="tel" oninput="updateSignupBtn()"/>
+      </div>
+      <div class="login-field">
+        <label>Your Name</label>
+        <input type="text" id="signup-display" placeholder="e.g. Sarah Tan" autocomplete="name" oninput="updateSignupBtn()"/>
+      </div>
+      <div class="login-field">
+        <label>Password</label>
+        <input type="password" id="signup-pass" placeholder="Create a password" autocomplete="new-password" oninput="updateSignupBtn()"/>
+      </div>
+      <div class="login-field">
+        <label>Referral Code</label>
+        <input type="text" id="signup-code-field" placeholder="e.g. REF-ABC1" autocomplete="off" style="text-transform:uppercase" oninput="updateSignupBtn()"/>
+      </div>
+      <button id="btn-signup" class="btn-signup" onclick="doSignup()">Create Account</button>
+      <div class="signup-err" id="signup-err"></div>
+      <button class="signup-back" onclick="showLogin(event)">← Back to Sign In</button>
+    </div>
   </div>
 </div>
 
@@ -313,6 +399,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
     <div class="topnav-right">
       <span class="topnav-user" id="nav-user"></span>
       <span class="admin-badge admin-only">Admin</span>
+      <span id="trial-badge" style="display:none;background:rgba(224,92,58,0.25);border:1px solid rgba(224,92,58,0.45);color:#ffd9c9;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:0.3px;">🔖 Trial</span>
       <button class="btn-logout" onclick="doLogout()">Sign out</button>
     </div>
   </div>
@@ -327,6 +414,10 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
 
   <!-- PRACTICE TAB -->
   <div id="panel-practice" class="app-body-stacked">
+    <div id="invite-banner-slot"></div>
+    <div id="streak-widget"></div>
+    <div id="continue-cta"></div>
+    <div id="daily-task-section"></div>
     <div class="module-grid">
       <div class="module-card active" id="sb-cloze" onclick="selectTopic(this,'cloze')">
         <div class="module-icon">📝</div>
@@ -341,6 +432,14 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
         <span class="topic-done-badge" id="done-synthesis"></span>
       </div>
     </div>
+
+    <div class="stats-bar">
+      <div class="stat-card"><div class="stat-num" id="stat-today">0</div><div class="stat-label">Today's Qs</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-sessions">0</div><div class="stat-label">Sessions</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-accuracy">—</div><div class="stat-label">Accuracy</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-quota">0/10</div><div class="stat-label">Daily Quota</div></div>
+    </div>
+    <div id="mini-leaderboard" style="margin-bottom:14px"></div>
 
     <div class="practice-main">
       <!-- DAILY PROGRESS -->
@@ -429,6 +528,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
           <input type="password" id="new-pass" placeholder="Password"/>
           <input type="text" id="new-display" placeholder="Student name (e.g. Sarah Tan)"/>
           <select id="new-level"><option value="P5">Primary 5</option><option value="P6" selected>Primary 6</option></select>
+          <input type="number" id="new-limit" placeholder="Daily limit (default 5)" min="1" max="10" value="5"/>
           <input type="date" id="new-start" placeholder="Start date"/>
           <input type="date" id="new-end" placeholder="End date"/>
           <button class="btn-create" id="btn-create" onclick="addStudent()">Create Account</button>
@@ -520,6 +620,82 @@ async function doLogin(){
 
 function showLoginError(msg){const el=document.getElementById('login-error');el.textContent=msg;el.style.display='block';}
 
+function showSignup(e){
+  if(e)e.preventDefault();
+  document.getElementById('login-form-inner').style.display='none';
+  document.getElementById('signup-form-inner').style.display='block';
+  document.getElementById('signup-err').style.display='none';
+}
+function showLogin(e){
+  if(e)e.preventDefault();
+  document.getElementById('signup-form-inner').style.display='none';
+  document.getElementById('login-form-inner').style.display='block';
+  document.getElementById('login-error').style.display='none';
+}
+function updateSignupBtn(){
+  const user=document.getElementById('signup-user').value.trim();
+  const display=document.getElementById('signup-display').value.trim();
+  const pass=document.getElementById('signup-pass').value;
+  const code=document.getElementById('signup-code-field').value.trim();
+  const btn=document.getElementById('btn-signup');
+  const ready=user.length>=6&&display.length>=2&&pass.length>=4&&code.length>=4;
+  btn.classList.toggle('ready',ready);
+}
+async function doSignup(){
+  const btn=document.getElementById('btn-signup');
+  if(!btn.classList.contains('ready'))return;
+  const username=document.getElementById('signup-user').value.trim();
+  const displayName=document.getElementById('signup-display').value.trim();
+  const password=document.getElementById('signup-pass').value;
+  const code=document.getElementById('signup-code-field').value.trim().toUpperCase();
+  const errEl=document.getElementById('signup-err');
+  errEl.style.display='none';
+  btn.textContent='Checking code…';btn.disabled=true;
+  try{
+    // 1. Validate referral code
+    const referrer=await sbFetch(`cloze_users?referral_code=eq.${encodeURIComponent(code)}&select=username`);
+    if(!referrer||!referrer.length){
+      errEl.textContent='Invalid referral code. Please check with your friend and try again.';
+      errEl.style.display='block';btn.textContent='Create Account';btn.disabled=false;return;
+    }
+    // 2. Check username not already taken
+    const existing=await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}&select=username`);
+    if(existing&&existing.length){
+      errEl.textContent='This username is already registered. Please sign in instead.';
+      errEl.style.display='block';btn.textContent='Create Account';btn.disabled=false;return;
+    }
+    // 3. Create account (3-day trial)
+    btn.textContent='Creating account…';
+    // Copy demo question IDs from test account
+    const testAcct=await sbFetch('cloze_users?role=eq.test&select=demo_cloze_ids,demo_synthesis_ids&limit=1');
+    const demoClozeIds=(testAcct&&testAcct[0]?.demo_cloze_ids)||null;
+    const demoSynthesisIds=(testAcct&&testAcct[0]?.demo_synthesis_ids)||null;
+
+    const expiryDate=new Date();expiryDate.setDate(expiryDate.getDate()+3);
+    const expiry=expiryDate.toISOString().split('T')[0];
+    const r=await sbFetch('cloze_users',{
+      method:'POST',prefer:'return=representation',
+      body:{username,password,display:displayName||username,role:'tester',start_date:TODAY,expiry,referred_by:referrer[0].username,level:'P6',daily_limit:5,demo_cloze_ids:demoClozeIds,demo_synthesis_ids:demoSynthesisIds}
+    });
+    if(!r||!r.length){
+      errEl.textContent='Something went wrong. Please try again.';
+      errEl.style.display='block';btn.textContent='Create Account';btn.disabled=false;return;
+    }
+    btn.textContent='Create Account';btn.disabled=false;
+    // Auto log in
+    currentUser=r[0];
+    const sessionToken=Date.now().toString(36)+Math.random().toString(36).slice(2);
+    currentUser.sessionToken=sessionToken;
+    sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
+    sessionStorage.setItem('cal1_token',sessionToken);
+    try{await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}`,{method:'PATCH',prefer:'return=minimal',body:{session_token:sessionToken}});}catch(e){}
+    enterApp();
+  }catch(e){
+    errEl.textContent='Connection error. Please try again.';
+    errEl.style.display='block';btn.textContent='Create Account';btn.disabled=false;
+  }
+}
+
 async function enterApp(){
   document.getElementById('login-screen').classList.remove('active');
   document.getElementById('app-screen').classList.add('active');
@@ -537,9 +713,15 @@ async function enterApp(){
   }, 60000);
   document.getElementById('nav-user').textContent=currentUser.display||currentUser.username;
   const isAdmin=currentUser.role==='admin';
+  const isTrial=currentUser.role==='tester'||currentUser.role==='test';
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=isAdmin?'block':'none');
+  // Show trial badge
+  const trialBadge=document.getElementById('trial-badge');
+  if(trialBadge)trialBadge.style.display=isTrial?'inline-block':'none';
   await loadDailyProgress();
-  startSession();
+  loadInviteBanner();
+  loadStreakWidget();
+  renderMiniLeaderboard();
 }
 
 function doLogout(){
@@ -582,7 +764,11 @@ async function changePassword(){
 // DAILY PROGRESS
 // ══════════════════════════════════
 let todayProgress={cloze_done:0,synthesis_done:0,weak_cloze:'',weak_synthesis:''};
-const DAILY_TARGETS={cloze:5,synthesis:5};
+const DAILY_TARGETS={cloze:5,synthesis:5}; // overridden per-user in getDailyTargets()
+function getDailyTargets(){
+  const limit=currentUser?.daily_limit||5;
+  return{cloze:limit,synthesis:limit};
+}
 const TODAY=new Date().toISOString().split('T')[0];
 
 async function loadDailyProgress(){
@@ -593,6 +779,7 @@ async function loadDailyProgress(){
     else todayProgress={cloze_done:0,synthesis_done:0,weak_cloze:'',weak_synthesis:''};
     updateProgressBars();
     updateWeakness();
+    updateStatsBar();
   }catch(e){console.error('Progress load error',e);}
 }
 
@@ -607,11 +794,12 @@ async function saveDailyProgress(){
     }
     updateProgressBars();
     updateWeakness();
+    updateStatsBar();
   }catch(e){console.error('Progress save error',e);}
 }
 
 function updateProgressBars(){
-  const tp=DAILY_TARGETS;
+  const tp=getDailyTargets();
   ['cloze','synthesis'].forEach(t=>{
     const done=todayProgress[t+'_done']||0;
     const target=tp[t];
@@ -630,7 +818,7 @@ function updateProgressBars(){
 
 function incrementProgress(topic, attempted, correctCount){
   const key=topic+'_done';
-  const target=DAILY_TARGETS[topic]||5;
+  const target=getDailyTargets()[topic]||4;
   if((todayProgress[key]||0)<target*2){
     todayProgress[key]=(todayProgress[key]||0)+1;
   }
@@ -841,7 +1029,7 @@ async function loadProgressPage(){
 
     let allCloze=0,allSynth=0,daysLearning=(allRows||[]).length,streak=0;
     (allRows||[]).forEach(r=>{ allCloze+=r.cloze_done||0; allSynth+=r.synthesis_done||0; });
-    const target=DAILY_TARGETS;
+    const target=getDailyTargets();
     for(const r of (allRows||[])){
       if((r.cloze_done||0)>=target.cloze && (r.synthesis_done||0)>=target.synthesis) streak++;
       else break;
@@ -937,6 +1125,18 @@ async function loadRanksPage(){
   }catch(e){el.innerHTML='<p style="color:var(--red);font-size:13px;">Error loading rankings.</p>';}
 }
 
+function generateReferralCode(existingRows){
+  const existing=new Set((existingRows||[]).map(r=>r.referral_code).filter(Boolean));
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code,attempts=0;
+  do{
+    const suffix=Array.from({length:4},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+    code='REF-'+suffix;
+    attempts++;
+  }while(existing.has(code)&&attempts<200);
+  return code;
+}
+
 async function loadAccountPage(){
   const el=document.getElementById('account-info');
   el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">Loading…</p>';
@@ -944,6 +1144,31 @@ async function loadAccountPage(){
     const start=currentUser.start_date||currentUser.created_at?.split('T')[0]||'—';
     const end=currentUser.expiry||'—';
     const daysLeft=currentUser.expiry?Math.max(0,Math.ceil((new Date(currentUser.expiry)-new Date())/86400000)):null;
+
+    // Auto-generate referral code for students who don't have one yet
+    if(currentUser.role==='student'&&!currentUser.referral_code){
+      try{
+        const allCodes=await sbFetch('cloze_users?select=referral_code')||[];
+        const newCode=generateReferralCode(allCodes);
+        await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}`,{method:'PATCH',prefer:'return=minimal',body:{referral_code:newCode}});
+        currentUser.referral_code=newCode;
+        sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
+      }catch(e){console.warn('referral code gen failed',e);}
+    }
+
+    // Count successful referrals
+    let referralCount=0;
+    if(currentUser.role==='student'){
+      try{
+        const referred=await sbFetch(`cloze_users?referred_by=eq.${encodeURIComponent(currentUser.username)}&role=eq.student&select=username`);
+        referralCount=(referred||[]).length;
+      }catch(e){}
+    }
+
+    const referralSection=currentUser.role==='student'?`
+      <span>Account Credit: <strong style="color:var(--gold)">${currentUser.credit||0} pts</strong></span>
+      <span>Successful Referrals: <strong style="color:var(--green)">${referralCount} student${referralCount===1?'':'s'}</strong></span>`:'';
+
     el.innerHTML=`<div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.15);border-radius:12px;padding:16px;">
       <div style="font-size:13px;color:var(--text);display:flex;flex-direction:column;gap:8px;">
         <span>Username: <strong style="color:var(--gold)">${currentUser.username}</strong></span>
@@ -952,8 +1177,29 @@ async function loadAccountPage(){
         <span>Start: <strong style="color:var(--gold)">${start}</strong></span>
         <span>Until: <strong style="color:var(--gold)">${end}</strong></span>
         ${daysLeft!==null?`<span>Days left: <strong style="color:${daysLeft<=14?'var(--red)':'var(--green)'}">${daysLeft}</strong></span>`:''}
+        ${referralSection}
       </div>
     </div>`;
+
+    // Referral code card for students
+    if(currentUser.role==='student'&&currentUser.referral_code){
+      const code=currentUser.referral_code;
+      el.innerHTML+=`<div style="background:linear-gradient(135deg,#f39c12,#e05c3a);border-radius:12px;padding:16px;margin-top:12px;color:#fff;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;opacity:0.85;font-weight:700;margin-bottom:10px;">🎁 My Referral Code</div>
+        <div style="font-family:monospace;font-size:22px;font-weight:700;letter-spacing:3px;margin-bottom:12px;">${code}</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-invite-copy" onclick="copyInviteCode('${code}')">Copy code</button>
+          <button class="btn-invite-share" onclick="shareInviteCode('${code}')">Invite →</button>
+        </div>
+      </div>`;
+      // Also refresh invite banner now that we have the code
+      loadInviteBanner();
+    }else if(currentUser.role==='tester'){
+      el.innerHTML+=`<div style="background:rgba(224,92,58,0.06);border:1.5px solid rgba(224,92,58,0.25);border-radius:12px;padding:14px;margin-top:12px;">
+        <div style="font-size:14px;font-weight:700;color:#c05a00;margin-bottom:6px;">🔖 Trial Member</div>
+        <p style="font-size:13px;color:var(--text-dim);line-height:1.6;">You're on a 3-day trial. Contact your teacher to upgrade to a full Student plan.</p>
+      </div>`;
+    }
   }catch(e){el.innerHTML='<p style="color:var(--red);font-size:13px;">Error loading account info.</p>';}
 }
 
@@ -974,7 +1220,7 @@ async function loadStudentList(){
         else if(days<=30)expHtml=`<span class="expire-warn">⚠️ ${days}d left</span>`;
         else expHtml=`<span class="expire-ok">✅ Until ${u.expiry}</span>`;
       }
-      return`<div class="user-row"><div><div class="user-name">${u.display||u.username}</div><div class="user-meta">@${u.username} · ${u.level||'P6'} · Start: ${u.start_date||'—'} ${expHtml}</div></div><button class="btn-delete" onclick="deleteStudent('${u.username}')">Remove</button></div>`;
+      return`<div class="user-row"><div><div class="user-name">${u.display||u.username}</div><div class="user-meta">@${u.username} · ${u.level||'P6'} · ${u.daily_limit||4}/day · Start: ${u.start_date||'—'} ${expHtml}</div></div><button class="btn-delete" onclick="deleteStudent('${u.username}')">Remove</button></div>`;
     }).join('');
   }catch(e){list.innerHTML='<p style="font-size:13px;color:var(--red);">Error: '+e.message+'</p>';}
 }
@@ -984,14 +1230,16 @@ async function addStudent(){
   const password=document.getElementById('new-pass').value;
   const display=document.getElementById('new-display').value.trim();
   const level=document.getElementById('new-level').value;
+  const daily_limit=parseInt(document.getElementById('new-limit').value)||5;
   const start_date=document.getElementById('new-start').value;
   const expiry=document.getElementById('new-end').value;
   if(!username||!password||!display){showToast('⚠️ Fill in username, password, name.');return;}
   const btn=document.getElementById('btn-create');
   btn.disabled=true;btn.textContent='Creating…';
   try{
-    await sbFetch('cloze_users',{method:'POST',prefer:'return=minimal',body:{username,password,display,level,role:'student',start_date:start_date||null,expiry:expiry||null}});
+    await sbFetch('cloze_users',{method:'POST',prefer:'return=minimal',body:{username,password,display,level,role:'student',start_date:start_date||null,expiry:expiry||null,daily_limit}});
     ['new-user','new-pass','new-display','new-start','new-end'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('new-limit').value='5';
     showToast(`✅ Account created for ${display}!`);
     loadStudentList();
   }catch(e){
@@ -1191,12 +1439,27 @@ async function loadQuestionsFromDB(type) {
   const used = usedIds[type]?.size || 0;
   const total = dbQuestions[type]?.length || 0;
   if (dbLoaded[type] && total > 0 && used < total * 0.8) return;
+
+  const isTrial = currentUser?.role === 'tester' || currentUser?.role === 'test';
+
   try {
     if (type === 'cloze') {
-      const rows = await sbFetch('cloze_passages?select=*&order=used_count.asc&limit=30');
+      let rows;
+      if (isTrial && currentUser?.demo_cloze_ids?.length) {
+        const ids = currentUser.demo_cloze_ids.join(',');
+        rows = await sbFetch(`cloze_passages?id=in.(${ids})&select=*&order=used_count.asc`);
+      } else {
+        rows = await sbFetch('cloze_passages?select=*&order=used_count.asc&limit=30');
+      }
       if (rows && rows.length > 0) { dbQuestions.cloze = shuffle(rows); dbLoaded.cloze = true; }
     } else if (type === 'synthesis') {
-      const rows = await sbFetch('synthesis_questions?select=*&limit=50');
+      let rows;
+      if (isTrial && currentUser?.demo_synthesis_ids?.length) {
+        const ids = currentUser.demo_synthesis_ids.join(',');
+        rows = await sbFetch(`synthesis_questions?id=in.(${ids})&select=*`);
+      } else {
+        rows = await sbFetch('synthesis_questions?select=*&limit=50');
+      }
       if (rows && rows.length > 0) { dbQuestions.synthesis = shuffle(rows); dbLoaded.synthesis = true; }
     } else {
       const rows = await sbFetch(`questions?type=eq.${type}&select=*&limit=60`);
@@ -1521,6 +1784,8 @@ function selectTopic(btn,topic){
   currentTopic=topic;
   document.getElementById('chat-title').textContent=TOPIC_LABELS[topic];
   newSession();
+  // Scroll to chat area
+  setTimeout(()=>{const chat=document.getElementById('chat-messages');if(chat)chat.scrollIntoView({behavior:'smooth',block:'start'});},400);
 }
 function selectTopicById(topic){
   const btn=document.getElementById('sb-'+topic);
@@ -1539,13 +1804,16 @@ async function startSession(){
   if (window._sessionRunning) return;
   window._sessionRunning = true;
 
-  const target = DAILY_TARGETS[currentTopic];
+  const target = getDailyTargets()[currentTopic];
   const doneToday = todayProgress[currentTopic+'_done'] || 0;
   if (target && doneToday >= target) {
     document.getElementById('chat-messages').innerHTML='';
     chatHistory=[];
     setChatInputVisible(true);
-    const limitMsg = `🎉 You've reached today's limit of ${target} for **${TOPIC_LABELS[currentTopic]}** (${doneToday}/${target} done). Come back tomorrow for more, or check your other mistakes in **My Mistakes**!`;
+    const isTrial=currentUser?.role==='tester'||currentUser?.role==='test';
+    const limitMsg = isTrial
+      ? `🔖 You've completed today's trial limit of ${target} for **${TOPIC_LABELS[currentTopic]}**. Upgrade to a full Student plan for unlimited daily practice!`
+      : `🎉 You've reached today's limit of ${target} for **${TOPIC_LABELS[currentTopic]}** (${doneToday}/${target} done). Come back tomorrow for more, or check your other mistakes in **My Mistakes**!`;
     addMessage('ai', limitMsg);
     chatHistory.push({role:'assistant', content: limitMsg});
     window._sessionRunning = false;
@@ -1841,6 +2109,210 @@ async function askClaude(forcedMsg,countProgress){
     document.getElementById('chat-input').disabled=false;
     document.getElementById('chat-input').focus();
   }
+}
+
+// ══════════════════════════════════════════════════════════
+// HOME PAGE WIDGETS
+// ══════════════════════════════════════════════════════════
+
+// ── Stats Bar ─────────────────────────────────────────────
+function updateStatsBar(){
+  const t=todayProgress;
+  const totalAttempted=(t.cloze_attempted||0)+(t.synthesis_attempted||0);
+  const totalCorrect=(t.cloze_correct||0)+(t.synthesis_correct||0);
+  const totalSessions=(t.cloze_done||0)+(t.synthesis_done||0);
+  const acc=totalAttempted>0?Math.round(totalCorrect/totalAttempted*100)+'%':'—';
+  const tp2=getDailyTargets();const QUOTA=tp2.cloze+tp2.synthesis;
+
+  const elToday=document.getElementById('stat-today');
+  const elSess=document.getElementById('stat-sessions');
+  const elAcc=document.getElementById('stat-accuracy');
+  const elQuota=document.getElementById('stat-quota');
+  if(elToday)elToday.textContent=totalAttempted;
+  if(elSess)elSess.textContent=totalSessions;
+  if(elAcc)elAcc.textContent=acc;
+  if(elQuota){
+    elQuota.textContent=`${Math.min(totalSessions,QUOTA)}/${QUOTA}`;
+    elQuota.style.color=totalSessions>=QUOTA?'var(--green)':'';
+  }
+  renderDailyTask();
+  renderContinueCta();
+}
+
+// ── Today's Mission ───────────────────────────────────────
+let _pendingMistakesCount=-1;
+function renderDailyTask(){
+  const el=document.getElementById('daily-task-section');if(!el)return;
+  const _dt=getDailyTargets();const clozeDone=(todayProgress.cloze_done||0)>=_dt.cloze;
+  const synthDone=(todayProgress.synthesis_done||0)>=_dt.synthesis;
+  const mistakesDone=_pendingMistakesCount===0;
+  const allDone=clozeDone&&synthDone&&mistakesDone&&_pendingMistakesCount>=0;
+
+  if(allDone){
+    el.innerHTML=`<div class="daily-complete-wrap"><div class="daily-medal">🏆</div><div class="daily-complete-title">Today's Mission Complete!</div><div class="daily-complete-sub">Cloze ✅ · Synthesis ✅ · Mistakes ✅</div></div>`;
+    return;
+  }
+
+  const mistakesText=_pendingMistakesCount<0?'—':(_pendingMistakesCount>0?_pendingMistakesCount+' left':'Clear!');
+  el.innerHTML=`<div class="daily-task-wrap">
+    <div class="daily-task-title">📋 Today's Mission</div>
+    <div class="daily-task-items">
+      <div class="daily-task-item" onclick="selectTopicById('cloze')">
+        <div class="task-check ${clozeDone?'done':''}"><span>${clozeDone?'✓':''}</span></div>
+        <span class="task-label ${clozeDone?'done':''}">Comprehension Cloze</span>
+        <span class="task-progress-text">${Math.min(todayProgress.cloze_done||0,_dt.cloze)}/${_dt.cloze}</span>
+      </div>
+      <div class="daily-task-item" onclick="selectTopicById('synthesis')">
+        <div class="task-check ${synthDone?'done':''}"><span>${synthDone?'✓':''}</span></div>
+        <span class="task-label ${synthDone?'done':''}">Synthesis &amp; Trans.</span>
+        <span class="task-progress-text">${Math.min(todayProgress.synthesis_done||0,_dt.synthesis)}/${_dt.synthesis}</span>
+      </div>
+      <div class="daily-task-item" onclick="showTab('mistakes')">
+        <div class="task-check ${mistakesDone?'done':''}"><span>${mistakesDone?'✓':''}</span></div>
+        <span class="task-label ${mistakesDone?'done':''}">Clear My Mistakes</span>
+        <span class="task-progress-text">${mistakesText}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function loadMistakesCount(){
+  if(!currentUser)return;
+  try{
+    const thirtyDaysAgo=new Date();thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30);
+    const dateStr=thirtyDaysAgo.toISOString().split('T')[0];
+    const rows=await sbFetch(`coach_wrong_questions?username=eq.${encodeURIComponent(currentUser.username)}&status=eq.active&wrong_date=gte.${dateStr}&select=id`);
+    _pendingMistakesCount=(rows||[]).length;
+    renderDailyTask();
+  }catch(e){_pendingMistakesCount=-1;}
+}
+
+// ── Continue CTA ──────────────────────────────────────────
+function renderContinueCta(){
+  const el=document.getElementById('continue-cta');if(!el)return;
+  const _dt2=getDailyTargets();const clozeDone=(todayProgress.cloze_done||0)>=_dt2.cloze;
+  const synthDone=(todayProgress.synthesis_done||0)>=_dt2.synthesis;
+  let label='';
+  if(!clozeDone)label='▶ Continue: Comprehension Cloze';
+  else if(!synthDone)label='▶ Continue: Synthesis &amp; Trans.';
+  else if(_pendingMistakesCount>0)label=`▶ Continue: My Mistakes (${_pendingMistakesCount} left)`;
+  el.innerHTML=label?`<button class="continue-cta-btn" onclick="continueToday()">${label}</button>`:'';
+}
+
+function continueToday(){
+  const _dt3=getDailyTargets();const clozeDone=(todayProgress.cloze_done||0)>=_dt3.cloze;
+  const synthDone=(todayProgress.synthesis_done||0)>=_dt3.synthesis;
+  if(!clozeDone){selectTopicById('cloze');return;}
+  if(!synthDone){selectTopicById('synthesis');return;}
+  if(_pendingMistakesCount>0){showTab('mistakes');return;}
+  showToast('🎉 All done for today! Great work!');
+}
+
+// ── Streak Widget ─────────────────────────────────────────
+async function loadStreakWidget(){
+  const el=document.getElementById('streak-widget');if(!el||!currentUser)return;
+  try{
+    const rows=await sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&order=date.desc&limit=60&select=date,cloze_done,synthesis_done`)||[];
+    const doneDates=new Set(rows.filter(r=>{const _sdt=getDailyTargets();return(r.cloze_done||0)>=_sdt.cloze&&(r.synthesis_done||0)>=_sdt.synthesis;}).map(r=>r.date));
+    const today=TODAY;
+    const yestDate=new Date();yestDate.setDate(yestDate.getDate()-1);
+    const yesterday=yestDate.toISOString().split('T')[0];
+    let streak=0;
+    if(doneDates.has(today)||doneDates.has(yesterday)){
+      let d=doneDates.has(today)?new Date():yestDate;
+      while(doneDates.has(d.toISOString().split('T')[0])){streak++;d.setDate(d.getDate()-1);}
+    }
+    if(streak>0){
+      const encourage=!doneDates.has(today)?" — do today's practice to keep it going!":'';
+      el.innerHTML=`<div class="streak-widget">🔥 <span class="streak-num">${streak}</span> Day${streak>1?'s':''} Streak${encourage}</div>`;
+    }else{
+      el.innerHTML=`<div class="streak-widget streak-widget-new">🔥 Start your streak today — do Cloze + S&amp;T!</div>`;
+    }
+  }catch(e){el.innerHTML='';}
+}
+
+// ── Mini Leaderboard ──────────────────────────────────────
+async function renderMiniLeaderboard(){
+  const el=document.getElementById('mini-leaderboard');if(!el||!currentUser)return;
+  try{
+    const [progressRows,userRows]=await Promise.all([
+      sbFetch('cloze_daily_progress?select=username,cloze_attempted,cloze_correct,synthesis_attempted,synthesis_correct'),
+      sbFetch('cloze_users?select=username,display,role')
+    ]);
+    if(!progressRows||!userRows)return;
+    const displayMap={},roleMap={};
+    userRows.forEach(u=>{displayMap[u.username]=u.display||u.username;roleMap[u.username]=u.role;});
+    const totals={};
+    progressRows.forEach(r=>{
+      if(!totals[r.username])totals[r.username]={attempted:0,correct:0};
+      totals[r.username].attempted+=(r.cloze_attempted||0)+(r.synthesis_attempted||0);
+      totals[r.username].correct+=(r.cloze_correct||0)+(r.synthesis_correct||0);
+    });
+    const ranked=Object.entries(totals)
+      .filter(([u])=>roleMap[u]!=='admin'&&displayMap[u])
+      .map(([u,t])=>({username:u,display:displayMap[u]||u,score:calcScore(t.attempted,t.correct)}))
+      .sort((a,b)=>b.score-a.score);
+    if(!ranked.length)return;
+    const myRank=ranked.findIndex(r=>r.username===currentUser.username)+1;
+    const top3=ranked.slice(0,3);
+    const MEDALS=['🥇','🥈','🥉'];
+    const rows=top3.map((r,i)=>{
+      const isMe=r.username===currentUser.username;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid rgba(91,65,236,0.08)">
+        <span style="font-size:16px;min-width:24px">${MEDALS[i]}</span>
+        <span style="flex:1;font-size:13px;font-weight:${isMe?700:500};color:${isMe?'var(--gold)':'var(--text)'}">${r.display}${isMe?' (you)':''}</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text-dim)">${r.score}<span style="font-size:10px;font-weight:400"> pts</span></span>
+      </div>`;
+    }).join('');
+    const myLine=myRank>3?`<div style="margin-top:6px;padding:6px 10px;background:rgba(91,65,236,0.08);border-radius:8px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:12px;font-weight:700;color:var(--gold);min-width:24px">#${myRank}</span>
+      <span style="flex:1;font-size:13px;font-weight:700;color:var(--gold)">${currentUser.display||currentUser.username} (you)</span>
+      <span style="font-size:13px;font-weight:700;color:var(--gold)">${ranked[myRank-1]?.score||0}<span style="font-size:10px;font-weight:400"> pts</span></span>
+    </div>`:'';
+    el.innerHTML=`<div style="background:var(--dark2);border:1.5px solid rgba(91,65,236,0.12);border-radius:var(--radius);padding:14px 16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px">🏆 Rankings</span>
+        <button onclick="showTab('ranks')" style="background:none;border:none;font-size:12px;color:var(--gold);font-weight:600;cursor:pointer;padding:0">View all →</button>
+      </div>${rows}${myLine}</div>`;
+    // Also load mistakes count for the mission card
+    loadMistakesCount();
+  }catch(e){el.innerHTML='';}
+}
+
+// ── Invite Banner ─────────────────────────────────────────
+function loadInviteBanner(){
+  const slot=document.getElementById('invite-banner-slot');if(!slot)return;
+  if(!currentUser||currentUser.role!=='student'||!currentUser.referral_code){slot.innerHTML='';return;}
+  const code=currentUser.referral_code;
+  slot.innerHTML=`<div class="invite-banner">
+    <div class="invite-banner-header">
+      <div class="invite-banner-icon">🎁</div>
+      <div>
+        <div class="invite-banner-title">Share AL1 with friends</div>
+        <div class="invite-banner-desc">Friends get a 3-day free trial · You earn credits when they upgrade</div>
+      </div>
+    </div>
+    <div class="invite-banner-row">
+      <div class="invite-code-chip">${code}</div>
+      <div class="invite-actions">
+        <button class="btn-invite-copy" onclick="copyInviteCode('${code}')">Copy code</button>
+        <button class="btn-invite-share" onclick="shareInviteCode('${code}')">Invite →</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function copyInviteCode(code){
+  navigator.clipboard.writeText(code).then(()=>showToast('Referral code copied ✓')).catch(()=>{
+    const el=document.createElement('textarea');el.value=code;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);showToast('Referral code copied ✓');
+  });
+}
+
+function shareInviteCode(code){
+  const appUrl='https://al1-cloze-synthesis-coach.vercel.app';
+  const text=`Try AL1 Cloze & Synthesis Coach free for 3 days!\n🔑 Referral code: ${code}\n${appUrl}`;
+  if(navigator.share){navigator.share({title:'AL1 Cloze & Synthesis Coach',text}).catch(()=>{});}
+  else{navigator.clipboard.writeText(text).then(()=>showToast('Invite message copied — paste it to a friend!')).catch(()=>{const el=document.createElement('textarea');el.value=text;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);showToast('Invite message copied — paste it to a friend!');});}
 }
 
 // ══════════════════════════════════
