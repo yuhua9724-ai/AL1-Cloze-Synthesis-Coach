@@ -1845,6 +1845,11 @@ function buildHintBlock(exp){
 
 function renderInlinePassage(p,answers,explanations,studentMap,keys){
   const passage=p.passage||'';
+  // Build mapping: passage blank number (e.g. "46") → answer key (e.g. "1")
+  const passageNums=[];
+  passage.replace(/\((\d{1,2})\)/g,(m,n)=>{if(!passageNums.includes(n))passageNums.push(n);});
+  const numToKey={};
+  passageNums.forEach((pn,i)=>{if(keys[i])numToKey[pn]=keys[i];});
   const blankData={};
   keys.forEach(k=>{
     const studentAns=studentMap[k]||'';
@@ -1856,16 +1861,17 @@ function renderInlinePassage(p,answers,explanations,studentMap,keys){
   const processed=lines.map(line=>{
     const wrongInLine=[];
     const withAnswers=line.replace(/\((\d{1,2})\)/g,(m,n)=>{
-      const d=blankData[n];
+      const k=numToKey[n]||n;
+      const d=blankData[k];
       if(!d)return m;
       if(d.ok){
         return `<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;margin:0 2px;"><span style="background:rgba(0,199,202,0.15);color:#086668;font-weight:600;padding:1px 7px;border-radius:4px;font-size:14px;border-bottom:2px solid #00c7ca;">(${n}) ${d.correctDisplay}</span></span>`;
       } else {
-        wrongInLine.push(n);
+        wrongInLine.push(k);
         return `<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;margin:0 2px;"><span style="font-size:10px;color:#9ca3af;text-decoration:line-through;line-height:1.2;">${d.studentAns||'(blank)'}</span><span style="background:rgba(224,36,94,0.12);color:#e0245e;font-weight:600;padding:1px 7px;border-radius:4px;font-size:14px;border-bottom:2px solid #e0245e;">(${n}) ${d.correctDisplay}</span></span>`;
       }
     });
-    const hints=wrongInLine.map(n=>buildHintBlock(explanations[n])).join('');
+    const hints=wrongInLine.map(k=>buildHintBlock(explanations[k])).join('');
     return withAnswers+(hints?`<div style="margin:2px 0;">${hints}</div>`:'');
   });
   return `<div style="font-size:15px;line-height:2;color:var(--text);">${processed.join('<br>')}</div>`;
@@ -1900,8 +1906,17 @@ async function markDBAnswers(studentAnswer, type) {
     const p = currentDBQuestions;
     const answers = p.answers || p.blanks || {};
     const explanations = p.explanations || {};
-    const studentMap = parseNumberedAnswers(studentAnswer, /^\((\d+)\)\s*(.*)$/);
+    const rawStudentMap = parseNumberedAnswers(studentAnswer, /^\((\d+)\)\s*(.*)$/);
     const keys = Object.keys(answers).sort((a, b) => Number(a) - Number(b));
+    // Remap student answers if passage uses original PSLE numbering (e.g. 46-60) vs answer keys (1-15)
+    const passageNums=[];
+    (p.passage||'').replace(/\((\d{1,2})\)/g,(m,n)=>{if(!passageNums.includes(n))passageNums.push(n);});
+    const studentMap={};
+    if(passageNums.length>0 && passageNums[0]!==keys[0]){
+      passageNums.forEach((pn,i)=>{if(keys[i])studentMap[keys[i]]=rawStudentMap[pn]||'';});
+    } else {
+      Object.assign(studentMap,rawStudentMap);
+    }
     let correct = 0;
     const wrongBlanks = [];
     keys.forEach(k => {
