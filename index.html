@@ -330,6 +330,31 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .btn-invite-copy{background:white;color:#1a1035;border:none;border-radius:20px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;}
 .btn-invite-share{background:var(--cream);color:white;border:none;border-radius:20px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;}
 
+/* Referral history */
+.ref-section-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin:18px 0 10px;}
+.ref-item{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(91,65,236,0.07);}
+.ref-item:last-child{border-bottom:none;}
+.ref-avatar{width:36px;height:36px;border-radius:50%;background:rgba(91,65,236,0.1);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.ref-info{flex:1;min-width:0;}
+.ref-name{font-size:14px;font-weight:600;color:var(--text);}
+.ref-meta{font-size:11px;color:var(--text-dim);margin-top:2px;}
+.ref-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:4px;vertical-align:middle;}
+.ref-badge-student{background:rgba(0,199,202,0.12);color:#086668;border:1px solid rgba(0,199,202,0.3);}
+.ref-badge-tester{background:rgba(244,121,32,0.1);color:#c05a00;border:1px solid rgba(244,121,32,0.25);}
+.ref-credit{font-size:14px;font-weight:700;flex-shrink:0;}
+.ref-credit-earned{color:#00c7ca;}
+.ref-credit-pending{color:var(--text-dim);}
+.tester-progress-wrap{background:rgba(244,121,32,0.06);border:1.5px solid rgba(244,121,32,0.2);border-radius:12px;padding:14px 16px;margin-top:12px;}
+.tester-progress-title{font-size:13px;font-weight:700;color:#c05a00;margin-bottom:4px;}
+.tester-progress-sub{font-size:12px;color:var(--text-dim);margin-bottom:10px;line-height:1.5;}
+.tester-prog-bar-bg{background:rgba(244,121,32,0.15);border-radius:99px;height:8px;overflow:hidden;margin-bottom:6px;}
+.tester-prog-bar-fill{height:8px;border-radius:99px;background:linear-gradient(90deg,#f47920,#f39c12);transition:width 0.5s ease;}
+.tester-prog-label{display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);}
+.acct-info-row{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(91,65,236,0.06);font-size:13px;}
+.acct-info-row:last-child{border-bottom:none;}
+.acct-info-label{color:var(--text-dim);font-weight:500;}
+.acct-info-val{color:var(--text);font-weight:600;text-align:right;}
+
 /* Hint sentence highlight — like a highlighter marker over the key phrase */
 mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radius:3px;font-weight:600;box-decoration-break:clone;-webkit-box-decoration-break:clone;}
 </style>
@@ -475,52 +500,43 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
   </div>
 
   <!-- PROGRESS TAB -->
-  <div id="panel-progress" style="display:none;padding:20px;max-width:640px;margin:0 auto;">
-    <div style="max-width:600px;margin:0 auto;padding-bottom:40px;">
-      <div id="progress-content">Loading…</div>
-    </div>
+  <div id="panel-progress" style="display:none;" class="app-body-stacked">
+    <div id="progress-content">Loading…</div>
   </div>
 
   <!-- MY MISTAKES TAB -->
-  <div id="panel-mistakes" style="display:none;padding:20px;max-width:640px;margin:0 auto;">
-    <div style="max-width:600px;margin:0 auto;padding-bottom:40px;">
-      <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:6px;">My Mistakes</h2>
-      <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;">Last 30 days · retype the answer to clear a mistake — get it right twice in a row to master it</div>
-      <div class="wrong-bank-wrap">
-        <div id="wrong-bank-content"><div class="wrong-bank-empty">Loading…</div></div>
-      </div>
+  <div id="panel-mistakes" style="display:none;" class="app-body-stacked">
+    <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:6px;">My Mistakes</h2>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;">Last 30 days · retype the answer to clear a mistake — get it right twice in a row to master it</div>
+    <div class="wrong-bank-wrap">
+      <div id="wrong-bank-content"><div class="wrong-bank-empty">Loading…</div></div>
     </div>
   </div>
 
   <!-- RANKS TAB -->
-  <div id="panel-ranks" style="display:none;padding:20px;max-width:640px;margin:0 auto;">
-    <div style="max-width:600px;margin:0 auto;padding-bottom:40px;">
-      <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:6px;">🏆 Rankings</h2>
-      <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;">Based on total questions attempted and accuracy — all-time</div>
-      <div id="ranks-content">Loading…</div>
-    </div>
+  <div id="panel-ranks" style="display:none;" class="app-body-stacked">
+    <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:6px;">🏆 Rankings</h2>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;">Based on total questions attempted and accuracy — all-time</div>
+    <div id="ranks-content">Loading…</div>
   </div>
 
   <!-- ACCOUNT TAB -->
-  <div id="panel-account" style="display:none;padding:20px;max-width:640px;margin:0 auto;">
-    <div style="max-width:600px;margin:0 auto;padding-bottom:40px;">
-      <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:18px;">Account</h2>
-      <div id="account-info">Loading…</div>
-      <div class="admin-section" style="margin-top:20px;">
-        <h3>🔑 Change Password</h3>
-        <div class="pw-form">
-          <input type="password" id="pw-current" placeholder="Current password"/>
-          <input type="password" id="pw-new" placeholder="New password"/>
-          <input type="password" id="pw-confirm" placeholder="Confirm new password"/>
-          <button class="btn-change-pw" onclick="changePassword()">Update Password</button>
-        </div>
+  <div id="panel-account" style="display:none;" class="app-body-stacked">
+    <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:18px;">Account</h2>
+    <div id="account-info">Loading…</div>
+    <div class="admin-section" style="margin-top:16px;">
+      <h3>🔑 Change Password</h3>
+      <div class="pw-form">
+        <input type="password" id="pw-current" placeholder="Current password"/>
+        <input type="password" id="pw-new" placeholder="New password"/>
+        <input type="password" id="pw-confirm" placeholder="Confirm new password"/>
+        <button class="btn-change-pw" onclick="changePassword()">Update Password</button>
       </div>
     </div>
   </div>
 
   <!-- ADMIN TAB -->
-  <div id="panel-admin" style="display:none;padding:0;max-width:640px;margin:0 auto;">
-    <div class="admin-panel">
+  <div id="panel-admin" style="display:none;" class="app-body-stacked">
       <div class="admin-section">
         <h3>➕ Add New Student</h3>
         <div class="admin-form">
@@ -538,9 +554,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
         <h3>👥 Current Students</h3>
         <div id="users-list"><p style="font-size:13px;color:var(--text-dim);">Loading…</p></div>
       </div>
-    </div>
   </div>
-</div>
 
 <div class="toast" id="toast"></div>
 
@@ -1156,43 +1170,61 @@ async function loadAccountPage(){
       }catch(e){console.warn('referral code gen failed',e);}
     }
 
-    // Count successful referrals
-    let referralCount=0;
+    // Fetch all referrals (students + testers)
+    let allReferrals=[];
     if(currentUser.role==='student'){
       try{
-        const referred=await sbFetch(`cloze_users?referred_by=eq.${encodeURIComponent(currentUser.username)}&role=eq.student&select=username`);
-        referralCount=(referred||[]).length;
+        const rows=await sbFetch(`cloze_users?referred_by=eq.${encodeURIComponent(currentUser.username)}&select=username,display,role,start_date&order=start_date.desc`);
+        allReferrals=rows||[];
+      }catch(e){}
+    }
+    const studentRefs=allReferrals.filter(u=>u.role==='student');
+    const testerRefs=allReferrals.filter(u=>u.role==='tester'||u.role==='test');
+
+    // Credit calculation
+    const creditsFromStudents=studentRefs.length*15;
+    const completedTesterBatches=Math.floor(testerRefs.length/4);
+    const creditsFromTesters=completedTesterBatches*15;
+    const totalCreditsEarned=creditsFromStudents+creditsFromTesters;
+    const testerProgress=testerRefs.length%4; // 0-3 in current batch
+
+    // Update credit in DB if calculated total differs from stored
+    if(currentUser.role==='student'&&totalCreditsEarned!==(currentUser.credit||0)){
+      try{
+        await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}`,{method:'PATCH',prefer:'return=minimal',body:{credit:totalCreditsEarned}});
+        currentUser.credit=totalCreditsEarned;
+        sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
       }catch(e){}
     }
 
-    const referralSection=currentUser.role==='student'?`
-      <span>Account Credit: <strong style="color:var(--gold)">${currentUser.credit||0} pts</strong></span>
-      <span>Successful Referrals: <strong style="color:var(--green)">${referralCount} student${referralCount===1?'':'s'}</strong></span>`:'';
+    // ── Info card ──
+    const isStudent=currentUser.role==='student';
+    const creditLine=isStudent?`<div class="acct-info-row"><span class="acct-info-label">Account Credit</span><span class="acct-info-val" style="color:var(--gold);font-weight:800;">${totalCreditsEarned} pts</span></div>`:'';
+    const refLine=isStudent?`<div class="acct-info-row"><span class="acct-info-label">Successful Referrals</span><span class="acct-info-val" style="color:var(--green);font-weight:700;">${studentRefs.length} student${studentRefs.length===1?'':'s'}</span></div>`:'';
 
-    el.innerHTML=`<div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.15);border-radius:12px;padding:16px;">
-      <div style="font-size:13px;color:var(--text);display:flex;flex-direction:column;gap:8px;">
-        <span>Username: <strong style="color:var(--gold)">${currentUser.username}</strong></span>
-        <span>Name: <strong style="color:var(--gold)">${currentUser.display||'—'}</strong></span>
-        <span>Level: <strong style="color:var(--gold)">${currentUser.level||'—'}</strong></span>
-        <span>Start: <strong style="color:var(--gold)">${start}</strong></span>
-        <span>Until: <strong style="color:var(--gold)">${end}</strong></span>
-        ${daysLeft!==null?`<span>Days left: <strong style="color:${daysLeft<=14?'var(--red)':'var(--green)'}">${daysLeft}</strong></span>`:''}
-        ${referralSection}
+    el.innerHTML=`<div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.12);border-radius:14px;overflow:hidden;">
+      <div style="padding:6px 0 0;">
+        <div class="acct-info-row"><span class="acct-info-label">Username</span><span class="acct-info-val">${currentUser.username}</span></div>
+        <div class="acct-info-row"><span class="acct-info-label">Name</span><span class="acct-info-val">${currentUser.display||'—'}</span></div>
+        <div class="acct-info-row"><span class="acct-info-label">Level</span><span class="acct-info-val">${currentUser.level||'—'}</span></div>
+        <div class="acct-info-row"><span class="acct-info-label">Membership</span><span class="acct-info-val">${start} → ${end}</span></div>
+        ${daysLeft!==null?`<div class="acct-info-row"><span class="acct-info-label">Days left</span><span class="acct-info-val" style="color:${daysLeft<=14?'var(--red)':'var(--green)'};">${daysLeft}</span></div>`:''}
+        ${creditLine}${refLine}
       </div>
     </div>`;
 
-    // Referral code card for students
-    if(currentUser.role==='student'&&currentUser.referral_code){
+    // ── Referral code card ──
+    if(isStudent&&currentUser.referral_code){
       const code=currentUser.referral_code;
-      el.innerHTML+=`<div style="background:linear-gradient(135deg,#f39c12,#e05c3a);border-radius:12px;padding:16px;margin-top:12px;color:#fff;">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;opacity:0.85;font-weight:700;margin-bottom:10px;">🎁 My Referral Code</div>
-        <div style="font-family:monospace;font-size:22px;font-weight:700;letter-spacing:3px;margin-bottom:12px;">${code}</div>
+      el.innerHTML+=`<div style="background:linear-gradient(135deg,#f39c12,#e05c3a);border-radius:14px;padding:18px;margin-top:14px;color:#fff;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;opacity:0.8;font-weight:700;margin-bottom:10px;">🎁 My Referral Code</div>
+        <div style="font-family:monospace;font-size:24px;font-weight:700;letter-spacing:3px;margin-bottom:14px;">${code}</div>
+        <div style="font-size:12px;opacity:0.85;margin-bottom:14px;">Friends get 3-day free trial · You earn 15 pts when they subscribe</div>
         <div style="display:flex;gap:8px;">
           <button class="btn-invite-copy" onclick="copyInviteCode('${code}')">Copy code</button>
           <button class="btn-invite-share" onclick="shareInviteCode('${code}')">Invite →</button>
         </div>
       </div>`;
-      // Also refresh invite banner now that we have the code
       loadInviteBanner();
     }else if(currentUser.role==='tester'){
       el.innerHTML+=`<div style="background:rgba(224,92,58,0.06);border:1.5px solid rgba(224,92,58,0.25);border-radius:12px;padding:14px;margin-top:12px;">
@@ -1200,6 +1232,62 @@ async function loadAccountPage(){
         <p style="font-size:13px;color:var(--text-dim);line-height:1.6;">You're on a 3-day trial. Contact your teacher to upgrade to a full Student plan.</p>
       </div>`;
     }
+
+    // ── Referral History ──
+    if(isStudent&&allReferrals.length>0){
+      // Tester progress bar (if any incomplete batch)
+      let progressHtml='';
+      if(testerRefs.length>0){
+        const pct=Math.round(testerProgress/4*100);
+        const batchesDone=completedTesterBatches;
+        progressHtml=`<div class="tester-progress-wrap">
+          <div class="tester-progress-title">⏳ Trial Referrals Progress</div>
+          <div class="tester-progress-sub">Every <strong>4 trial students</strong> who sign up = <strong style="color:#f47920">+15 pts</strong> for you${batchesDone>0?` · ${batchesDone} batch${batchesDone>1?'es':''} completed (+${batchesDone*15} pts earned)`:''}</div>
+          <div class="tester-prog-bar-bg"><div class="tester-prog-bar-fill" style="width:${pct}%"></div></div>
+          <div class="tester-prog-label"><span>${testerProgress}/4 in current batch</span><span>${4-testerProgress} more to unlock +15 pts</span></div>
+        </div>`;
+      }
+
+      const maskUser=u=>{
+        const name=u.display||u.username||'';
+        if(/^\d{8}$/.test(u.username)){return u.username.slice(0,2)+'****';}
+        return name.length>=3?name.slice(0,2)+'***':name.slice(0,1)+'***';
+      };
+
+      const refRows=allReferrals.map(u=>{
+        const isConverted=u.role==='student';
+        const avatarEmoji=isConverted?'👤':'🔖';
+        const badge=isConverted
+          ?'<span class="ref-badge ref-badge-student">✅ Full Member</span>'
+          :'<span class="ref-badge ref-badge-tester">🔖 Trial</span>';
+        const creditHtml=isConverted
+          ?'<span class="ref-credit ref-credit-earned">+15 pts</span>'
+          :'<span class="ref-credit ref-credit-pending">pending</span>';
+        return`<div class="ref-item">
+          <div class="ref-avatar">${avatarEmoji}</div>
+          <div class="ref-info">
+            <div class="ref-name">${maskUser(u)}${badge}</div>
+            <div class="ref-meta">Joined ${u.start_date||'—'}</div>
+          </div>
+          ${creditHtml}
+        </div>`;
+      }).join('');
+
+      el.innerHTML+=`<div class="ref-section-title">📋 Referral History (${allReferrals.length})</div>
+        <div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.1);border-radius:14px;padding:4px 16px;">
+          ${refRows}
+        </div>
+        ${progressHtml}`;
+
+    }else if(isStudent){
+      el.innerHTML+=`<div class="ref-section-title">📋 Referral History</div>
+        <div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.1);border-radius:14px;padding:20px;text-align:center;">
+          <div style="font-size:24px;margin-bottom:8px;">🎁</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">No referrals yet</div>
+          <div style="font-size:12px;color:var(--text-dim);">Share your code to earn 15 pts per student who subscribes</div>
+        </div>`;
+    }
+
   }catch(e){el.innerHTML='<p style="color:var(--red);font-size:13px;">Error loading account info.</p>';}
 }
 
@@ -1210,7 +1298,7 @@ async function loadStudentList(){
   const list=document.getElementById('users-list');
   list.innerHTML='<p style="font-size:13px;color:var(--text-dim);">Loading…</p>';
   try{
-    const rows=await sbFetch('cloze_users?role=eq.student&select=*&order=display.asc');
+    const rows=await sbFetch('cloze_users?role=in.(student,tester)&select=*&order=role.asc,display.asc');
     if(!rows||rows.length===0){list.innerHTML='<p style="font-size:13px;color:var(--text-dim);">No students yet.</p>';return;}
     list.innerHTML=rows.map(u=>{
       const days=u.expiry?Math.ceil((new Date(u.expiry)-new Date())/86400000):null;
@@ -1220,9 +1308,32 @@ async function loadStudentList(){
         else if(days<=30)expHtml=`<span class="expire-warn">⚠️ ${days}d left</span>`;
         else expHtml=`<span class="expire-ok">✅ Until ${u.expiry}</span>`;
       }
-      return`<div class="user-row"><div><div class="user-name">${u.display||u.username}</div><div class="user-meta">@${u.username} · ${u.level||'P6'} · ${u.daily_limit||4}/day · Start: ${u.start_date||'—'} ${expHtml}</div></div><button class="btn-delete" onclick="deleteStudent('${u.username}')">Remove</button></div>`;
+      const isTester=u.role==='tester';
+      const roleBadge=isTester?'<span style="background:rgba(244,121,32,0.15);color:#c05a00;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;">TRIAL</span>':'';
+      const upgradeBtn=isTester?`<button style="background:rgba(0,199,202,0.1);border:1px solid rgba(0,199,202,0.3);color:#086668;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;font-family:inherit;margin-right:6px;" onclick="upgradeToStudent('${u.username}')">Upgrade ✅</button>`:'';
+      return`<div class="user-row"><div><div class="user-name">${u.display||u.username}${roleBadge}</div><div class="user-meta">@${u.username} · ${u.level||'P6'} · ${u.daily_limit||5}/day · Start: ${u.start_date||'—'} ${expHtml}</div></div><div style="display:flex;align-items:center;">${upgradeBtn}<button class="btn-delete" onclick="deleteStudent('${u.username}')">Remove</button></div></div>`;
     }).join('');
   }catch(e){list.innerHTML='<p style="font-size:13px;color:var(--red);">Error: '+e.message+'</p>';}
+}
+
+async function upgradeToStudent(username){
+  if(!confirm(`Upgrade @${username} from Trial → Full Student?\n\n✅ Full access activated\n✅ Referral code generated\n✅ +15 pts awarded to their referrer`))return;
+  try{
+    const rows=await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}&select=*`);
+    if(!rows||!rows.length){showToast('User not found');return;}
+    const tester=rows[0];
+    const allCodes=await sbFetch('cloze_users?select=referral_code')||[];
+    const newCode=generateReferralCode(allCodes);
+    await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}`,{method:'PATCH',prefer:'return=minimal',body:{role:'student',referral_code:newCode,daily_limit:5,expiry:null}});
+    if(tester.referred_by){
+      const refRows=await sbFetch(`cloze_users?username=eq.${encodeURIComponent(tester.referred_by)}&select=credit`);
+      if(refRows&&refRows.length){
+        await sbFetch(`cloze_users?username=eq.${encodeURIComponent(tester.referred_by)}`,{method:'PATCH',prefer:'return=minimal',body:{credit:(refRows[0].credit||0)+15}});
+        showToast(`✅ ${tester.display||username} upgraded! +15 pts → @${tester.referred_by} 🎉`);
+      }else{showToast(`✅ ${tester.display||username} is now a Full Student!`);}
+    }else{showToast(`✅ ${tester.display||username} is now a Full Student!`);}
+    loadStudentList();
+  }catch(e){showToast('❌ Error: '+e.message);}
 }
 
 async function addStudent(){
