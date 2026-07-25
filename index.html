@@ -951,8 +951,16 @@ function renderWrongCard(q) {
   } else if (q.question_type === 'cloze' && /\(\d{1,2}\)/.test(q.question_text || '')) {
     const escaped = (q.question_text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     questionHtml = escaped.replace(/\((\d{1,2})\)(\s*_{2,})?/, `<input type="text" class="fill-blank wrong-inline-blank" id="wretry-${q.id}" onkeydown="if(event.key==='Enter')tryWrongFillIn('${q.id}','${(q.correct_answer||'').replace(/'/g,"\\'")}')"/>`);
-    bodyHtml = `<button class="wrong-retry-btn" onclick="tryWrongFillIn('${q.id}','${(q.correct_answer||'').replace(/'/g,"\\'")}')">Check</button>
-    <div class="wrong-retry-feedback" id="wfeedback-${q.id}"></div>`;
+    const exp = opts && opts.explanation;
+    let hintText = "";
+    if (exp) {
+      if (typeof exp === "string") { hintText = exp; }
+      else if (exp.explanation) { hintText = exp.explanation.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>"); }
+    }
+    const safeAns=(q.correct_answer||"").replace(/'/g,"\\'");
+    bodyHtml = '<button class="wrong-retry-btn" onclick="tryWrongFillIn(\'' + q.id + '\',\'' + safeAns + '\')">Check</button>'
+      + '<div class="wrong-retry-feedback" id="wfeedback-' + q.id + '"></div>'
+      + (hintText ? '<div id="whint-' + q.id + '" style="display:none;margin-top:8px;font-size:13px;color:var(--text-dim);line-height:1.6;padding:6px 10px;background:var(--dark3);border-radius:6px;">' + hintText + '</div>' : '');
   } else {
     questionHtml = q.question_text;
     bodyHtml = `<div class="wrong-retry-row">
@@ -1009,6 +1017,8 @@ function tryWrongFillIn(id, correctAnswer) {
   } else {
     feedback.innerHTML = `❌ Correct answer: ${toAnswerList(correctAnswer)[0] || correctAnswer}`;
     feedback.className = 'wrong-retry-feedback wrong';
+    const hint = document.getElementById('whint-' + id);
+    if (hint) hint.style.display = 'block';
   }
   updateMistakeStreak(id, isCorrect, card);
 }
@@ -1953,7 +1963,7 @@ async function markDBAnswers(studentAnswer, type) {
     if (wrongCount >= 8) {
       saveWrongPassage(p);
     } else if (wrongCount > 0) {
-      wrongBlanks.forEach(w => saveWrongQuestion(extractSentenceForBlank(p.passage, w.k), w.correctDisplay, w.studentAns, 'cloze', null));
+      wrongBlanks.forEach(w => saveWrongQuestion(extractSentenceForBlank(p.passage, w.k), w.correctDisplay, w.studentAns, 'cloze', { explanation: explanations[w.k], blank_num: w.k }));
     }
     if (redoingWrongMistakeId) {
       if (wrongCount < 8) {
