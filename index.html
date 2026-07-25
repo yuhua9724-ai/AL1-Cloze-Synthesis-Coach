@@ -948,9 +948,9 @@ function renderWrongCard(q) {
     bodyHtml = `<div class="wrong-card-options">${Object.entries(opts).map(([k,v]) =>
       `<button class="wrong-option-btn" data-id="${q.id}" data-answer="${k}" data-correct="${q.correct_answer}" onclick="tryWrongAnswer(this)">${k}. ${v}</button>`
     ).join('')}</div>`;
-  } else if (q.question_type === 'cloze' && /\(\d{1,2}\)\s*_{2,}/.test(q.question_text || '')) {
+  } else if (q.question_type === 'cloze' && /\(\d{1,2}\)/.test(q.question_text || '')) {
     const escaped = (q.question_text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    questionHtml = escaped.replace(/\((\d{1,2})\)\s*_{2,}/, `<input type="text" class="fill-blank wrong-inline-blank" id="wretry-${q.id}" onkeydown="if(event.key==='Enter')tryWrongFillIn('${q.id}','${(q.correct_answer||'').replace(/'/g,"\\'")}')"/>`);
+    questionHtml = escaped.replace(/\((\d{1,2})\)(\s*_{2,})?/, `<input type="text" class="fill-blank wrong-inline-blank" id="wretry-${q.id}" onkeydown="if(event.key==='Enter')tryWrongFillIn('${q.id}','${(q.correct_answer||'').replace(/'/g,"\\'")}')"/>`);
     bodyHtml = `<button class="wrong-retry-btn" onclick="tryWrongFillIn('${q.id}','${(q.correct_answer||'').replace(/'/g,"\\'")}')">Check</button>
     <div class="wrong-retry-feedback" id="wfeedback-${q.id}"></div>`;
   } else {
