@@ -943,24 +943,24 @@ function renderWrongCard(q) {
   }
   const opts = q.options ? JSON.parse(typeof q.options === 'string' ? q.options : JSON.stringify(q.options)) : null;
   let questionHtml, bodyHtml;
-  if (opts) {
+  if (q.question_type === 'cloze' && /\(\d{1,2}\)/.test(q.question_text || '')) {
+    const escaped = (q.question_text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    questionHtml = escaped.replace(/\((\d{1,2})\)(\s*_{2,})?/, `<input type="text" class="fill-blank wrong-inline-blank" id="wretry-${q.id}" onkeydown="if(event.key==='Enter')tryWrongFillIn('${q.id}','${(q.correct_answer||'').replace(/'/g,"\\'")}')"/>`);
+    const exp = opts && opts.explanation;
+    let hintText = '';
+    if (exp) {
+      if (typeof exp === 'string') { hintText = exp; }
+      else if (exp.explanation) { hintText = exp.explanation.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>'); }
+    }
+    const safeAns=(q.correct_answer||'').replace(/'/g,"\\'");
+    bodyHtml = '<button class="wrong-retry-btn" onclick="tryWrongFillIn(\'' + q.id + '\',\'' + safeAns + '\')">Check</button>'
+      + '<div class="wrong-retry-feedback" id="wfeedback-' + q.id + '"></div>'
+      + (hintText ? '<div id="whint-' + q.id + '" style="display:none;margin-top:8px;font-size:13px;color:var(--text-dim);line-height:1.6;padding:6px 10px;background:var(--dark3);border-radius:6px;">' + hintText + '</div>' : '');
+  } else if (opts) {
     questionHtml = q.question_text;
     bodyHtml = `<div class="wrong-card-options">${Object.entries(opts).map(([k,v]) =>
       `<button class="wrong-option-btn" data-id="${q.id}" data-answer="${k}" data-correct="${q.correct_answer}" onclick="tryWrongAnswer(this)">${k}. ${v}</button>`
     ).join('')}</div>`;
-  } else if (q.question_type === 'cloze' && /\(\d{1,2}\)/.test(q.question_text || '')) {
-    const escaped = (q.question_text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    questionHtml = escaped.replace(/\((\d{1,2})\)(\s*_{2,})?/, `<input type="text" class="fill-blank wrong-inline-blank" id="wretry-${q.id}" onkeydown="if(event.key==='Enter')tryWrongFillIn('${q.id}','${(q.correct_answer||'').replace(/'/g,"\\'")}')"/>`);
-    const exp = opts && opts.explanation;
-    let hintText = "";
-    if (exp) {
-      if (typeof exp === "string") { hintText = exp; }
-      else if (exp.explanation) { hintText = exp.explanation.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>"); }
-    }
-    const safeAns=(q.correct_answer||"").replace(/'/g,"\\'");
-    bodyHtml = '<button class="wrong-retry-btn" onclick="tryWrongFillIn(\'' + q.id + '\',\'' + safeAns + '\')">Check</button>'
-      + '<div class="wrong-retry-feedback" id="wfeedback-' + q.id + '"></div>'
-      + (hintText ? '<div id="whint-' + q.id + '" style="display:none;margin-top:8px;font-size:13px;color:var(--text-dim);line-height:1.6;padding:6px 10px;background:var(--dark3);border-radius:6px;">' + hintText + '</div>' : '');
   } else {
     questionHtml = q.question_text;
     bodyHtml = `<div class="wrong-retry-row">
@@ -1778,7 +1778,9 @@ async function startDBSession(type) {
 
 // ── Local answer matching ──────────────────────────────────
 function normalizeAnswerText(s) {
-  return (s == null ? '' : String(s)).trim().toLowerCase().replace(/[.!?,;:'"]+$/, '').replace(/\s+/g, ' ');
+  return (s == null ? '' : String(s)).trim().toLowerCase()
+    .replace(/[''‛`´]/g, '')
+    .replace(/[.!?,;:'"]+$/, '').replace(/\s+/g, ' ');
 }
 
 function toAnswerList(val) {
