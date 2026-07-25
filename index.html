@@ -993,7 +993,7 @@ async function updateMistakeStreak(id, isCorrect, card) {
         card.style.transition = 'opacity 0.5s';
         card.style.opacity = '0';
         setTimeout(() => card.remove(), 500);
-      }, 800);
+      }, 3000);
     } else {
       await sbFetch(`coach_wrong_questions?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{correct_streak:newStreak}});
       const streakEl = card.querySelector('.wrong-streak b');
@@ -1004,21 +1004,32 @@ async function updateMistakeStreak(id, isCorrect, card) {
 
 function tryWrongFillIn(id, correctAnswer) {
   const input = document.getElementById('wretry-' + id);
+  if (!input || input.disabled) return;  // prevent double-trigger
   const feedback = document.getElementById('wfeedback-' + id);
   const card = document.getElementById('wcard-' + id);
   const studentAns = (input.value || '').trim();
   const isCorrect = isAnswerCorrect(studentAns, correctAnswer);
   input.disabled = true;
-  const btn = card.querySelector('.wrong-retry-btn');
+  const btn = card ? card.querySelector('.wrong-retry-btn') : null;
   if (btn) btn.disabled = true;
   if (isCorrect) {
     feedback.innerHTML = `✅ Correct!`;
     feedback.className = 'wrong-retry-feedback correct';
+    // Show explanation even when correct to reinforce learning
+    const hint = document.getElementById('whint-' + id);
+    if (hint) hint.style.display = 'block';
   } else {
     feedback.innerHTML = `❌ Correct answer: ${toAnswerList(correctAnswer)[0] || correctAnswer}`;
     feedback.className = 'wrong-retry-feedback wrong';
     const hint = document.getElementById('whint-' + id);
     if (hint) hint.style.display = 'block';
+    // Re-enable input so student can try again
+    setTimeout(() => {
+      input.disabled = false;
+      input.value = '';
+      input.focus();
+      if (btn) btn.disabled = false;
+    }, 1200);
   }
   updateMistakeStreak(id, isCorrect, card);
 }
