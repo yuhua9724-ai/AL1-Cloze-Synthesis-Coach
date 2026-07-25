@@ -1842,19 +1842,23 @@ function buildHintBlock(exp, blankNum){
   }
   if(isFP){
     // Fixed phrase: just show bold phrase, no explanation block
+    if(exp.hint_sentence){
+      const hl=exp.hint_sentence.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.+?)\*\*/g,'<mark class="hint-mark">$1</mark>');
+      inner+=`<div class="exp-hint" style="margin-bottom:4px;">💡 ${hl}</div>`;
+    }
     if(exp.explanation){
       const phrase=exp.explanation.replace(/^Remember:\s*/i,'');
       inner+=`<div style="font-size:14px;font-weight:600;color:var(--text);">${phrase}</div>`;
     }
   } else {
-    if(exp.explanation){
-      // Highlight **word** in explanation
-      const expHl=exp.explanation.replace(/\*\*(.+?)\*\*/g,'<mark class="hint-mark">$1</mark>');
-      inner+=`<span style="display:block;font-size:13px;color:var(--text);margin:2px 0 4px;line-height:1.5;">${expHl}</span>`;
-    }
+    // hint_sentence first (context), then explanation (reason)
     if(exp.hint_sentence){
       const hl=exp.hint_sentence.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.+?)\*\*/g,'<mark class="hint-mark">$1</mark>');
-      inner+=`<div class="exp-hint" style="margin-top:4px;">💡 ${hl}</div>`;
+      inner+=`<div class="exp-hint" style="margin-bottom:4px;">💡 ${hl}</div>`;
+    }
+    if(exp.explanation){
+      const expHl=exp.explanation.replace(/\*\*(.+?)\*\*/g,'<mark class="hint-mark">$1</mark>');
+      inner+=`<span style="display:block;font-size:13px;color:var(--text);margin:2px 0 4px;line-height:1.5;">${expHl}</span>`;
     }
   }
   return inner?`<div style="border-left:3px solid #f59e0b;background:#fffbeb;border-radius:0 6px 6px 0;padding:8px 12px;margin:6px 0 12px;">${inner}</div>`:'';
