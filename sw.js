@@ -1,38 +1,2704 @@
-const CACHE_VERSION = 'v1.0.25';
-const CACHE_NAME = 'al1-cloze-' + CACHE_VERSION;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AL1 Cloze & Synthesis Coach — PSLE English AL1</title>
 
-self.addEventListener('install', e => {
-  self.skipWaiting();
+<!-- PWA manifest (inline) -->
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22English%20Ace%22%2C%22short_name%22%3A%22English%20Ace%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%237c3aed%22%2C%22theme_color%22%3A%22%237c3aed%22%2C%22orientation%22%3A%22portrait%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%2527..%2527%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D"/>
+
+<!-- iOS PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="AL1 Cloze & Synthesis"/>
+<meta name="theme-color" content="#5b41ec"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+
+<!-- iOS icon — purple gradient with ACE text -->
+<link rel="apple-touch-icon" href="/icon.png"/>
+
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --gold:#5b41ec;--gold-btn:#5b41ec;--gold-light:#8f7ff5;--gold-dim:#4023c9;
+  --dark:#f4f6fb;--dark2:#ffffff;--dark3:#f1f3f9;--dark4:#e6e4fa;
+  --cream:#1a1035;--cream2:#2d1f6e;
+  --text:#26264a;--text-dim:#6b6b8a;
+  --green:#00c7ca;--green-btn:#086668;--green-light:#5ee0e2;--green-dim:#0c8e91;
+  --red:#e0245e;--blue:#1b91d9;--orange:#f47920;
+  --radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}sub,sup{font-size:1em;vertical-align:baseline;}
+body{font-family:'Outfit',sans-serif;background:var(--dark);color:var(--text);min-height:100vh;min-height:100dvh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 90% 70% at 15% 0%,rgba(91,65,236,0.06) 0%,transparent 55%),radial-gradient(ellipse 70% 90% at 90% 100%,rgba(0,199,202,0.05) 0%,transparent 60%);pointer-events:none;z-index:0;}
+
+.screen{display:none;position:relative;z-index:1;}
+.screen.active{display:flex;}
+
+/* LOGIN */
+#login-screen{min-height:100vh;min-height:100dvh;flex-direction:column;align-items:center;justify-content:center;padding:24px;position:fixed;inset:0;z-index:200;background:linear-gradient(160deg,#00c7ca 0%,#1b91d9 35%,#5b41ec 70%,#7430e9 100%);}
+
+.login-box{position:relative;z-index:1;width:100%;max-width:400px;background:var(--dark2);border:1px solid rgba(91,65,236,0.2);border-radius:20px;padding:40px 36px;box-shadow:0 8px 40px rgba(91,65,236,0.12);}
+.login-logo{text-align:center;margin-bottom:32px;}
+.al1-logo{font-family:'Black Han Sans','Arial Black',sans-serif;font-weight:900;letter-spacing:-2px;line-height:1;display:inline-flex;align-items:center;gap:4px;}
+.al1-logo .al-text{font-size:64px;color:#4a9de5;}
+.al1-logo .one-text{font-size:76px;color:#85bbed;}
+.login-logo .al1-sub{display:block;font-size:12px;color:#5b41ec;font-weight:700;margin-top:12px;letter-spacing:0.3px;background:rgba(91,65,236,0.1);border:1.5px solid rgba(91,65,236,0.25);border-radius:99px;padding:5px 16px;width:fit-content;margin-left:auto;margin-right:auto;}
+.login-field{margin-bottom:14px;}
+.login-field label{display:block;font-size:11px;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;font-weight:500;}
+.login-field input{width:100%;background:var(--dark3);border:1px solid rgba(91,65,236,0.15);border-radius:10px;padding:12px 14px;color:var(--text);font-size:15px;outline:none;transition:border-color 0.2s;}
+.login-field input:focus{border-color:var(--gold);}
+.btn-login{width:100%;background:linear-gradient(135deg,#4023c9,#5b41ec);color:#fff;font-weight:600;font-size:15px;font-family:'Space Grotesk',sans-serif;letter-spacing:0.3px;border:none;border-radius:12px;padding:14px;cursor:pointer;margin-top:8px;transition:all 0.2s;box-shadow:0 4px 20px rgba(91,65,236,0.4);}
+.btn-login:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(91,65,236,0.5);}
+.btn-login:disabled{opacity:0.5;cursor:not-allowed;}
+.login-error{display:none;background:rgba(224,90,90,0.12);border:1px solid rgba(224,90,90,0.3);border-radius:8px;padding:10px 14px;font-size:13px;color:#e05a5a;margin-top:10px;text-align:center;}
+.login-loading{display:none;text-align:center;font-size:13px;color:var(--text-dim);margin-top:10px;}
+/* Signup / trial */
+#signup-form-inner{display:none;}
+.btn-trial{width:100%;background:linear-gradient(135deg,#e05c3a,#f39c12);color:#fff;font-weight:700;font-size:14px;font-family:'Space Grotesk',sans-serif;border:none;border-radius:12px;padding:13px;cursor:pointer;margin-top:10px;transition:all 0.2s;box-shadow:0 4px 16px rgba(224,92,58,0.35);}
+.btn-trial:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(224,92,58,0.45);}
+.btn-signup{width:100%;background:linear-gradient(135deg,#5b41ec,#00c7ca);color:#fff;font-weight:700;font-size:15px;font-family:'Space Grotesk',sans-serif;border:none;border-radius:12px;padding:14px;cursor:pointer;margin-top:8px;transition:all 0.2s;opacity:0.4;pointer-events:none;}
+.btn-signup.ready{opacity:1;pointer-events:auto;box-shadow:0 4px 20px rgba(91,65,236,0.4);}
+.btn-signup.ready:hover{transform:translateY(-1px);}
+.signup-back{display:block;text-align:center;font-size:13px;color:var(--text-dim);margin-top:12px;cursor:pointer;background:none;border:none;font-family:'Outfit',sans-serif;width:100%;}
+.signup-back:hover{color:var(--gold);}
+.signup-err{display:none;background:rgba(224,90,90,0.12);border:1px solid rgba(224,90,90,0.3);border-radius:8px;padding:10px 14px;font-size:13px;color:#e05a5a;margin-top:10px;text-align:center;}
+.signup-title{text-align:center;margin-bottom:20px;}
+.signup-title h3{font-size:17px;font-weight:800;color:var(--text);}
+.signup-title p{font-size:12px;color:var(--text-dim);margin-top:4px;}
+
+/* APP */
+#app-screen{flex-direction:column;min-height:100vh;min-height:100dvh;display:flex;position:relative;}
+.topnav{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:linear-gradient(135deg,#00c7ca 0%,var(--gold) 70%,var(--gold-dim) 100%);position:sticky;top:0;z-index:100;overflow:hidden;}
+
+.topnav>*{position:relative;z-index:1;}
+.topnav-brand{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600;color:#fff;letter-spacing:-0.3px;}
+.header-logo{font-family:'Black Han Sans','Arial Black',sans-serif;font-size:20px;font-weight:900;letter-spacing:-0.5px;display:inline-flex;align-items:center;gap:2px;}
+.header-logo .al-text{color:transparent;-webkit-text-stroke:1px rgba(255,255,255,0.75);filter:drop-shadow(0 0 3px rgba(91,65,236,0.5));}
+.header-logo .one-text{color:transparent;-webkit-text-stroke:1.2px rgba(255,255,255,0.9);filter:drop-shadow(0 0 2px rgba(255,255,255,0.5)) drop-shadow(0 0 5px rgba(0,199,202,0.4));}
+.header-brand-sub{font-size:10px;color:rgba(255,255,255,0.55);letter-spacing:0.3px;margin-top:1px;}
+.topnav-right{display:flex;align-items:center;gap:10px;}
+.topnav-user{font-size:13px;color:rgba(255,255,255,0.7);}
+.btn-logout{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;transition:all 0.2s;}
+.btn-logout:hover{background:rgba(255,255,255,0.2);}
+.admin-badge{background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.3);color:#fff;font-size:10px;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:0.5px;}
+
+/* TABS */
+.tabnav{display:flex;background:var(--dark2);border-bottom:1px solid rgba(91,65,236,0.1);overflow-x:auto;}
+.tabnav-btn{flex:1;padding:11px;font-size:13px;font-weight:700;color:var(--text-dim);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;}
+.tabnav-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
+.admin-only{display:none;}
+
+/* LAYOUT */
+.app-body-stacked{padding:16px;max-width:640px;margin:0 auto;width:100%;}
+.module-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+@media(max-width:480px){.module-grid{grid-template-columns:1fr;}}
+.module-card{position:relative;border:1.5px solid rgba(91,65,236,0.2);border-radius:14px;padding:16px;cursor:pointer;transition:all 0.2s;background:linear-gradient(160deg,#fdfefb 0%,var(--dark2) 100%);}
+.module-card:hover{border-color:rgba(91,65,236,0.4);transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,0.08);}
+.module-card.active{border-color:var(--gold);background:var(--dark4);box-shadow:0 0 0 3px rgba(91,65,236,0.15);}
+.module-icon{font-size:22px;margin-bottom:6px;}
+.module-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;}
+.module-count{font-size:11px;color:var(--text-dim);}
+.module-card .topic-done-badge{position:absolute;top:12px;right:12px;font-size:12px;color:var(--green);}
+.practice-main{background:linear-gradient(165deg,#fdfefb 0%,var(--dark2) 60%,#f4f7ee 100%);border:1.5px solid rgba(91,65,236,0.15);border-radius:14px;display:flex;flex-direction:column;}
+
+/* DAILY PROGRESS BAR */
+.daily-progress-bar{padding:10px 16px;background:var(--dark3);border-bottom:1px solid rgba(91,65,236,0.08);}
+.dp-title{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.dp-tracks{display:flex;gap:8px;flex-wrap:wrap;}
+.dp-track{flex:1;min-width:80px;}
+.dp-track-label{font-size:11px;color:var(--text-dim);margin-bottom:3px;display:flex;justify-content:space-between;}
+.dp-bar-bg{background:var(--dark4);border-radius:4px;height:6px;overflow:hidden;}
+.dp-bar-fill{height:6px;border-radius:4px;transition:width 0.5s ease;}
+.dp-bar-fill.cloze{background:var(--gold);}
+.dp-bar-fill.synthesis{background:var(--gold-dim);}
+
+/* CHAT */
+.chat-wrap{display:flex;flex-direction:column;}
+.chat-header{padding:12px 16px;border-bottom:1px solid rgba(91,65,236,0.08);display:flex;align-items:center;justify-content:space-between;}
+.chat-header h2{font-size:16px;font-weight:600;color:var(--text);}
+.btn-new-session{background:rgba(91,65,236,0.1);border:1px solid rgba(91,65,236,0.2);color:var(--gold);font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;}
+.chat-messages{padding:14px;display:flex;flex-direction:column;gap:12px;min-height:200px;}
+.msg{display:flex;max-width:100%;}
+.msg.ai{align-self:flex-start;}
+.msg.user{align-self:flex-end;}
+.msg-bubble{flex:1;background:var(--dark3);border-radius:14px;padding:14px 18px;font-size:16px;line-height:1.75;color:var(--text);}
+.msg.user .msg-bubble{background:rgba(91,65,236,0.12);border:1px solid rgba(91,65,236,0.2);}
+.msg.ai .msg-bubble{border:1px solid rgba(91,65,236,0.1);}
+.msg-bubble p{margin-bottom:7px;}.msg-bubble p:last-child{margin-bottom:0;}
+.msg-bubble strong{color:var(--gold-dim);font-weight:600;}
+.q-header{color:var(--gold-dim);font-weight:700;margin:14px 0 4px;}
+.q-header:first-child{margin-top:0;}
+.st-original-line{margin:0 0 8px;}
+.st-answer-block{margin:0 0 16px;}
+.fill-blank{background:var(--dark3);border:1.5px solid rgba(91,65,236,0.4);border-radius:8px;padding:5px 10px;color:var(--text);font-size:16px;font-weight:600;outline:none;min-width:80px;width:80px;transition:all 0.2s;}
+.fill-blank:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(91,65,236,0.2);}
+.fill-blank:disabled{opacity:0.5;cursor:not-allowed;}
+.submit-answers-btn{margin-top:8px;background:var(--orange);color:#fff;font-weight:600;font-size:13px;border:none;border-radius:8px;padding:7px 16px;cursor:pointer;}
+.submit-answers-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.thinking{display:none;padding:0 14px 8px;font-size:12px;color:var(--text-dim);font-style:italic;}
+.chat-input-area{padding:10px 14px;border-top:1px solid rgba(91,65,236,0.1);display:flex;gap:8px;align-items:flex-end;}
+.chat-input-area textarea{flex:1;background:var(--dark3);border:1px solid rgba(91,65,236,0.15);border-radius:10px;padding:9px 12px;color:var(--text);font-size:14px;resize:none;outline:none;max-height:100px;line-height:1.5;font-family:'Outfit',sans-serif;transition:border-color 0.2s;}
+.chat-input-area textarea:focus{border-color:var(--gold);}
+.chat-input-area textarea:disabled{opacity:0.4;}
+.btn-send{background:var(--gold-btn);border:none;border-radius:10px;width:38px;height:38px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.btn-send:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-send svg{width:16px;height:16px;fill:#ffffff;}
+
+/* ADMIN */
+.admin-panel{padding:18px;max-width:680px;margin:0 auto;width:100%;}
+.admin-section{background:linear-gradient(160deg,#fdfefb 0%,var(--dark2) 100%);border:1px solid rgba(91,65,236,0.15);border-radius:14px;padding:18px;margin-bottom:16px;}
+/* ── WRONG BANK ── */
+.wrong-bank-wrap{margin-bottom:20px;}
+.wrong-bank-title{font-size:14px;font-weight:700;color:var(--gold);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.wrong-bank-empty{font-size:13px;color:var(--text-dim);padding:16px;background:var(--dark3);border-radius:10px;text-align:center;}
+.wrong-card{background:linear-gradient(160deg,#fdfefb 0%,var(--dark2) 100%);border:1px solid rgba(91,65,236,0.15);border-radius:12px;padding:16px;margin-bottom:10px;}
+.wrong-card-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.wrong-card-type{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold);background:rgba(91,65,236,0.1);padding:3px 8px;border-radius:4px;}
+.wrong-card-date{font-size:11px;color:var(--text-dim);}
+.wrong-card-q{font-size:14px;color:var(--text);margin-bottom:10px;line-height:2.2;}
+.wrong-inline-blank{margin:0 4px;min-width:120px;width:120px;}
+.wrong-card-answers{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.wrong-card-correct{background:rgba(22,163,74,0.1);border:1px solid rgba(22,163,74,0.3);color:#16a34a;font-size:12px;padding:4px 10px;border-radius:6px;}
+.wrong-card-user{background:rgba(224,90,90,0.1);border:1px solid rgba(224,90,90,0.3);color:#e05a5a;font-size:12px;padding:4px 10px;border-radius:6px;}
+.wrong-card-options{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;}
+.wrong-option-btn{text-align:left;background:var(--dark3);border:1.5px solid rgba(91,65,236,0.15);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);cursor:pointer;transition:all 0.15s;}
+.wrong-option-btn:hover:not(:disabled){background:rgba(91,65,236,0.08);border-color:var(--gold);}
+.wrong-option-btn:disabled{cursor:not-allowed;opacity:0.7;}
+.wrong-option-btn.correct{background:rgba(22,163,74,0.1);border-color:#16a34a;color:#16a34a;}
+.wrong-option-btn.wrong{background:rgba(224,90,90,0.1);border-color:#e05a5a;color:#e05a5a;}
+.wrong-retry-row{display:flex;gap:8px;margin-bottom:8px;}
+.wrong-retry-input{flex:1;background:var(--dark3);border:1.5px solid rgba(91,65,236,0.15);border-radius:8px;padding:8px 12px;font-size:14px;color:var(--text);outline:none;}
+.wrong-retry-input:focus{border-color:var(--gold);}
+.wrong-retry-input:disabled{opacity:0.7;cursor:not-allowed;}
+.wrong-retry-btn{background:var(--gold-btn);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;}
+.wrong-retry-btn:disabled{opacity:0.6;cursor:not-allowed;}
+.wrong-retry-feedback{font-size:13px;margin-bottom:8px;min-height:18px;}
+.wrong-retry-feedback.correct{color:#16a34a;font-weight:600;}
+.wrong-retry-feedback.wrong{color:#e05a5a;font-weight:600;}
+.rank-row{display:flex;align-items:center;gap:12px;background:linear-gradient(160deg,#fdfefb 0%,var(--dark2) 100%);border:1px solid rgba(91,65,236,0.15);border-radius:10px;padding:12px 14px;margin-bottom:8px;}
+.rank-row.me{border-color:var(--gold);background:rgba(91,65,236,0.06);}
+.rank-medal{font-size:18px;width:26px;text-align:center;}
+.rank-name{flex:1;font-size:14px;font-weight:600;color:var(--text);}
+.rank-score{font-size:14px;font-weight:700;color:var(--gold);}
+.rank-score span{font-size:11px;font-weight:400;color:var(--text-dim);}
+.wrong-card-footer{display:flex;justify-content:space-between;align-items:center;}
+.wrong-streak{font-size:11px;color:var(--text-dim);}
+.wrong-streak b{color:var(--gold);}
+
+.admin-section h3{font-size:14px;font-weight:600;color:var(--gold);margin-bottom:12px;}
+.admin-form{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+@media(max-width:500px){.admin-form{grid-template-columns:1fr;}}
+.admin-form input,.admin-form select{background:var(--dark3);border:1px solid rgba(91,65,236,0.15);border-radius:8px;padding:8px 11px;color:var(--text);font-size:13px;outline:none;}
+.admin-form input:focus{border-color:var(--gold);}
+.btn-create{background:var(--gold-btn);color:#fff;font-weight:600;font-size:13px;border:none;border-radius:8px;padding:9px;cursor:pointer;grid-column:1/-1;}
+.btn-create:disabled{opacity:0.5;cursor:not-allowed;}
+.user-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(91,65,236,0.07);}
+.user-row:last-child{border-bottom:none;}
+.user-name{font-size:14px;font-weight:500;}
+.user-meta{font-size:11px;color:var(--text-dim);margin-top:2px;}
+.btn-delete{background:rgba(224,90,90,0.1);border:1px solid rgba(224,90,90,0.2);color:#e05a5a;font-size:12px;padding:4px 9px;border-radius:6px;cursor:pointer;}
+.api-key-row{display:flex;gap:8px;}
+.api-key-row input{flex:1;background:var(--dark3);border:1px solid rgba(91,65,236,0.15);border-radius:8px;padding:8px 11px;color:var(--text);font-size:13px;outline:none;}
+.btn-save-key{background:var(--gold-btn);color:#fff;font-weight:600;font-size:13px;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;white-space:nowrap;}
+.expire-warn{color:#e0a050;font-size:11px;}
+.expire-ok{color:var(--green);font-size:11px;}
+.expire-dead{color:var(--red);font-size:11px;}
+
+/* CHANGE PASSWORD PANEL */
+.change-pw-section{margin-top:16px;padding-top:14px;border-top:1px solid rgba(91,65,236,0.1);}
+.change-pw-section h4{font-size:13px;color:var(--gold);margin-bottom:10px;}
+.pw-form{display:flex;flex-direction:column;gap:8px;max-width:300px;}
+.pw-form input{background:var(--dark3);border:1px solid rgba(91,65,236,0.15);border-radius:8px;padding:8px 11px;color:var(--text);font-size:13px;outline:none;}
+.btn-change-pw{background:rgba(91,65,236,0.15);border:1px solid rgba(91,65,236,0.3);color:var(--gold);font-size:13px;font-weight:500;border-radius:8px;padding:8px 16px;cursor:pointer;align-self:flex-start;}
+
+/* TOAST */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark3);border:1px solid rgba(91,65,236,0.3);color:var(--text);font-size:13px;padding:9px 18px;border-radius:10px;opacity:0;transition:all 0.3s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── MOBILE RESPONSIVE ── */
+@media(max-width:600px){
+  #login-screen{padding:16px;}
+  .login-box{padding:32px 24px;border-radius:20px;}
+  .al1-logo .al-text{font-size:48px;}
+  .al1-logo .one-text{font-size:56px;}
+  .topnav{padding:10px 14px;}
+  .topnav-brand{font-size:15px;}
+  .topnav-user{display:none;}
+  .admin-badge{display:none!important;}
+  .btn-logout{font-size:11px;padding:4px 8px;}
+  .tabnav-btn{font-size:12px;padding:10px 6px;}
+  .app-body-stacked{padding:12px;}
+  .daily-progress-bar{padding:10px 12px;}
+  .dp-title{font-size:11px;margin-bottom:6px;}
+  .dp-tracks{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .dp-track{padding:7px 9px;}
+  .dp-track-label{font-size:11px;}
+  .chat-header{padding:10px 14px;}
+  .chat-header h2{font-size:15px;}
+  .chat-messages{padding:12px;}
+  .msg{max-width:100%;}
+  .msg-bubble{font-size:15px;padding:11px 14px;}
+  .chat-input-area{padding:8px 12px;}
+  .chat-input-area textarea{font-size:16px;padding:9px 12px;}
+  .btn-send{width:36px;height:36px;}
+  .fill-blank{font-size:15px;min-width:70px;width:70px;}
+  .submit-answers-btn{font-size:14px;padding:9px 18px;width:100%;margin-top:10px;}
+  .module-grid{gap:8px;}
+  .module-card{padding:12px;}
+  .admin-panel{padding:12px;}
+  .admin-section{padding:14px;}
+  .admin-form{grid-template-columns:1fr;}
+  .admin-form input,.admin-form select{font-size:15px;padding:10px 12px;}
+  .btn-create{font-size:14px;padding:11px;}
+  #panel-progress{padding:14px;}
+  .pw-form input{font-size:15px;}
+  .toast{font-size:13px;padding:10px 16px;bottom:16px;max-width:90%;white-space:normal;text-align:center;}
+}
+
+@media(max-width:380px){
+  .al1-logo .al-text{font-size:40px;}
+  .al1-logo .one-text{font-size:46px;}
+  .msg-bubble{font-size:14px;}
+  .tabnav-btn{font-size:11px;}
+}
+
+/* S&T inline input */
+.st-input{background:var(--dark3);border:1.5px solid rgba(91,65,236,0.4);border-radius:8px;padding:6px 12px;color:var(--text);font-size:15px;font-weight:500;outline:none;width:100%;max-width:500px;margin:4px 0;font-family:'Outfit',sans-serif;transition:border-color 0.2s;}
+.st-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(91,65,236,0.2);}
+.st-input:disabled{opacity:0.6;background:#f5f3ff;}
+@media(max-width:600px){.st-input{max-width:100%;}}
+.st-submit-row{margin:6px 0 2px;}
+.st-submit-one{background:var(--orange);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;}
+.st-submit-one:disabled{opacity:0.5;cursor:not-allowed;}
+.st-feedback{font-size:14px;margin:4px 0;line-height:1.6;}
+.st-feedback:empty{margin:0;}
+.st-feedback.correct{color:#16a34a;font-weight:600;}
+.st-feedback.wrong{color:#e05a5a;}
+.st-ans-line{font-size:15px;line-height:2.6;color:#1f2937;margin:2px 0 0;}
+.st-chg{display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;margin:0 3px;}
+.st-chg-old{font-size:16px;font-weight:500;color:#1f2937;text-decoration:line-through;text-decoration-color:#e0245e;text-decoration-thickness:2.5px;line-height:1.2;}
+.st-chg-new{background:rgba(0,199,202,0.15);color:#086668;font-weight:500;padding:0 7px;border-radius:4px;border-bottom:2px solid #00c7ca;line-height:1.45;}
+.st-rule{border-left:3px solid #f59e0b;background:#fffbeb;border-radius:0 6px 6px 0;padding:9px 13px;margin-top:12px;font-size:13px;line-height:1.8;color:#78350f;}
+.st-wrong-head{font-size:13px;color:#e05a5a;font-weight:500;margin-bottom:2px;}
+
+/* MCQ clickable buttons */
+.mcq-btn{display:block;width:100%;text-align:left;background:var(--dark3);border:1.5px solid rgba(91,65,236,0.25);border-radius:10px;padding:10px 14px;margin:5px 0;font-size:15px;color:var(--text);cursor:pointer;transition:all 0.15s;font-family:'Outfit',sans-serif;}
+.mcq-btn:hover:not(:disabled){background:var(--dark4);border-color:var(--gold);color:var(--gold-dim);}
+.mcq-btn:disabled{cursor:not-allowed;opacity:0.7;}
+.mcq-btn.mcq-selected{background:var(--dark4);border-color:var(--gold);color:var(--gold-dim);font-weight:600;}
+
+/* S&T keyword label shown between two inputs */
+.st-keyword{display:inline-block;font-size:14px;font-weight:600;color:var(--gold-dim);padding:0 6px;vertical-align:middle;}
+
+/* ── HOME PAGE WIDGETS ── */
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+.stat-card{background:var(--dark2);border:1px solid rgba(91,65,236,0.1);border-radius:12px;padding:13px 8px;text-align:center;}
+.stat-num{font-size:21px;font-weight:800;color:var(--text);line-height:1;}
+.stat-label{font-size:9px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:var(--text-dim);margin-top:3px;}
+@media(max-width:480px){.stats-bar{grid-template-columns:1fr 1fr;}.stat-num{font-size:18px;}}
+
+/* Streak */
+.streak-widget{display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#fff7e6,#ffedd5);border:1.5px solid #fbbf24;border-radius:var(--radius);padding:11px 16px;margin-bottom:12px;font-size:14px;font-weight:700;color:#92400e;}
+.streak-widget .streak-num{font-size:20px;font-weight:800;color:#d97706;}
+.streak-widget-new{background:var(--dark3);border-color:rgba(91,65,236,0.15);color:var(--text-dim);font-weight:600;}
+
+/* Continue CTA */
+.continue-cta-btn{width:100%;padding:15px;background:linear-gradient(135deg,var(--gold),var(--green));color:white;border:none;border-radius:var(--radius);font-family:'Outfit',sans-serif;font-size:15px;font-weight:800;cursor:pointer;letter-spacing:0.3px;margin-bottom:14px;transition:all 0.2s;box-shadow:0 4px 16px rgba(91,65,236,0.25);}
+.continue-cta-btn:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(91,65,236,0.35);}
+
+/* Today's Mission */
+.daily-task-wrap{background:linear-gradient(135deg,#1a1035 0%,#2d1f6e 100%);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;position:relative;overflow:hidden;}
+.daily-task-wrap::before{content:'';position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:rgba(255,255,255,0.04);border-radius:50%;}
+.daily-task-title{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:12px;}
+.daily-task-items{display:flex;flex-direction:column;gap:10px;}
+.daily-task-item{display:flex;align-items:center;gap:10px;cursor:pointer;}
+.task-check{width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;transition:all 0.3s;}
+.task-check.done{background:#27ae60;border-color:#27ae60;}
+.task-label{flex:1;font-size:14px;color:rgba(255,255,255,0.85);font-weight:500;}
+.task-label.done{color:rgba(255,255,255,0.4);text-decoration:line-through;}
+.task-progress-text{font-size:12px;color:rgba(255,255,255,0.45);}
+.daily-complete-wrap{background:linear-gradient(135deg,#f39c12,#e74c3c);border-radius:var(--radius);padding:22px;text-align:center;margin-bottom:14px;}
+.daily-medal{font-size:46px;margin-bottom:8px;}
+.daily-complete-title{font-size:17px;font-weight:800;color:white;margin-bottom:4px;}
+.daily-complete-sub{font-size:13px;color:rgba(255,255,255,0.85);}
+
+/* Invite banner */
+.invite-banner{background:linear-gradient(135deg,#f39c12,#e05c3a);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;color:white;}
+.invite-banner-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px;}
+.invite-banner-icon{font-size:30px;line-height:1;flex-shrink:0;}
+.invite-banner-title{font-size:16px;font-weight:800;margin-bottom:3px;}
+.invite-banner-desc{font-size:12px;color:rgba(255,255,255,0.85);line-height:1.5;}
+.invite-banner-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.invite-code-chip{background:rgba(255,255,255,0.18);border-radius:8px;padding:6px 12px;font-family:monospace;font-weight:700;letter-spacing:2px;font-size:13px;}
+.invite-actions{display:flex;gap:8px;}
+.btn-invite-copy{background:white;color:#1a1035;border:none;border-radius:20px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;}
+.btn-invite-share{background:var(--cream);color:white;border:none;border-radius:20px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;}
+
+/* Referral history */
+.ref-section-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin:18px 0 10px;}
+.ref-item{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(91,65,236,0.07);}
+.ref-item:last-child{border-bottom:none;}
+.ref-avatar{width:36px;height:36px;border-radius:50%;background:rgba(91,65,236,0.1);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.ref-info{flex:1;min-width:0;}
+.ref-name{font-size:14px;font-weight:600;color:var(--text);}
+.ref-meta{font-size:11px;color:var(--text-dim);margin-top:2px;}
+.ref-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:4px;vertical-align:middle;}
+.ref-badge-student{background:rgba(0,199,202,0.12);color:#086668;border:1px solid rgba(0,199,202,0.3);}
+.ref-badge-tester{background:rgba(244,121,32,0.1);color:#c05a00;border:1px solid rgba(244,121,32,0.25);}
+.ref-credit{font-size:14px;font-weight:700;flex-shrink:0;}
+.ref-credit-earned{color:#00c7ca;}
+.ref-credit-pending{color:var(--text-dim);}
+.tester-progress-wrap{background:rgba(244,121,32,0.06);border:1.5px solid rgba(244,121,32,0.2);border-radius:12px;padding:14px 16px;margin-top:12px;}
+.tester-progress-title{font-size:13px;font-weight:700;color:#c05a00;margin-bottom:4px;}
+.tester-progress-sub{font-size:12px;color:var(--text-dim);margin-bottom:10px;line-height:1.5;}
+.tester-prog-bar-bg{background:rgba(244,121,32,0.15);border-radius:99px;height:8px;overflow:hidden;margin-bottom:6px;}
+.tester-prog-bar-fill{height:8px;border-radius:99px;background:linear-gradient(90deg,#f47920,#f39c12);transition:width 0.5s ease;}
+.tester-prog-label{display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);}
+.acct-info-row{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(91,65,236,0.06);font-size:13px;}
+.acct-info-row:last-child{border-bottom:none;}
+.acct-info-label{color:var(--text-dim);font-weight:500;}
+.acct-info-val{color:var(--text);font-weight:600;text-align:right;}
+
+/* Hint sentence highlight — like a highlighter marker over the key phrase */
+mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radius:3px;font-weight:600;box-decoration-break:clone;-webkit-box-decoration-break:clone;}
+.exp-technique{display:inline-block;background:rgba(91,65,236,0.12);color:var(--gold-dim);font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;padding:3px 10px;border-radius:20px;margin:6px 0 4px;}
+.exp-hint{background:#fffbeb;border-left:3px solid #f59e0b;padding:8px 12px;border-radius:0 8px 8px 0;font-size:14px;color:#78350f;margin:4px 0;line-height:1.6;}
+.exp-example{background:rgba(91,65,236,0.06);border-left:3px solid rgba(91,65,236,0.3);padding:8px 12px;border-radius:0 8px 8px 0;font-size:13px;color:var(--text-dim);margin:4px 0;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" class="screen active">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="al1-logo"><span class="al-text">AL</span><span class="one-text">1</span></div>
+      <div class="al1-sub">Cloze &amp; S&amp;T Hunter · for PSLE</div>
+    </div>
+    <div class="login-field">
+      <label>Phone / Username</label>
+      <input type="text" id="login-user" placeholder="e.g. 91234567" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <div style="position:relative">
+        <input type="password" id="login-pass" placeholder="Your password" autocomplete="current-password" style="padding-right:44px" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <span onclick="togglePwVisibility()" id="pw-toggle-icon" style="position:absolute;right:14px;top:12px;cursor:pointer;font-size:18px;user-select:none">👁</span>
+      </div>
+    </div>
+    <div id="login-form-inner">
+    <button class="btn-login" id="btn-login" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-loading" id="login-loading">Signing in…</div>
+    <button class="btn-trial" onclick="showSignup(event)">First time? Create a Trial Account →</button>
+    </div>
+
+    <div id="signup-form-inner">
+      <div class="signup-title">
+        <h3>Create Trial Account</h3>
+        <p>3-day free access · A referral code is required</p>
+      </div>
+      <div class="login-field">
+        <label>Phone / Username</label>
+        <input type="tel" id="signup-user" placeholder="e.g. 91234567" autocomplete="tel" oninput="updateSignupBtn()"/>
+      </div>
+      <div class="login-field">
+        <label>Your Name</label>
+        <input type="text" id="signup-display" placeholder="e.g. Sarah Tan" autocomplete="name" oninput="updateSignupBtn()"/>
+      </div>
+      <div class="login-field">
+        <label>Password</label>
+        <input type="password" id="signup-pass" placeholder="Create a password" autocomplete="new-password" oninput="updateSignupBtn()"/>
+      </div>
+      <div class="login-field">
+        <label>Referral Code</label>
+        <input type="text" id="signup-code-field" placeholder="e.g. REF-ABC1" autocomplete="off" style="text-transform:uppercase" oninput="updateSignupBtn()"/>
+      </div>
+      <button id="btn-signup" class="btn-signup" onclick="doSignup()">Create Account</button>
+      <div class="signup-err" id="signup-err"></div>
+      <button class="signup-back" onclick="showLogin(event)">← Back to Sign In</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen" class="screen">
+  <div class="topnav">
+    <div>
+      <div class="header-logo"><span class="al-text">AL</span><span class="one-text">1</span></div>
+      <div class="header-brand-sub">Cloze &amp; S&amp;T Hunter</div>
+    </div>
+    <div class="topnav-right">
+      <span class="topnav-user" id="nav-user"></span>
+      <span class="admin-badge admin-only">Admin</span>
+      <span id="trial-badge" style="display:none;background:rgba(224,92,58,0.25);border:1px solid rgba(224,92,58,0.45);color:#ffd9c9;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:0.3px;">🔖 Trial</span>
+      <button class="btn-logout" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+  <div class="tabnav">
+    <button class="tabnav-btn active" id="tab-practice" onclick="showTab('practice')">Practice</button>
+    <button class="tabnav-btn" id="tab-progress" onclick="showTab('progress')">Progress</button>
+    <button class="tabnav-btn" id="tab-mistakes" onclick="showTab('mistakes')">My Mistakes</button>
+    <button class="tabnav-btn" id="tab-ranks" onclick="showTab('ranks')">Ranks</button>
+    <button class="tabnav-btn" id="tab-account" onclick="showTab('account')">Account</button>
+    <button class="tabnav-btn admin-only" id="tab-admin" onclick="showTab('admin')">Admin</button>
+  </div>
+
+  <!-- PRACTICE TAB -->
+  <div id="panel-practice" class="app-body-stacked">
+    <div id="invite-banner-slot"></div>
+    <div id="streak-widget"></div>
+    <div id="continue-cta"></div>
+    <div id="daily-task-section"></div>
+    <div class="module-grid">
+      <div class="module-card active" id="sb-cloze" onclick="selectTopic(this,'cloze')">
+        <div class="module-icon">📝</div>
+        <div class="module-name">Comprehension Cloze</div>
+        <div class="module-count">15 blanks per passage</div>
+        <span class="topic-done-badge" id="done-cloze"></span>
+      </div>
+      <div class="module-card topic-synthesis" id="sb-synthesis" onclick="selectTopic(this,'synthesis')">
+        <div class="module-icon">🔄</div>
+        <div class="module-name">Synthesis &amp; Trans.</div>
+        <div class="module-count">5 questions per set</div>
+        <span class="topic-done-badge" id="done-synthesis"></span>
+      </div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-card"><div class="stat-num" id="stat-today">0</div><div class="stat-label">Today's Qs</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-sessions">0</div><div class="stat-label">Sessions</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-accuracy">—</div><div class="stat-label">Accuracy</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-quota">0/10</div><div class="stat-label">Daily Quota</div></div>
+    </div>
+    <div id="mini-leaderboard" style="margin-bottom:14px"></div>
+
+    <div class="practice-main">
+      <!-- DAILY PROGRESS -->
+      <div class="daily-progress-bar" id="daily-bar">
+        <div class="dp-title">📅 Today's Tasks</div>
+        <div class="dp-tracks">
+          <div class="dp-track" id="task-cloze" onclick="selectTopicById('cloze')" style="cursor:pointer;">
+            <div class="dp-track-label"><span>📝 Cloze</span><span id="dp-cloze-txt">0/5</span></div>
+            <div class="dp-bar-bg"><div class="dp-bar-fill cloze" id="dp-cloze-bar" style="width:0%"></div></div>
+          </div>
+          <div class="dp-track" id="task-synthesis" onclick="selectTopicById('synthesis')" style="cursor:pointer;">
+            <div class="dp-track-label"><span>🔄 S&amp;T</span><span id="dp-synthesis-txt">0/5</span></div>
+            <div class="dp-bar-bg"><div class="dp-bar-fill synthesis" id="dp-synthesis-bar" style="width:0%"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-wrap">
+        <div class="chat-header">
+          <h2 id="chat-title">Comprehension Cloze</h2>
+          <button class="btn-new-session" onclick="newSession()">New Session</button>
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="thinking" id="thinking">AL1 Coach is thinking…</div>
+        <div class="chat-input-area" id="chat-input-area">
+          <textarea id="chat-input" rows="1" placeholder="Type your answer here…" oninput="autoGrow(this)" onkeydown="handleKey(event)"></textarea>
+          <button class="btn-send" id="btn-send" onclick="sendMessage()">
+            <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROGRESS TAB -->
+  <div id="panel-progress" style="display:none;" class="app-body-stacked">
+    <div id="progress-content">Loading…</div>
+  </div>
+
+  <!-- MY MISTAKES TAB -->
+  <div id="panel-mistakes" style="display:none;" class="app-body-stacked">
+    <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:6px;">My Mistakes</h2>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;">Last 30 days · retype the answer to clear a mistake — get it right twice in a row to master it</div>
+    <div class="wrong-bank-wrap">
+      <div id="wrong-bank-content"><div class="wrong-bank-empty">Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- RANKS TAB -->
+  <div id="panel-ranks" style="display:none;" class="app-body-stacked">
+    <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:6px;">🏆 Rankings</h2>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;">Based on total questions attempted and accuracy — all-time</div>
+    <div id="ranks-content">Loading…</div>
+  </div>
+
+  <!-- ACCOUNT TAB -->
+  <div id="panel-account" style="display:none;" class="app-body-stacked">
+    <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:18px;">Account</h2>
+    <div id="account-info">Loading…</div>
+    <div class="admin-section" style="margin-top:16px;">
+      <h3>🔑 Change Password</h3>
+      <div class="pw-form">
+        <input type="password" id="pw-current" placeholder="Current password"/>
+        <input type="password" id="pw-new" placeholder="New password"/>
+        <input type="password" id="pw-confirm" placeholder="Confirm new password"/>
+        <button class="btn-change-pw" onclick="changePassword()">Update Password</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN TAB -->
+  <div id="panel-admin" style="display:none;" class="app-body-stacked">
+      <div class="admin-section">
+        <h3>➕ Add New Student</h3>
+        <div class="admin-form">
+          <input type="text" id="new-user" placeholder="Phone/Username (e.g. 91234567)"/>
+          <input type="password" id="new-pass" placeholder="Password"/>
+          <input type="text" id="new-display" placeholder="Student name (e.g. Sarah Tan)"/>
+          <select id="new-level"><option value="P5">Primary 5</option><option value="P6" selected>Primary 6</option></select>
+          <input type="number" id="new-limit" placeholder="Daily limit (default 5)" min="1" max="10" value="5"/>
+          <input type="date" id="new-start" placeholder="Start date"/>
+          <input type="date" id="new-end" placeholder="End date"/>
+          <button class="btn-create" id="btn-create" onclick="addStudent()">Create Account</button>
+        </div>
+      </div>
+      <div class="admin-section">
+        <h3>👥 Current Students</h3>
+        <div id="users-list"><p style="font-size:13px;color:var(--text-dim);">Loading…</p></div>
+      </div>
+  </div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════
+// SUPABASE
+// ══════════════════════════════════
+const SB_URL='https://eogcpcrrhfrqgsueofik.supabase.co';
+const SB_KEY='sb_publishable_VIkz5z0KV0ILngsasDWv2A_YQI-O16e';
+
+async function sbFetch(path,opts={}){
+  const res=await fetch(SB_URL+'/rest/v1/'+path,{
+    headers:{
+      'apikey':SB_KEY,
+      'Authorization':'Bearer '+SB_KEY,
+      'Content-Type':'application/json',
+      'Prefer':opts.prefer||'return=representation',
+      'X-Client-Info':'supabase-js/2.0.0',
+      ...(opts.headers||{})
+    },
+    method:opts.method||'GET',
+    body:opts.body?JSON.stringify(opts.body):undefined
+  });
+  if(res.status===204)return null;
+  const text=await res.text();
+  if(!text){ if(res.ok)return null; throw new Error(res.statusText||'Empty error response'); }
+  let data;
+  try{data=JSON.parse(text);}catch(e){throw new Error('Invalid response: '+text.slice(0,100));}
+  if(!res.ok)throw new Error(data.message||data.error||data.hint||res.statusText);
+  return data;
+}
+
+// ══════════════════════════════════
+// AUTH
+// ══════════════════════════════════
+let currentUser=null;
+
+function togglePwVisibility(){
+  const input=document.getElementById('login-pass');
+  const icon=document.getElementById('pw-toggle-icon');
+  if(input.type==='password'){input.type='text';icon.textContent='🙈';}
+  else{input.type='password';icon.textContent='👁';}
+}
+
+async function doLogin(){
+  const u=document.getElementById('login-user').value.trim();
+  const p=document.getElementById('login-pass').value;
+  if(!u||!p){showLoginError('Please enter username and password.');return;}
+  document.getElementById('login-error').style.display='none';
+  document.getElementById('login-loading').style.display='block';
+  document.getElementById('btn-login').disabled=true;
+  try{
+    const rows=await sbFetch(`cloze_users?username=eq.${encodeURIComponent(u)}&password=eq.${encodeURIComponent(p)}&select=*`);
+    if(!rows||rows.length===0){showLoginError('Incorrect username or password. Please try again.');return;}
+    const user=rows[0];
+    if(user.role !== 'admin') {
+      const allowed = user.allowed_apps || 'all';
+      if(allowed !== 'all' && !allowed.split(',').map(s=>s.trim()).includes('english')) {
+        showLoginError('Your account does not have access to this app. Please contact your teacher.');
+        return;
+      }
+    }
+    if(user.expiry&&new Date(user.expiry)<new Date()){showLoginError('Your account has expired. Please contact your teacher to renew.');return;}
+    currentUser=user;
+    const sessionToken = Date.now().toString(36) + Math.random().toString(36).slice(2);
+    currentUser.sessionToken = sessionToken;
+    sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
+    sessionStorage.setItem('cal1_token', sessionToken);
+    try{
+      await sbFetch(`cloze_users?username=eq.${encodeURIComponent(user.username)}`,
+        {method:'PATCH',prefer:'return=minimal',body:{session_token:sessionToken}});
+    }catch(e){console.warn('Token update failed',e);}
+    enterApp();
+  }catch(e){showLoginError('Connection error. Please try again.');}
+  finally{document.getElementById('login-loading').style.display='none';document.getElementById('btn-login').disabled=false;}
+}
+
+function showLoginError(msg){const el=document.getElementById('login-error');el.textContent=msg;el.style.display='block';}
+
+function showSignup(e){
+  if(e)e.preventDefault();
+  document.getElementById('login-form-inner').style.display='none';
+  document.getElementById('signup-form-inner').style.display='block';
+  document.getElementById('signup-err').style.display='none';
+}
+function showLogin(e){
+  if(e)e.preventDefault();
+  document.getElementById('signup-form-inner').style.display='none';
+  document.getElementById('login-form-inner').style.display='block';
+  document.getElementById('login-error').style.display='none';
+}
+function updateSignupBtn(){
+  const user=document.getElementById('signup-user').value.trim();
+  const display=document.getElementById('signup-display').value.trim();
+  const pass=document.getElementById('signup-pass').value;
+  const code=document.getElementById('signup-code-field').value.trim();
+  const btn=document.getElementById('btn-signup');
+  const ready=user.length>=6&&display.length>=2&&pass.length>=4&&code.length>=4;
+  btn.classList.toggle('ready',ready);
+}
+async function doSignup(){
+  const btn=document.getElementById('btn-signup');
+  if(!btn.classList.contains('ready'))return;
+  const username=document.getElementById('signup-user').value.trim();
+  const displayName=document.getElementById('signup-display').value.trim();
+  const password=document.getElementById('signup-pass').value;
+  const code=document.getElementById('signup-code-field').value.trim().toUpperCase();
+  const errEl=document.getElementById('signup-err');
+  errEl.style.display='none';
+  btn.textContent='Checking code…';btn.disabled=true;
+  try{
+    // 1. Validate referral code
+    const referrer=await sbFetch(`cloze_users?referral_code=eq.${encodeURIComponent(code)}&select=username`);
+    if(!referrer||!referrer.length){
+      errEl.textContent='Invalid referral code. Please check with your friend and try again.';
+      errEl.style.display='block';btn.textContent='Create Account';btn.disabled=false;return;
+    }
+    // 2. Check username not already taken
+    const existing=await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}&select=username`);
+    if(existing&&existing.length){
+      errEl.textContent='This username is already registered. Please sign in instead.';
+      errEl.style.display='block';btn.textContent='Create Account';btn.disabled=false;return;
+    }
+    // 3. Create account (3-day trial)
+    btn.textContent='Creating account…';
+    // Copy demo question IDs from test account
+    const testAcct=await sbFetch('cloze_users?role=eq.test&select=demo_cloze_ids,demo_synthesis_ids&limit=1');
+    const demoClozeIds=(testAcct&&testAcct[0]?.demo_cloze_ids)||null;
+    const demoSynthesisIds=(testAcct&&testAcct[0]?.demo_synthesis_ids)||null;
+
+    const expiryDate=new Date();expiryDate.setDate(expiryDate.getDate()+3);
+    const expiry=expiryDate.toISOString().split('T')[0];
+    const r=await sbFetch('cloze_users',{
+      method:'POST',prefer:'return=representation',
+      body:{username,password,display:displayName||username,role:'tester',start_date:TODAY,expiry,referred_by:referrer[0].username,level:'P6',daily_limit:5,demo_cloze_ids:demoClozeIds,demo_synthesis_ids:demoSynthesisIds}
+    });
+    if(!r||!r.length){
+      errEl.textContent='Something went wrong. Please try again.';
+      errEl.style.display='block';btn.textContent='Create Account';btn.disabled=false;return;
+    }
+    btn.textContent='Create Account';btn.disabled=false;
+    // Auto log in
+    currentUser=r[0];
+    const sessionToken=Date.now().toString(36)+Math.random().toString(36).slice(2);
+    currentUser.sessionToken=sessionToken;
+    sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
+    sessionStorage.setItem('cal1_token',sessionToken);
+    try{await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}`,{method:'PATCH',prefer:'return=minimal',body:{session_token:sessionToken}});}catch(e){}
+    enterApp();
+  }catch(e){
+    errEl.textContent='Connection error. Please try again.';
+    errEl.style.display='block';btn.textContent='Create Account';btn.disabled=false;
+  }
+}
+
+async function enterApp(){
+  document.getElementById('login-screen').classList.remove('active');
+  document.getElementById('app-screen').classList.add('active');
+  if(window._sessionCheck) clearInterval(window._sessionCheck);
+  window._sessionCheck = setInterval(async()=>{
+    if(!currentUser) return;
+    try{
+      const rows = await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}&select=session_token`);
+      if(rows && rows[0] && rows[0].session_token !== currentUser.sessionToken){
+        clearInterval(window._sessionCheck);
+        alert('Your account has been logged in from another device. You have been signed out.');
+        doLogout();
+      }
+    }catch(e){}
+  }, 60000);
+  document.getElementById('nav-user').textContent=currentUser.display||currentUser.username;
+  const isAdmin=currentUser.role==='admin';
+  const isTrial=currentUser.role==='tester'||currentUser.role==='test';
+  document.querySelectorAll('.admin-only').forEach(el=>el.style.display=isAdmin?'block':'none');
+  // Show trial badge
+  const trialBadge=document.getElementById('trial-badge');
+  if(trialBadge)trialBadge.style.display=isTrial?'inline-block':'none';
+  await loadDailyProgress();
+  loadInviteBanner();
+  loadStreakWidget();
+  renderMiniLeaderboard();
+}
+
+function doLogout(){
+  currentUser=null;sessionStorage.removeItem('cal1_user');chatHistory=[];
+  document.getElementById('app-screen').classList.remove('active');
+  document.getElementById('login-screen').classList.add('active');
+  document.getElementById('login-user').value='';
+  document.getElementById('login-pass').value='';
+  document.getElementById('login-error').style.display='none';
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  const s=sessionStorage.getItem('cal1_user');
+  if(s){try{currentUser=JSON.parse(s);if(currentUser.expiry&&new Date(currentUser.expiry)<new Date()){sessionStorage.removeItem('cal1_user');currentUser=null;}else{enterApp();}}catch(e){sessionStorage.removeItem('cal1_user');}}
 });
 
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-      )
-    ).then(() => self.clients.claim())
-  );
+// ══════════════════════════════════
+// CHANGE PASSWORD
+// ══════════════════════════════════
+async function changePassword(){
+  const cur=document.getElementById('pw-current').value;
+  const nw=document.getElementById('pw-new').value;
+  const cf=document.getElementById('pw-confirm').value;
+  if(!cur||!nw||!cf){showToast('⚠️ Fill in all password fields.');return;}
+  if(cur!==currentUser.password){showToast('❌ Current password is incorrect.');return;}
+  if(nw!==cf){showToast('❌ New passwords do not match.');return;}
+  if(nw.length<4){showToast('⚠️ Password must be at least 4 characters.');return;}
+  try{
+    await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}`,{method:'PATCH',prefer:'return=minimal',body:{password:nw}});
+    currentUser.password=nw;
+    sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
+    document.getElementById('pw-current').value='';
+    document.getElementById('pw-new').value='';
+    document.getElementById('pw-confirm').value='';
+    showToast('✅ Password updated successfully!');
+  }catch(e){showToast('❌ Error updating password. Try again.');}
+}
+
+// ══════════════════════════════════
+// DAILY PROGRESS
+// ══════════════════════════════════
+let todayProgress={cloze_done:0,synthesis_done:0,weak_cloze:'',weak_synthesis:''};
+const DAILY_TARGETS={cloze:5,synthesis:5}; // overridden per-user in getDailyTargets()
+function getDailyTargets(){
+  const limit=currentUser?.daily_limit||5;
+  return{cloze:limit,synthesis:limit};
+}
+const TODAY=new Date().toISOString().split('T')[0];
+
+async function loadDailyProgress(){
+  if(!currentUser)return;
+  try{
+    const rows=await sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&date=eq.${TODAY}&select=*`);
+    if(rows&&rows.length>0)todayProgress=rows[0];
+    else todayProgress={cloze_done:0,synthesis_done:0,weak_cloze:'',weak_synthesis:''};
+    updateProgressBars();
+    updateWeakness();
+    updateStatsBar();
+  }catch(e){console.error('Progress load error',e);}
+}
+
+async function saveDailyProgress(){
+  if(!currentUser)return;
+  try{
+    const rows=await sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&date=eq.${TODAY}&select=id`);
+    if(rows&&rows.length>0){
+      await sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&date=eq.${TODAY}`,{method:'PATCH',prefer:'return=minimal',body:todayProgress});
+    }else{
+      await sbFetch('cloze_daily_progress',{method:'POST',prefer:'return=minimal',body:{...todayProgress,username:currentUser.username,date:TODAY}});
+    }
+    updateProgressBars();
+    updateWeakness();
+    updateStatsBar();
+  }catch(e){console.error('Progress save error',e);}
+}
+
+function updateProgressBars(){
+  const tp=getDailyTargets();
+  ['cloze','synthesis'].forEach(t=>{
+    const done=todayProgress[t+'_done']||0;
+    const target=tp[t];
+    const pct=Math.min(100,Math.round(done/target*100));
+    document.getElementById('dp-'+t+'-bar').style.width=pct+'%';
+    document.getElementById('dp-'+t+'-txt').textContent=done>=target?'✅ Done':done+'/'+target;
+    const badge=document.getElementById('done-'+t);
+    if(badge)badge.textContent=done>=target?'✅':'';
+    const card=document.getElementById('task-'+t);
+    if(card){
+      card.style.borderColor=done>=target?'rgba(74,222,128,0.4)':'rgba(91,65,236,0.12)';
+      card.style.background=done>=target?'rgba(74,222,128,0.1)':'var(--dark2)';
+    }
+  });
+}
+
+function incrementProgress(topic, attempted, correctCount){
+  const key=topic+'_done';
+  const target=getDailyTargets()[topic]||4;
+  if((todayProgress[key]||0)<target*2){
+    todayProgress[key]=(todayProgress[key]||0)+1;
+  }
+  if(attempted){
+    todayProgress[topic+'_attempted']=(todayProgress[topic+'_attempted']||0)+attempted;
+    todayProgress[topic+'_correct']=(todayProgress[topic+'_correct']||0)+(correctCount||0);
+  }
+  saveDailyProgress();
+}
+
+function addWeakness(topic,item){
+  const key='weak_'+topic;
+  const existing=(todayProgress[key]||'').split('|').filter(Boolean);
+  if(!existing.includes(item)&&item.length>2){
+    existing.push(item);
+    if(existing.length>5)existing.shift();
+    todayProgress[key]=existing.join('|');
+  }
+}
+
+function updateWeakness(){}
+
+// ══════════════════════════════════
+// PROGRESS PAGE
+// ══════════════════════════════════
+async function saveWrongQuestion(questionText, correctAnswer, userAnswer, type, options) {
+  if (!currentUser) return;
+  try {
+    const existing = await sbFetch(`coach_wrong_questions?username=eq.${encodeURIComponent(currentUser.username)}&question_text=eq.${encodeURIComponent(questionText)}&status=eq.active&select=id`);
+    if (existing && existing.length > 0) return;
+    await sbFetch('coach_wrong_questions', {
+      method: 'POST', prefer: 'return=minimal',
+      body: {
+        username: currentUser.username,
+        question_type: type,
+        question_text: questionText,
+        correct_answer: correctAnswer,
+        user_answer: userAnswer || '',
+        options: options || null,
+        wrong_date: new Date().toISOString().split('T')[0],
+        next_review: new Date().toISOString().split('T')[0],
+        correct_streak: 0,
+        status: 'active'
+      }
+    });
+  } catch(e) { console.warn('saveWrongQuestion error', e); }
+}
+
+async function saveWrongPassage(p) {
+  if (!currentUser || !p?.id) return;
+  try {
+    const questionText = `Redo passage: ${p.title}`;
+    const existing = await sbFetch(`coach_wrong_questions?username=eq.${encodeURIComponent(currentUser.username)}&question_text=eq.${encodeURIComponent(questionText)}&status=eq.active&select=id`);
+    if (existing && existing.length > 0) return;
+    await sbFetch('coach_wrong_questions', {
+      method: 'POST', prefer: 'return=minimal',
+      body: {
+        username: currentUser.username,
+        question_type: 'cloze_full',
+        question_text: questionText,
+        correct_answer: '',
+        user_answer: '',
+        options: { passage_id: p.id },
+        wrong_date: new Date().toISOString().split('T')[0],
+        next_review: new Date().toISOString().split('T')[0],
+        correct_streak: 0,
+        status: 'active'
+      }
+    });
+  } catch(e) { console.warn('saveWrongPassage error', e); }
+}
+
+async function loadWrongBank() {
+  const el = document.getElementById('wrong-bank-content');
+  if (!el || !currentUser) return;
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
+    const rows = await sbFetch(`coach_wrong_questions?username=eq.${encodeURIComponent(currentUser.username)}&status=eq.active&wrong_date=gte.${dateStr}&order=wrong_date.desc&limit=20&select=*`);
+    if (!rows || rows.length === 0) {
+      el.innerHTML = '<div class="wrong-bank-empty">✅ No recent mistakes — great work!</div>';
+      return;
+    }
+    el.innerHTML = rows.map(q => renderWrongCard(q)).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="wrong-bank-empty">Error loading wrong bank.</div>';
+  }
+}
+
+function renderWrongCard(q) {
+  const streak = q.correct_streak || 0;
+  if (q.question_type === 'cloze_full') {
+    const opts = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : {};
+    const passageId = opts.passage_id;
+    return `<div class="wrong-card" id="wcard-${q.id}">
+      <div class="wrong-card-meta">
+        <span class="wrong-card-type">cloze — full redo</span>
+        <span class="wrong-card-date">${q.wrong_date}</span>
+      </div>
+      <div class="wrong-card-q">${q.question_text}</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">You missed most of this passage — give the whole thing another go.</div>
+      <button class="wrong-retry-btn" onclick="redoFullPassage(${passageId}, '${q.id}')">Redo This Passage</button>
+    </div>`;
+  }
+  if (q.question_type === 'synthesis') {
+    var o = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : {};
+    o = o || {};
+    var pos = o.keyword_position || 'end';
+    var kw = o.keyword || '';
+    var stt = o.starter || '';
+    var endg = o.ending || '';
+    stMistakeData[q.id] = { starter: stt, keyword: kw, keyword_position: pos, ending: endg, model_answer: q.correct_answer || '', explanation: o.explanation || null };
+    function _t(x){ return '<span style="font-size:15px;color:var(--text);">' + stEscapeHtml(x) + '</span>'; }
+    function _in(sfx){ return '<input type="text" class="wrong-retry-input" style="flex:1 1 140px;min-width:120px;" id="wretry-' + q.id + sfx + '" placeholder="Your answer…" onkeydown="if(event.key===\'Enter\')trySTMistake(\'' + q.id + '\')"/>'; }
+    var line = '';
+    if (pos === 'middle') { line = _in('') + _t(kw) + _in('-b'); }
+    else if (pos === 'both') { line = _t(stt) + _in('') + _t(kw) + _in('-b'); }
+    else { line = (stt ? _t(stt) : '') + _in(''); }
+    if (endg) { line += _t(endg); }
+    return '<div class="wrong-card" id="wcard-' + q.id + '">'
+      + '<div class="wrong-card-meta"><span class="wrong-card-type">synthesis</span><span class="wrong-card-date">' + q.wrong_date + '</span></div>'
+      + '<div class="wrong-card-q">' + stEscapeHtml(q.question_text || '') + '</div>'
+      + '<div class="wrong-retry-row" style="flex-wrap:wrap;align-items:center;gap:8px;">' + line + '</div>'
+      + '<div style="margin-top:8px;"><button class="wrong-retry-btn" onclick="trySTMistake(\'' + q.id + '\')">Check</button></div>'
+      + '<div class="wrong-retry-feedback" id="wfeedback-' + q.id + '"></div>'
+      + '<div class="wrong-card-footer"><span class="wrong-streak">Streak: <b>' + streak + '/2</b> correct needed</span></div>'
+      + '</div>';
+  }
+  const opts = q.options ? JSON.parse(typeof q.options === 'string' ? q.options : JSON.stringify(q.options)) : null;
+  let questionHtml, bodyHtml;
+  if (q.question_type === 'cloze' && /\(\d{1,2}\)/.test(q.question_text || '')) {
+    const escaped = (q.question_text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    questionHtml = escaped.replace(/\((\d{1,2})\)(\s*_{2,})?/, `<input type="text" class="fill-blank wrong-inline-blank" id="wretry-${q.id}" onkeydown="if(event.key==='Enter')tryWrongFillIn('${q.id}','${(q.correct_answer||'').replace(/'/g,"\\'")}')"/>`);
+    const exp = opts && opts.explanation;
+    let hintText = '';
+    if (exp) {
+      if (typeof exp === 'string') { hintText = exp; }
+      else if (exp.explanation) { hintText = exp.explanation.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>'); }
+    }
+    const safeAns=(q.correct_answer||'').replace(/'/g,"\\'");
+    bodyHtml = '<button class="wrong-retry-btn" onclick="tryWrongFillIn(\'' + q.id + '\',\'' + safeAns + '\')">Check</button>'
+      + '<div class="wrong-retry-feedback" id="wfeedback-' + q.id + '"></div>'
+      + (hintText ? '<div id="whint-' + q.id + '" style="display:none;margin-top:8px;font-size:13px;color:var(--text-dim);line-height:1.6;padding:6px 10px;background:var(--dark3);border-radius:6px;">' + hintText + '</div>' : '');
+  } else if (opts) {
+    questionHtml = q.question_text;
+    bodyHtml = `<div class="wrong-card-options">${Object.entries(opts).map(([k,v]) =>
+      `<button class="wrong-option-btn" data-id="${q.id}" data-answer="${k}" data-correct="${q.correct_answer}" onclick="tryWrongAnswer(this)">${k}. ${v}</button>`
+    ).join('')}</div>`;
+  } else {
+    questionHtml = q.question_text;
+    bodyHtml = `<div class="wrong-retry-row">
+      <input type="text" class="wrong-retry-input" id="wretry-${q.id}" placeholder="Type your answer…" onkeydown="if(event.key==='Enter')tryWrongFillIn('${q.id}','${(q.correct_answer||'').replace(/'/g,"\\'")}')"/>
+      <button class="wrong-retry-btn" onclick="tryWrongFillIn('${q.id}','${(q.correct_answer||'').replace(/'/g,"\\'")}')">Check</button>
+    </div>
+    <div class="wrong-retry-feedback" id="wfeedback-${q.id}"></div>`;
+  }
+  return `<div class="wrong-card" id="wcard-${q.id}">
+    <div class="wrong-card-meta">
+      <span class="wrong-card-type">${q.question_type}</span>
+      <span class="wrong-card-date">${q.wrong_date}</span>
+    </div>
+    <div class="wrong-card-q">${questionHtml}</div>
+    ${bodyHtml}
+    <div class="wrong-card-footer">
+      <span class="wrong-streak">Streak: <b>${streak}/2</b> correct needed</span>
+    </div>
+  </div>`;
+}
+
+async function updateMistakeStreak(id, isCorrect, card) {
+  try {
+    const rows = await sbFetch(`coach_wrong_questions?id=eq.${id}&select=correct_streak`);
+    const streak = (rows && rows[0] ? rows[0].correct_streak : 0) || 0;
+    const newStreak = isCorrect ? streak + 1 : 0;
+    if (newStreak >= 2) {
+      await sbFetch(`coach_wrong_questions?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{status:'mastered', correct_streak:2}});
+      setTimeout(() => {
+        card.style.transition = 'opacity 0.5s';
+        card.style.opacity = '0';
+        setTimeout(() => card.remove(), 500);
+      }, 3000);
+    } else {
+      await sbFetch(`coach_wrong_questions?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{correct_streak:newStreak}});
+      const streakEl = card.querySelector('.wrong-streak b');
+      if (streakEl) streakEl.textContent = `${newStreak}/2`;
+    }
+  } catch(e) { console.warn('updateMistakeStreak error', e); }
+}
+
+function tryWrongFillIn(id, correctAnswer) {
+  const input = document.getElementById('wretry-' + id);
+  if (!input || input.disabled) return;  // prevent double-trigger
+  const feedback = document.getElementById('wfeedback-' + id);
+  const card = document.getElementById('wcard-' + id);
+  const studentAns = (input.value || '').trim();
+  const isCorrect = isAnswerCorrect(studentAns, correctAnswer);
+  input.disabled = true;
+  const btn = card ? card.querySelector('.wrong-retry-btn') : null;
+  if (btn) btn.disabled = true;
+  if (isCorrect) {
+    feedback.innerHTML = `✅ Correct!`;
+    feedback.className = 'wrong-retry-feedback correct';
+    // Show explanation even when correct to reinforce learning
+    const hint = document.getElementById('whint-' + id);
+    if (hint) hint.style.display = 'block';
+  } else {
+    feedback.innerHTML = `❌ Correct answer: ${toAnswerList(correctAnswer)[0] || correctAnswer}`;
+    feedback.className = 'wrong-retry-feedback wrong';
+    const hint = document.getElementById('whint-' + id);
+    if (hint) hint.style.display = 'block';
+    // Re-enable input so student can try again
+    setTimeout(() => {
+      input.disabled = false;
+      input.value = '';
+      input.focus();
+      if (btn) btn.disabled = false;
+    }, 1200);
+  }
+  updateMistakeStreak(id, isCorrect, card);
+}
+
+async function tryWrongAnswer(btn) {
+  const id = btn.getAttribute('data-id');
+  const answer = btn.getAttribute('data-answer');
+  const correct = btn.getAttribute('data-correct');
+  const card = document.getElementById('wcard-' + id);
+  card.querySelectorAll('.wrong-option-btn').forEach(b => {
+    b.disabled = true;
+    if (b.getAttribute('data-answer') === correct) b.classList.add('correct');
+  });
+  const isCorrect = answer === correct;
+  if (!isCorrect) btn.classList.add('wrong');
+  updateMistakeStreak(id, isCorrect, card);
+}
+
+async function loadProgressPage(){
+  const el=document.getElementById('progress-content');
+  el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">Loading…</p>';
+  try{
+    const [rows, allRows] = await Promise.all([
+      sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&order=date.desc&limit=7&select=*`),
+      sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&order=date.desc&select=*`)
+    ]);
+    if(!rows||rows.length===0){el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">No practice records yet. Start practising!</p>';return;}
+
+    let totalAttempted=0,totalCorrect=0;
+    rows.forEach(r=>{
+      totalAttempted+=(r.cloze_attempted||0)+(r.synthesis_attempted||0);
+      totalCorrect+=(r.cloze_correct||0)+(r.synthesis_correct||0);
+    });
+    const accuracy=totalAttempted>0?Math.round(totalCorrect/totalAttempted*100):0;
+
+    let allCloze=0,allSynth=0,daysLearning=(allRows||[]).length,streak=0;
+    (allRows||[]).forEach(r=>{ allCloze+=r.cloze_done||0; allSynth+=r.synthesis_done||0; });
+    const target=getDailyTargets();
+    for(const r of (allRows||[])){
+      if((r.cloze_done||0)>=target.cloze && (r.synthesis_done||0)>=target.synthesis) streak++;
+      else break;
+    }
+
+    let html=`<div style="background:linear-gradient(135deg,var(--blue),var(--gold));border-radius:16px;padding:20px;margin-bottom:16px;color:#fff;">
+      <div style="font-size:18px;font-weight:800;">Hi ${currentUser.display||currentUser.username}! Here's how you're doing</div>
+    </div>`;
+
+    html+=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
+      <div style="background:var(--dark4);border-radius:12px;padding:14px 10px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:var(--gold);">${daysLearning}</div>
+        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.3px;margin-top:2px;">Days Learning</div>
+      </div>
+      <div style="background:rgba(129,140,248,0.15);border-radius:12px;padding:14px 10px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:var(--blue);">${allCloze+allSynth}</div>
+        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.3px;margin-top:2px;">Sessions Done</div>
+      </div>
+      <div style="background:rgba(74,222,128,0.15);border-radius:12px;padding:14px 10px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:var(--green);">${accuracy}%</div>
+        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.3px;margin-top:2px;">Accuracy</div>
+      </div>
+    </div>`;
+
+    html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      <span style="background:var(--blue);color:#fff;font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;">Cloze ${allCloze}</span>
+      <span style="background:#16a34a;color:#fff;font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;">Synthesis ${allSynth}</span>
+      ${streak>0?`<span style="background:var(--red);color:#fff;font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;">🔥 ${streak} day streak</span>`:''}
+    </div>`;
+
+    html+=`<div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.15);border-radius:12px;padding:16px;margin-bottom:16px;">
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Last 7 Days</div>`;
+    rows.forEach(r=>{
+      const total=(r.cloze_done||0)+(r.synthesis_done||0);
+      const maxTotal=5+5;
+      const pct=Math.min(100,Math.round(total/maxTotal*100));
+      const dayAttempted=(r.cloze_attempted||0)+(r.synthesis_attempted||0);
+      const dayCorrect=(r.cloze_correct||0)+(r.synthesis_correct||0);
+      const dayAcc=dayAttempted>0?Math.round(dayCorrect/dayAttempted*100):null;
+      html+=`<div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:4px;">
+          <span>${r.date}</span><span>${total}/${maxTotal} sessions${dayAcc!==null?` · ${dayAcc}% accuracy`:''}</span>
+        </div>
+        <div style="background:var(--dark4);border-radius:4px;height:8px;overflow:hidden;">
+          <div style="width:${pct}%;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--blue),var(--gold));transition:width 0.5s;"></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:4px;font-size:11px;color:var(--text-dim);">
+          <span>Cloze: ${r.cloze_done||0}/5</span><span>S&amp;T: ${r.synthesis_done||0}/5</span>
+        </div>
+      </div>`;
+    });
+    html+='</div>';
+    el.innerHTML=html;
+  }catch(e){el.innerHTML='<p style="color:var(--red);font-size:13px;">Error loading progress.</p>';}
+}
+
+function calcScore(totalAttempted, totalCorrect) {
+  if (!totalAttempted) return 0;
+  const accuracy = totalCorrect / totalAttempted;
+  return Math.round(totalAttempted * (0.6 + accuracy * 0.4));
+}
+
+async function loadRanksPage(){
+  const el=document.getElementById('ranks-content');
+  el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">Loading…</p>';
+  try{
+    const [progressRows, userRows] = await Promise.all([
+      sbFetch('cloze_daily_progress?select=username,cloze_attempted,cloze_correct,synthesis_attempted,synthesis_correct'),
+      sbFetch('cloze_users?select=username,display,role')
+    ]);
+    const displayMap={}, roleMap={};
+    (userRows||[]).forEach(u=>{ displayMap[u.username]=u.display||u.username; roleMap[u.username]=u.role; });
+    const totals={};
+    (progressRows||[]).forEach(r=>{
+      if(!totals[r.username]) totals[r.username]={attempted:0,correct:0};
+      totals[r.username].attempted+=(r.cloze_attempted||0)+(r.synthesis_attempted||0);
+      totals[r.username].correct+=(r.cloze_correct||0)+(r.synthesis_correct||0);
+    });
+    const ranked=Object.entries(totals)
+      .filter(([username])=>roleMap[username]!=='admin')
+      .map(([username,t])=>({username,score:calcScore(t.attempted,t.correct)}))
+      .sort((a,b)=>b.score-a.score);
+    if(ranked.length===0){el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">No rankings yet. Start practising!</p>';return;}
+    const medals=['🥇','🥈','🥉'];
+    el.innerHTML=ranked.map((r,i)=>{
+      const isMe=r.username===currentUser.username;
+      return `<div class="rank-row${isMe?' me':''}">
+        <span class="rank-medal">${medals[i]||(i+1)}</span>
+        <span class="rank-name">${displayMap[r.username]||r.username}${isMe?' (you)':''}</span>
+        <span class="rank-score">${r.score}<span> pts</span></span>
+      </div>`;
+    }).join('');
+  }catch(e){el.innerHTML='<p style="color:var(--red);font-size:13px;">Error loading rankings.</p>';}
+}
+
+function generateReferralCode(existingRows){
+  const existing=new Set((existingRows||[]).map(r=>r.referral_code).filter(Boolean));
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code,attempts=0;
+  do{
+    const suffix=Array.from({length:4},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+    code='REF-'+suffix;
+    attempts++;
+  }while(existing.has(code)&&attempts<200);
+  return code;
+}
+
+async function loadAccountPage(){
+  const el=document.getElementById('account-info');
+  el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">Loading…</p>';
+  try{
+    const start=currentUser.start_date||currentUser.created_at?.split('T')[0]||'—';
+    const end=currentUser.expiry||'—';
+    const daysLeft=currentUser.expiry?Math.max(0,Math.ceil((new Date(currentUser.expiry)-new Date())/86400000)):null;
+
+    // Auto-generate referral code for students who don't have one yet
+    if(currentUser.role==='student'&&!currentUser.referral_code){
+      try{
+        const allCodes=await sbFetch('cloze_users?select=referral_code')||[];
+        const newCode=generateReferralCode(allCodes);
+        await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}`,{method:'PATCH',prefer:'return=minimal',body:{referral_code:newCode}});
+        currentUser.referral_code=newCode;
+        sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
+      }catch(e){console.warn('referral code gen failed',e);}
+    }
+
+    // Fetch all referrals (students + testers)
+    let allReferrals=[];
+    if(currentUser.role==='student'){
+      try{
+        const rows=await sbFetch(`cloze_users?referred_by=eq.${encodeURIComponent(currentUser.username)}&select=username,display,role,start_date&order=start_date.desc`);
+        allReferrals=rows||[];
+      }catch(e){}
+    }
+    const studentRefs=allReferrals.filter(u=>u.role==='student');
+    const testerRefs=allReferrals.filter(u=>u.role==='tester'||u.role==='test');
+    const isStudent=currentUser.role==='student';
+
+    // Credit calculation
+    const creditsFromStudents=studentRefs.length*15;
+    const completedTesterBatches=Math.floor(testerRefs.length/4);
+    const creditsFromTesters=completedTesterBatches*15;
+    const totalCreditsEarned=creditsFromStudents+creditsFromTesters;
+    const testerProgress=testerRefs.length%4; // 0-3 in current batch
+
+    // Update credit in DB if calculated total differs from stored
+    if(currentUser.role==='student'&&totalCreditsEarned!==(currentUser.credit||0)){
+      try{
+        await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}`,{method:'PATCH',prefer:'return=minimal',body:{credit:totalCreditsEarned}});
+        currentUser.credit=totalCreditsEarned;
+        sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
+      }catch(e){}
+    }
+
+    // ── Referral code banner FIRST (same as home page) ──
+    if(isStudent&&currentUser.referral_code){
+      const code=currentUser.referral_code;
+      el.innerHTML=`<div class="invite-banner" style="margin-bottom:14px;">
+        <div class="invite-banner-header">
+          <div class="invite-banner-icon" style="font-size:40px;">🎁</div>
+          <div>
+            <div class="invite-banner-title">Share AL1 with friends</div>
+            <div class="invite-banner-desc">Friends get a 3-day free trial · You earn credits when they upgrade</div>
+          </div>
+        </div>
+        <div class="invite-banner-row">
+          <div class="invite-code-chip">${code}</div>
+          <div class="invite-actions">
+            <button class="btn-invite-copy" onclick="copyInviteCode('${code}')">Copy code</button>
+            <button class="btn-invite-share" onclick="shareInviteCode('${code}')">Invite →</button>
+          </div>
+        </div>
+      </div>`;
+      loadInviteBanner();
+    }else if(currentUser.role==='tester'){
+      el.innerHTML=`<div style="background:rgba(224,92,58,0.06);border:1.5px solid rgba(224,92,58,0.25);border-radius:12px;padding:14px;margin-bottom:14px;">
+        <div style="font-size:14px;font-weight:700;color:#c05a00;margin-bottom:6px;">🔖 Trial Member</div>
+        <p style="font-size:13px;color:var(--text-dim);line-height:1.6;">You're on a 3-day trial. Contact your teacher to upgrade to a full Student plan.</p>
+      </div>`;
+    }else{el.innerHTML='';}
+
+    // ── Info card ──
+    const creditLine=isStudent?`<div class="acct-info-row"><span class="acct-info-label">Account Credit</span><span class="acct-info-val" style="color:var(--gold);font-weight:800;">${totalCreditsEarned} pts</span></div>`:'';
+    const refLine=isStudent?`<div class="acct-info-row"><span class="acct-info-label">Successful Referrals</span><span class="acct-info-val" style="color:var(--green);font-weight:700;">${studentRefs.length} student${studentRefs.length===1?'':'s'}</span></div>`:'';
+
+    el.innerHTML+=`<div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.12);border-radius:14px;overflow:hidden;margin-bottom:14px;">
+      <div style="padding:6px 0 0;">
+        <div class="acct-info-row"><span class="acct-info-label">Username</span><span class="acct-info-val">${currentUser.username}</span></div>
+        <div class="acct-info-row"><span class="acct-info-label">Name</span><span class="acct-info-val">${currentUser.display||'—'}</span></div>
+        <div class="acct-info-row"><span class="acct-info-label">Level</span><span class="acct-info-val">${currentUser.level||'—'}</span></div>
+        <div class="acct-info-row"><span class="acct-info-label">Membership</span><span class="acct-info-val">${start} → ${end}</span></div>
+        ${daysLeft!==null?`<div class="acct-info-row"><span class="acct-info-label">Days left</span><span class="acct-info-val" style="color:${daysLeft<=14?'var(--red)':'var(--green)'};">${daysLeft}</span></div>`:''}
+        ${creditLine}${refLine}
+      </div>
+    </div>`;
+
+    // ── Referral History ──
+    if(isStudent&&allReferrals.length>0){
+      // Tester progress bar (if any incomplete batch)
+      let progressHtml='';
+      if(testerRefs.length>0){
+        const pct=Math.round(testerProgress/4*100);
+        const batchesDone=completedTesterBatches;
+        progressHtml=`<div class="tester-progress-wrap">
+          <div class="tester-progress-title">⏳ Trial Referrals Progress</div>
+          <div class="tester-progress-sub">Every <strong>4 trial students</strong> who sign up = <strong style="color:#f47920">+15 pts</strong> for you${batchesDone>0?` · ${batchesDone} batch${batchesDone>1?'es':''} completed (+${batchesDone*15} pts earned)`:''}</div>
+          <div class="tester-prog-bar-bg"><div class="tester-prog-bar-fill" style="width:${pct}%"></div></div>
+          <div class="tester-prog-label"><span>${testerProgress}/4 in current batch</span><span>${4-testerProgress} more to unlock +15 pts</span></div>
+        </div>`;
+      }
+
+      const maskUser=u=>{
+        const name=u.display||u.username||'';
+        if(/^\d{8}$/.test(u.username)){return u.username.slice(0,2)+'****';}
+        return name.length>=3?name.slice(0,2)+'***':name.slice(0,1)+'***';
+      };
+
+      const refRows=allReferrals.map(u=>{
+        const isConverted=u.role==='student';
+        const avatarEmoji=isConverted?'👤':'🔖';
+        const badge=isConverted
+          ?'<span class="ref-badge ref-badge-student">✅ Full Member</span>'
+          :'<span class="ref-badge ref-badge-tester">🔖 Trial</span>';
+        const creditHtml=isConverted
+          ?'<span class="ref-credit ref-credit-earned">+15 pts</span>'
+          :'<span class="ref-credit ref-credit-pending">pending</span>';
+        return`<div class="ref-item">
+          <div class="ref-avatar">${avatarEmoji}</div>
+          <div class="ref-info">
+            <div class="ref-name">${maskUser(u)}${badge}</div>
+            <div class="ref-meta">Joined ${u.start_date||'—'}</div>
+          </div>
+          ${creditHtml}
+        </div>`;
+      }).join('');
+
+      el.innerHTML+=`<div class="ref-section-title">📋 Referral History (${allReferrals.length})</div>
+        <div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.1);border-radius:14px;padding:4px 16px;">
+          ${refRows}
+        </div>
+        ${progressHtml}`;
+
+    }else if(isStudent){
+      el.innerHTML+=`<div class="ref-section-title">📋 Referral History</div>
+        <div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.1);border-radius:14px;padding:20px;text-align:center;">
+          <div style="font-size:24px;margin-bottom:8px;">🎁</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">No referrals yet</div>
+          <div style="font-size:12px;color:var(--text-dim);">Share your code to earn 15 pts per student who subscribes</div>
+        </div>`;
+    }
+
+  }catch(e){el.innerHTML='<p style="color:var(--red);font-size:13px;">Error loading account info.</p>';}
+}
+
+// ══════════════════════════════════
+// ADMIN
+// ══════════════════════════════════
+async function loadStudentList(){
+  const list=document.getElementById('users-list');
+  list.innerHTML='<p style="font-size:13px;color:var(--text-dim);">Loading…</p>';
+  try{
+    const rows=await sbFetch('cloze_users?role=in.(student,tester)&select=*&order=role.asc,display.asc');
+    if(!rows||rows.length===0){list.innerHTML='<p style="font-size:13px;color:var(--text-dim);">No students yet.</p>';return;}
+    list.innerHTML=rows.map(u=>{
+      const days=u.expiry?Math.ceil((new Date(u.expiry)-new Date())/86400000):null;
+      let expHtml='';
+      if(days!==null){
+        if(days<=0)expHtml=`<span class="expire-dead">❌ Expired</span>`;
+        else if(days<=30)expHtml=`<span class="expire-warn">⚠️ ${days}d left</span>`;
+        else expHtml=`<span class="expire-ok">✅ Until ${u.expiry}</span>`;
+      }
+      const isTester=u.role==='tester';
+      const roleBadge=isTester?'<span style="background:rgba(244,121,32,0.15);color:#c05a00;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;">TRIAL</span>':'';
+      const upgradeBtn=isTester?`<button style="background:rgba(0,199,202,0.1);border:1px solid rgba(0,199,202,0.3);color:#086668;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;font-family:inherit;margin-right:6px;" onclick="upgradeToStudent('${u.username}')">Upgrade ✅</button>`:'';
+      return`<div class="user-row"><div><div class="user-name">${u.display||u.username}${roleBadge}</div><div class="user-meta">@${u.username} · ${u.level||'P6'} · ${u.daily_limit||5}/day · Start: ${u.start_date||'—'} ${expHtml}</div></div><div style="display:flex;align-items:center;">${upgradeBtn}<button class="btn-delete" onclick="deleteStudent('${u.username}')">Remove</button></div></div>`;
+    }).join('');
+  }catch(e){list.innerHTML='<p style="font-size:13px;color:var(--red);">Error: '+e.message+'</p>';}
+}
+
+async function upgradeToStudent(username){
+  if(!confirm(`Upgrade @${username} from Trial → Full Student?\n\n✅ Full access activated\n✅ Referral code generated\n✅ +15 pts awarded to their referrer`))return;
+  try{
+    const rows=await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}&select=*`);
+    if(!rows||!rows.length){showToast('User not found');return;}
+    const tester=rows[0];
+    const allCodes=await sbFetch('cloze_users?select=referral_code')||[];
+    const newCode=generateReferralCode(allCodes);
+    await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}`,{method:'PATCH',prefer:'return=minimal',body:{role:'student',referral_code:newCode,daily_limit:5,expiry:null}});
+    if(tester.referred_by){
+      const refRows=await sbFetch(`cloze_users?username=eq.${encodeURIComponent(tester.referred_by)}&select=credit`);
+      if(refRows&&refRows.length){
+        await sbFetch(`cloze_users?username=eq.${encodeURIComponent(tester.referred_by)}`,{method:'PATCH',prefer:'return=minimal',body:{credit:(refRows[0].credit||0)+15}});
+        showToast(`✅ ${tester.display||username} upgraded! +15 pts → @${tester.referred_by} 🎉`);
+      }else{showToast(`✅ ${tester.display||username} is now a Full Student!`);}
+    }else{showToast(`✅ ${tester.display||username} is now a Full Student!`);}
+    loadStudentList();
+  }catch(e){showToast('❌ Error: '+e.message);}
+}
+
+async function addStudent(){
+  const username=document.getElementById('new-user').value.trim();
+  const password=document.getElementById('new-pass').value;
+  const display=document.getElementById('new-display').value.trim();
+  const level=document.getElementById('new-level').value;
+  const daily_limit=parseInt(document.getElementById('new-limit').value)||5;
+  const start_date=document.getElementById('new-start').value;
+  const expiry=document.getElementById('new-end').value;
+  if(!username||!password||!display){showToast('⚠️ Fill in username, password, name.');return;}
+  const btn=document.getElementById('btn-create');
+  btn.disabled=true;btn.textContent='Creating…';
+  try{
+    await sbFetch('cloze_users',{method:'POST',prefer:'return=minimal',body:{username,password,display,level,role:'student',start_date:start_date||null,expiry:expiry||null,daily_limit}});
+    ['new-user','new-pass','new-display','new-start','new-end'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('new-limit').value='5';
+    showToast(`✅ Account created for ${display}!`);
+    loadStudentList();
+  }catch(e){
+    showToast(e.message.includes('duplicate')?'⚠️ Username already exists.':'❌ Error: '+e.message);
+  }finally{btn.disabled=false;btn.textContent='Create Account';}
+}
+
+async function deleteStudent(username){
+  if(!confirm(`Remove @${username}? Cannot be undone.`))return;
+  try{
+    await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}`,{method:'DELETE',prefer:'return=minimal'});
+    showToast('🗑 Account removed.');loadStudentList();
+  }catch(e){showToast('❌ Error: '+e.message);}
+}
+
+// ══════════════════════════════════
+// TABS
+// ══════════════════════════════════
+function showTab(tab){
+  document.querySelectorAll('.tabnav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.getElementById('panel-practice').style.display=tab==='practice'?'block':'none';
+  document.getElementById('panel-progress').style.display=tab==='progress'?'block':'none';
+  document.getElementById('panel-mistakes').style.display=tab==='mistakes'?'block':'none';
+  document.getElementById('panel-ranks').style.display=tab==='ranks'?'block':'none';
+  document.getElementById('panel-account').style.display=tab==='account'?'block':'none';
+  document.getElementById('panel-admin').style.display=tab==='admin'?'block':'none';
+  if(tab==='admin')loadStudentList();
+  if(tab==='progress')loadProgressPage();
+  if(tab==='mistakes')loadWrongBank();
+  if(tab==='ranks')loadRanksPage();
+  if(tab==='account')loadAccountPage();
+}
+
+// ══════════════════════════════════
+// PRACTICE / CHAT
+// ══════════════════════════════════
+let currentTopic='cloze';
+let chatHistory=[];
+let isThinking=false;
+let clozeSubmitted=false;
+
+window._sessionRunning = false;
+
+const TOPIC_LABELS={synthesis:'Synthesis & Transformation',cloze:'Comprehension Cloze'};
+
+const SYS_BASE=`You are the AL1 Cloze & Synthesis Coach's PSLE English AI tutor for Singapore P5-P6 students aiming for AL1.
+
+IDENTITY: You are an expert in the Singapore PSLE English syllabus (SEAB). You have deep knowledge of actual PSLE papers from 2015–2024 and all major Prelim papers (Canberra, Tao Nan, SCGS, Rosyth, ACSJ, RGPS, Rulang, Nanyang, RVPS, Nanyang 2022–2025).
+
+CORE RULES:
+- Always wait for student attempt before giving answers
+- Warm, encouraging tone — address student by name
+- ALL questions must mirror authentic PSLE/Prelim difficulty, style, and vocabulary level
+- Never generate questions below P5 difficulty level
+
+MARKING RULES — ALWAYS follow this exact format:
+
+STEP 1 — Show summary first (for MCQ/Cloze/Synthesis):
+Q1: ✅ [correct answer] or ❌ [correct answer]
+Q2: ✅ [correct answer] or ❌ [correct answer]
+Q3: ✅ [correct answer] or ❌ [correct answer]
+Q4: ✅ [correct answer] or ❌ [correct answer]
+Q5: ✅ [correct answer] or ❌ [correct answer]
+**Score: X/5**
+
+STEP 2:
+- ALL correct → one line of encouragement only. Stop. No explanations.
+- ANY wrong → for each ❌ ONLY:
+  ① Concept: the rule being tested
+  ② Common Pitfall: why students pick the wrong option
+  ③ Killer Strategy: one transferable tip for similar questions
+
+WEAKNESS LINE: Only add "WEAKNESS: [error types]" if student got something wrong. Never add it for a perfect score.`;
+
+const TOPIC_PROMPTS={
+  synthesis:`MODULE: Synthesis & Transformation (Paper 2 Section C)
+
+SOURCE: Use questions directly from PSLE 2015–2024 or Prelim papers (Canberra, Tao Nan, SCGS, Rosyth, ACSJ, RGPS, Rulang, Nanyang). If adapting, match EXACT PSLE difficulty — sentences must be P6 level.
+
+PSLE S&T DIFFICULTY STANDARD:
+Each question MUST have at least 2 challenge points. PSLE 2022–2023 AUTHENTIC PATTERNS (use these):
+• PSLE 2022: "The team ___ a conclusion after the meeting." → came to a conclusion (fixed phrase)
+  Test: "The scientists concluded their research." → Begin: "The scientists came to ___"
+• PSLE 2022: loss (NOT lost) | slight adjustments (NOT slight adjustment) | word form in S&T
+• PSLE 2023: "She advised him." → "She gave him ___" → advice (advise→advice word form)
+• Fixed phrases to test in S&T: came to a conclusion/decision/agreement/understanding
+• Despite + word form: boredom/excitement/disappointment/exhaustion/determination/frustration
+
+BANNED easy versions:
+❌ Simple "Although → Despite" with no other changes
+❌ Simple "so...that → such...that" with no tense/pronoun changes
+❌ Direct speech with only present→past tense (no time expression change needed)
+
+REQUIRED difficulty levels — use these PSLE-authentic patterns:
+
+Reported Speech (HARD version):
+• Must include time expression change: "yesterday" / "last week" / "tomorrow" / "now" / "here"
+• Must include past→past perfect (had + past participle): e.g. "Did you finish?" → "if she had finished"
+• Must include pronoun change
+• Example PSLE style: "I finished my project yesterday," Priya told her teacher.
+  → Priya told her teacher that she had finished her project the day before/the previous day.
+
+Active/Passive (HARD version):
+• Use complex tenses: present perfect, past continuous, future
+• e.g. "The committee has been reviewing the proposal for three months." → passive with agent
+• Not just simple past
+
+Word Transformation (MOST TESTED type — 2-3 per paper in 2020-2022):
+• PSLE 2022 actual questions: lost→loss | adjusted/slightly→slight adjustments | concluded→came to a conclusion
+• PSLE 2023 actual: advise→advice
+• Common patterns: verb→noun, adj→noun, adv→adj+noun
+• Fixed phrases: came to a conclusion/decision/agreement | made an improvement | showed determination
+• Despite + noun form: boredom, excitement, disappointment, exhaustion, frustration, confusion, improvement
+
+Word Forms in S&T (PSLE high-frequency):
+• Despite MUST be followed by noun/gerund — test word form conversion:
+  "Although she was bored, she continued." → "Despite her boredom, she continued."
+  "Although he was excited, he stayed calm." → "Despite his excitement, he stayed calm."
+  "Although they were disappointed, they tried again." → "Despite their disappointment, they tried again."
+• Common noun forms needed: boredom, excitement, amazement, confusion, improvement, development, disappointment, frustration, exhaustion, determination, confidence, independence, patience, honesty, bravery
+
+Connectors (HARD version):
+• Despite + gerund (not just noun): "Despite being exhausted, she..."
+• Not only...but also with inversion: "Not only did he fail the test, but he also..."
+• Provided that / As long as / Even though (not just "although")
+
+so...that / such...that (HARD version):
+• Change article: "The film was so boring that..." → "It was such a boring film that..."
+• Change word form: "so quickly" → "such speed that"
+
+TPPP MARKING RUBRIC:
+T-Tense: present→past, past→past perfect, will→would, can→could, must→had to
+P-Pronouns: I/me/my→he/she/him/her/his/her based on speaker
+P-Place/Time: yesterday→"the day before" OR "the previous day" (BOTH ✅)
+             tomorrow→"the next day" OR "the following day" (BOTH ✅)
+             today→"that day" | now→"then" | here→"there" | last week→"the previous week"
+P-Punctuation: no quotation marks; "that" after "said" is optional
+
+Present ALL 5 questions at once. FORMAT:
+**Question 1**
+Original: [complex P6-level sentence]
+Rewrite using: [keyword]
+Begin with: [starter] ____________________
+
+...up to Question 5. End with: "Fill in all 5 answers then click **Submit**."
+
+After submission: mark ✅/❌, show model answer, for ❌ state which TPPP rule failed. Accept all SEAB-acceptable alternatives.`,
+  cloze:`You are giving a PSLE Comprehension Cloze exercise at authentic PSLE/Prelim difficulty.
+
+SOURCE: Adapt passages from Prelim papers (Canberra, Tao Nan, SCGS, Rosyth, ACSJ, RGPS, Rulang, Nanyang 2022–2025) or write at identical PSLE difficulty. Topics (rotate — all from real PSLE/Prelim passages):
+  • Nature & environment (mangroves, wildlife, conservation)
+  • Singapore heritage & community (kampong spirit, National Day, HDB life)
+    • World War Two Singapore: Japanese Occupation, Syonan-to, civilian resilience, liberation
+  • Science & technology (space exploration, inventions, AI)
+  • Sports & perseverance (athletes overcoming adversity)
+  • Arts & culture (traditional crafts, music, storytelling)
+  • History (local heroes, wartime Singapore, pioneers)
+
+THE 8 QUESTION TYPES — distribute ALL 8 across the 15 blanks:
+1. PHRASAL VERBS (3 blanks) — e.g. "give ___ to", "set ___ an example", "look ___ to"
+2. COLLOCATIONS (2 blanks) — e.g. "make ___ of an opportunity", "take ___ consideration"
+3. FIXED PHRASES / IDIOMS (2 blanks) — e.g. "get the better ___", "at the ___ of time"
+4. CONNECTORS / CONJUNCTIONS (2 blanks) — e.g. "nevertheless", "provided that", "in spite of"
+5. PREPOSITIONS in context (2 blanks) — only where preposition is non-obvious, e.g. "succeeded ___ persuading"
+6. PRONOUNS (1 blank) — pronoun replacing a noun phrase established earlier in passage
+7. ADVERBS (1 blank) — e.g. "gradually", "reluctantly", "barely"
+8. CONTEXT INFERENCE (2 blanks) — word must fit both grammar AND passage meaning; wrong word exists that is grammatically correct but contextually wrong
+
+BANNED: Do NOT place more than 2 simple standalone prepositions (on/in/for/to/at) as blanks. That is P3 level.
+
+DIFFICULTY MARKERS:
+- At least 3 blanks should have a "trap" — a word that seems right but is wrong (e.g. "overwhelmed" vs "overtook" for "get the better of")
+- Passage should be narrative or expository, NOT simple recount
+- Vocabulary level: P5-P6, not everyday conversational
+
+OUTPUT FORMAT — ONE PASSAGE ONLY, NO EXCEPTIONS:
+- Title: ### Passage: [Topic]
+- Prose: 150–180 words
+- Exactly 15 blanks as (1), (2)...(15) embedded in passage
+- NO word bank. NO MCQ. End with: "Fill in all 15 blanks then click Submit Answers."
+
+AFTER STUDENT SUBMITS — mark each blank:
+✅ (word) or ❌ correct answer: [word]
+For each ❌ state which of the 8 types it tested + one-line explanation using CLAPS
+(Context, Part of speech, Affirmative/negative, Phrasal verb, Subject-verb agreement)`
+};
+
+function getSysPrompt(){return SYS_BASE+'\n\n'+(TOPIC_PROMPTS[currentTopic]||TOPIC_PROMPTS.cloze);}
+
+// ── DATABASE QUESTION FETCH ──────────────────────────────
+let dbQuestions = {synthesis:[], cloze:[]};
+let dbLoaded = {synthesis:false, cloze:false};
+let usedIds = {synthesis:new Set(), cloze:new Set()};
+
+async function loadQuestionsFromDB(type) {
+  const used = usedIds[type]?.size || 0;
+  const total = dbQuestions[type]?.length || 0;
+  if (dbLoaded[type] && total > 0 && used < total * 0.8) return;
+
+  const isTrial = currentUser?.role === 'tester' || currentUser?.role === 'test';
+
+  try {
+    if (type === 'cloze') {
+      let rows;
+      if (isTrial && currentUser?.demo_cloze_ids?.length) {
+        const ids = currentUser.demo_cloze_ids.join(',');
+        rows = await sbFetch(`cloze_passages?id=in.(${ids})&select=*&order=used_count.asc`);
+      } else {
+        rows = await sbFetch('cloze_passages?select=*&order=used_count.asc&limit=30');
+      }
+      if (rows && rows.length > 0) { dbQuestions.cloze = shuffle(rows); dbLoaded.cloze = true; }
+    } else if (type === 'synthesis') {
+      let rows;
+      if (isTrial && currentUser?.demo_synthesis_ids?.length) {
+        const ids = currentUser.demo_synthesis_ids.join(',');
+        rows = await sbFetch(`synthesis_questions?id=in.(${ids})&select=*`);
+      } else {
+        rows = await sbFetch('synthesis_questions?select=*&limit=50');
+      }
+      if (rows && rows.length > 0) { dbQuestions.synthesis = shuffle(rows); dbLoaded.synthesis = true; }
+    } else {
+      const rows = await sbFetch(`questions?type=eq.${type}&select=*&limit=60`);
+      if (rows && rows.length > 0) { dbQuestions[type] = shuffle(rows); dbLoaded[type] = true; }
+    }
+  } catch(e) {
+    console.error('DB load error for', type, ':', e.message);
+  }
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function getUnusedQuestions(type, count) {
+  const pool = dbQuestions[type];
+  const used = usedIds[type];
+  const available = pool.filter(q => !used.has(q.id));
+  if (available.length < count) {
+    usedIds[type] = new Set();
+    return pool.slice(0, count);
+  }
+  const selected = available.slice(0, count);
+  selected.forEach(q => used.add(q.id));
+  return selected;
+}
+
+// ══════════════════════════════════════════════════════════
+// ★ UPDATED: formatAllSTQuestions — supports keyword_position
+// ══════════════════════════════════════════════════════════
+function formatAllSTQuestions(questions) {
+  let text = '';
+  questions.forEach((q, i) => {
+    const src = q.source ? ` *(${q.source})*` : '';
+    const pos = q.keyword_position || 'end';
+    text += `**Question ${i+1}**${src}\n`;
+    text += `§ORIG§**${q.original_sentence}**\n`;
+
+    if (pos === 'end') {
+      // Starter gives the beginning, one input box at the end
+      // e.g. "Gavin told his mother ____________________"
+      const starter = q.starter ? q.starter + ' ' : '';
+      const ending = q.ending ? (/^[,.!?;:]/.test(q.ending) ? q.ending : ' ' + q.ending) : '';
+      text += `§ST§${starter}____________________${ending}\n`;
+
+    } else if (pos === 'middle') {
+      // Keyword in the middle, two input boxes (before and after keyword)
+      // e.g. "____________________ unless ____________________"
+      const keyword = q.keyword || '';
+      const ending = q.ending ? (/^[,.!?;:]/.test(q.ending) ? q.ending : ' ' + q.ending) : '';
+      text += `§ST§____________________ ${keyword} ____________________${ending}\n`;
+
+    } else if (pos === 'both') {
+      // Starter gives the beginning, keyword in the middle, two input boxes
+      // e.g. "Ali showed ____________________ when ____________________"
+      const starter = q.starter ? q.starter + ' ' : '';
+      const keyword = q.keyword || '';
+      const ending = q.ending ? (/^[,.!?;:]/.test(q.ending) ? q.ending : ' ' + q.ending) : '';
+      text += `§ST§${starter}____________________ ${keyword} ____________________${ending}\n`;
+    }
+  });
+  return text.trim();
+}
+
+function formatDBCloze(passage) {
+  const src = passage.source ? ` *(${passage.source})*` : '';
+  return `### Passage: ${passage.title}${src}\n\n${passage.passage}\n\nFill in all 15 blanks then click Submit Answers.`;
+}
+
+let currentDBQuestions = null;
+let currentDBType = null;
+let stIndex = 0;
+let stCorrect = 0;
+let stSubmittedCount = 0;
+let redoingWrongMistakeId = null;
+
+function setChatInputVisible(visible){
+  const el=document.getElementById('chat-input-area');
+  if(el) el.style.display=visible?'flex':'none';
+}
+
+async function redoFullPassage(passageId, wrongId) {
+  if (!passageId) { showToast('❌ Could not find this passage.'); return; }
+  redoingWrongMistakeId = wrongId;
+  showTab('practice');
+  document.querySelectorAll('.tabnav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-practice').classList.add('active');
+  document.querySelectorAll('.module-card').forEach(c=>c.classList.remove('active'));
+  document.getElementById('sb-cloze').classList.add('active');
+  currentTopic = 'cloze';
+  document.getElementById('chat-title').textContent = TOPIC_LABELS['cloze'];
+  await startSpecificClozePassage(passageId);
+}
+
+async function startSpecificClozePassage(passageId) {
+  window._sessionRunning = true;
+  chatHistory = [];
+  clozeSubmitted = false;
+  document.getElementById('chat-messages').innerHTML = '';
+  try {
+    const rows = await sbFetch(`cloze_passages?id=eq.${passageId}&select=*`);
+    if (!rows || rows.length === 0) {
+      showToast('❌ Could not load this passage.');
+      window._sessionRunning = false;
+      return;
+    }
+    currentDBQuestions = rows[0];
+    currentDBType = 'cloze';
+    setChatInputVisible(false);
+    const greeting = `Let's give this passage another go, ${currentUser?.display||'there'}! 💪`;
+    addMessage('ai', greeting);
+    chatHistory.push({role:'assistant', content: greeting});
+    const msgText = formatDBCloze(rows[0]);
+    setTimeout(() => {
+      addMessage('ai', msgText);
+      chatHistory.push({role:'assistant', content: msgText});
+    }, 300);
+  } catch(e) {
+    showToast('❌ Error loading passage.');
+  }
+  window._sessionRunning = false;
+}
+
+async function startDBSession(type) {
+  await loadQuestionsFromDB(type);
+
+  if (!dbLoaded[type] || dbQuestions[type].length === 0) {
+    console.warn('DB empty for', type, '— falling back to API');
+    window._sessionRunning = false;
+    return false;
+  }
+
+  chatHistory = [];
+  document.getElementById('chat-messages').innerHTML = '';
+
+  let msgText = '';
+
+  if (type === 'synthesis') {
+    const qs = getUnusedQuestions(type, 5);
+    currentDBQuestions = qs;
+    currentDBType = type;
+    stIndex = 0;
+    stCorrect = 0;
+    stSubmittedCount = 0;
+    setChatInputVisible(false);
+    const greeting = `Hi ${currentUser?.display||'there'}! Ready to practise **Synthesis & Transformation**? Here are your 5 questions — submit each one as you go! 💪`;
+    addMessage('ai', greeting);
+    chatHistory.push({role:'assistant', content: greeting});
+    const msgText = formatAllSTQuestions(qs);
+    window._sessionRunning = false;
+    setTimeout(() => {
+      addMessage('ai', msgText);
+      chatHistory.push({role:'assistant', content: msgText});
+    }, 300);
+    return true;
+
+  } else if (type === 'cloze') {
+    const passages = getUnusedQuestions(type, 1);
+    if (passages.length === 0) {
+      window._sessionRunning = false;
+      return false;
+    }
+    currentDBQuestions = passages[0];
+    currentDBType = type;
+    setChatInputVisible(false);
+    msgText = formatDBCloze(passages[0]);
+    const greeting = `Hi ${currentUser?.display||'there'}! Ready for **Comprehension Cloze**? Here is your passage! 💪`;
+    addMessage('ai', greeting);
+    chatHistory.push({role:'assistant', content: greeting});
+  }
+
+  setTimeout(() => {
+    addMessage('ai', msgText);
+    chatHistory.push({role:'assistant', content: msgText});
+  }, 300);
+
+  window._sessionRunning = false;
+  return true;
+}
+
+// ── Local answer matching ──────────────────────────────────
+function normalizeAnswerText(s) {
+  return (s == null ? '' : String(s)).trim().toLowerCase()
+    .replace(/[''‛`´]/g, '')
+    .replace(/[.!?,;:'"]+$/, '').replace(/\s+/g, ' ');
+}
+
+function toAnswerList(val) {
+  if (val == null) return [];
+  if (Array.isArray(val)) return val;
+  let list = String(val).split(/\s+OR\s+/i);
+  if (list.length === 1) list = String(val).split('/');
+  return list.map(s => s.trim()).filter(Boolean);
+}
+
+function isAnswerCorrect(studentAns, ...correctVals) {
+  const norm = normalizeAnswerText(studentAns);
+  if (!norm) return false;
+  const pool = correctVals.flatMap(v => toAnswerList(v));
+  return pool.some(v => normalizeAnswerText(v) === norm);
+}
+
+function parseNumberedAnswers(text, pattern) {
+  const map = {};
+  text.split('\n').forEach(line => {
+    const m = line.match(pattern);
+    if (m) map[m[1]] = m[2].trim();
+  });
+  return map;
+}
+
+function extractSentenceForBlank(passage, blankNum) {
+  if (!passage) return `Blank (${blankNum})`;
+  const sentences = passage.match(/[^.!?]*[.!?]+/g) || [passage];
+  const marker = `(${blankNum})`;
+  const found = sentences.find(s => s.includes(marker));
+  return (found || passage).trim().replace(/\s+/g, ' ');
+}
+
+// Formats a single blank's explanation. Supports both:
+//  - legacy string format: "Verb: overcome (conquer/deal with) the challenge"
+//  - new structured format: {technique, explanation, hint_sentence?, examples?}
+function formatExplanationEntry(exp) {
+  if (exp == null) return '';
+  if (typeof exp === 'string') return exp;
+  const parts = [];
+  if (exp.technique) parts.push(`§TECH§${exp.technique}§/TECH§`);
+  if (exp.explanation) parts.push(exp.explanation);
+  if (exp.hint_sentence) {
+    const highlighted = exp.hint_sentence.replace(/\*\*(.+?)\*\*/g, '§H§$1§H§');
+    parts.push(`§HINT§${highlighted}§/HINT§`);
+  }
+  if (exp.examples && exp.examples.length) {
+    parts.push(`§EXAM§${exp.examples[0]}§/EXAM§`);
+  }
+  return parts.join('\n');
+}
+function addHTMLMessage(html){
+  const c=document.getElementById('chat-messages');
+  const div=document.createElement('div');
+  div.className='msg ai';
+  div.innerHTML=`<div class="msg-bubble">${html}</div>`;
+  c.appendChild(div);
+  div.scrollIntoView({block:'end',behavior:'smooth'});
+}
+
+function buildHintBlock(exp, blankNum){
+  if(!exp)return'';
+  if(typeof exp==='string'){return exp?`<div class="exp-hint" style="margin:6px 0 10px;">💡 ${exp}</div>`:''; }
+  const numLabel=blankNum?`<span style="font-size:12px;font-weight:500;color:var(--text-dim);margin-right:4px;">(${blankNum})</span>`:'';
+  const isFP=exp.technique&&exp.technique.toLowerCase().includes('fixed');
+  let inner='';
+  // Header: blank number + technique badge
+  if(exp.technique||blankNum){
+    inner+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">${numLabel}${exp.technique?`<span class="exp-technique"><strong>${exp.technique}</strong></span>`:''}</div>`;
+  }
+  if(isFP){
+    // Fixed phrase: just show bold phrase, no explanation block
+    if(exp.hint_sentence){
+      const hl=exp.hint_sentence.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.+?)\*\*/g,'<mark class="hint-mark">$1</mark>');
+      inner+=`<div class="exp-hint" style="margin-bottom:4px;">💡 ${hl}</div>`;
+    }
+    if(exp.explanation){
+      const phrase=exp.explanation.replace(/^Remember:\s*/i,'');
+      inner+=`<div style="font-size:14px;font-weight:600;color:var(--text);">${phrase}</div>`;
+    }
+  } else {
+    // hint_sentence first (context), then explanation (reason)
+    if(exp.hint_sentence){
+      const hl=exp.hint_sentence.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.+?)\*\*/g,'<mark class="hint-mark">$1</mark>');
+      inner+=`<div class="exp-hint" style="margin-bottom:4px;">💡 ${hl}</div>`;
+    }
+    if(exp.explanation){
+      const expHl=exp.explanation.replace(/\*\*(.+?)\*\*/g,'<mark class="hint-mark">$1</mark>');
+      inner+=`<span style="display:block;font-size:13px;color:var(--text);margin:2px 0 4px;line-height:1.5;">${expHl}</span>`;
+    }
+  }
+  return inner?`<div style="border-left:3px solid #f59e0b;background:#fffbeb;border-radius:0 6px 6px 0;padding:8px 12px;margin:6px 0 12px;">${inner}</div>`:'';
+}
+
+function renderInlinePassage(p,answers,explanations,studentMap,keys){
+  const passage=p.passage||'';
+  // Build mapping: passage blank number (e.g. "46") → answer key (e.g. "1")
+  const passageNums=[];
+  passage.replace(/\((\d{1,2})\)/g,(m,n)=>{if(!passageNums.includes(n))passageNums.push(n);});
+  const numToKey={};
+  passageNums.forEach((pn,i)=>{if(keys[i])numToKey[pn]=keys[i];});
+  const blankData={};
+  keys.forEach(k=>{
+    const studentAns=studentMap[k]||'';
+    const ok=isAnswerCorrect(studentAns,answers[k]);
+    const correctDisplay=toAnswerList(answers[k])[0]||String(answers[k]);
+    blankData[k]={ok,studentAns,correctDisplay};
+  });
+  const lines=passage.split('\n');
+  const processed=lines.map(line=>{
+    const wrongInLine=[];
+    const withAnswers=line.replace(/\((\d{1,2})\)/g,(m,n)=>{
+      const k=numToKey[n]||n;
+      const d=blankData[k];
+      if(!d)return m;
+      if(d.ok){
+        return `<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;margin:0 2px;"><span style="background:rgba(0,199,202,0.15);color:#086668;font-weight:600;padding:1px 7px;border-radius:4px;font-size:14px;border-bottom:2px solid #00c7ca;">(${n}) ${d.correctDisplay}</span></span>`;
+      } else {
+        wrongInLine.push({k,n});
+        return `<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;margin:0 2px;"><span style="font-size:13px;font-weight:500;color:var(--text);text-decoration:line-through;text-decoration-color:#e0245e;text-decoration-thickness:2px;line-height:1.3;">${d.studentAns||'(blank)'}</span><span style="background:rgba(224,36,94,0.12);color:#e0245e;font-weight:600;padding:1px 7px;border-radius:4px;font-size:14px;border-bottom:2px solid #e0245e;">(${n}) ${d.correctDisplay}</span></span>`;
+      }
+    });
+    const hints=wrongInLine.map(({k,n})=>buildHintBlock(explanations[k],n)).join('');
+    return withAnswers+(hints?`<div style="margin:2px 0;">${hints}</div>`:'');
+  });
+  return `<div style="font-size:15px;line-height:2;color:var(--text);">${processed.join('<br>')}</div>`;
+}
+
+async function markDBAnswers(studentAnswer, type) {
+  if (!currentDBQuestions) return false;
+
+  isThinking = true;
+  document.getElementById('thinking').style.display = 'block';
+  document.getElementById('btn-send').disabled = true;
+  document.getElementById('chat-input').disabled = true;
+
+  let reply = '';
+
+  if (type === 'synthesis') {
+    const qs = currentDBQuestions;
+    const studentMap = parseNumberedAnswers(studentAnswer, /^Q(\d+):\s*(.*)$/i);
+    let correct = 0;
+    const lines = qs.map((q, i) => {
+      const qNum = i + 1;
+      const studentAns = studentMap[qNum] || '';
+      const ok = isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
+      if (ok) { correct++; return `Q${qNum}: ✅ ${studentAns}`; }
+      saveWrongQuestion(q.original_sentence || `Synthesis Q${qNum}`, q.model_answer, studentAns, 'synthesis', { starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null });
+      return `Q${qNum}: ❌ Your answer: ${studentAns || '(blank)'}\nModel answer: ${q.model_answer}${q.explanation ? '\n' + q.explanation : ''}`;
+    });
+    reply = `**Score: ${correct}/${qs.length}**\n\n${lines.join('\n\n')}`;
+    incrementProgress(type, qs.length, correct);
+
+  } else if (type === 'cloze') {
+    const p = currentDBQuestions;
+    const answers = p.answers || p.blanks || {};
+    const explanations = p.explanations || {};
+    const rawStudentMap = parseNumberedAnswers(studentAnswer, /^\((\d+)\)\s*(.*)$/);
+    const keys = Object.keys(answers).sort((a, b) => Number(a) - Number(b));
+    // Remap student answers if passage uses original PSLE numbering (e.g. 46-60) vs answer keys (1-15)
+    const passageNums=[];
+    (p.passage||'').replace(/\((\d{1,2})\)/g,(m,n)=>{if(!passageNums.includes(n))passageNums.push(n);});
+    const studentMap={};
+    if(passageNums.length>0 && passageNums[0]!==keys[0]){
+      passageNums.forEach((pn,i)=>{if(keys[i])studentMap[keys[i]]=rawStudentMap[pn]||'';});
+    } else {
+      Object.assign(studentMap,rawStudentMap);
+    }
+    let correct = 0;
+    const wrongBlanks = [];
+    keys.forEach(k => {
+      const studentAns = studentMap[k] || '';
+      const ok = isAnswerCorrect(studentAns, answers[k]);
+      if (ok) { correct++; }
+      else {
+        const correctDisplay = toAnswerList(answers[k])[0] || answers[k];
+        wrongBlanks.push({ k, correctDisplay, studentAns });
+      }
+    });
+    const wrongCount = keys.length - correct;
+    if (wrongCount >= 8) {
+      saveWrongPassage(p);
+    } else if (wrongCount > 0) {
+      wrongBlanks.forEach(w => saveWrongQuestion(extractSentenceForBlank(p.passage, w.k), w.correctDisplay, w.studentAns, 'cloze', { explanation: explanations[w.k], blank_num: w.k }));
+    }
+    if (redoingWrongMistakeId) {
+      if (wrongCount < 8) {
+        try {
+          await sbFetch(`coach_wrong_questions?id=eq.${redoingWrongMistakeId}`, {method:'PATCH', prefer:'return=minimal', body:{status:'mastered'}});
+        } catch(e) { console.warn('mark redo mastered failed', e); }
+      }
+      redoingWrongMistakeId = null;
+    }
+    incrementProgress(type, keys.length, correct);
+    if (p.id) {
+      try {
+        const cur = p.used_count || 0;
+        await sbFetch(`cloze_passages?id=eq.${p.id}`, { method: 'PATCH', prefer: 'return=minimal', body: { used_count: cur + 1 } });
+      } catch (e) { console.warn('used_count update failed', e); }
+    }
+    const scoreColor = wrongCount === 0 ? '#10b981' : '#e0245e';
+    const scoreHtml = `<div style="font-weight:700;font-size:16px;color:${scoreColor};margin-bottom:14px;">Score: ${correct}/${keys.length}</div>`;
+    const passageHtml = renderInlinePassage(p, answers, explanations, studentMap, keys);
+    chatHistory.push({ role: 'assistant', content: `Score: ${correct}/${keys.length}` });
+    addHTMLMessage(scoreHtml + passageHtml);
+    isThinking = false;
+    document.getElementById('thinking').style.display = 'none';
+    document.getElementById('btn-send').disabled = false;
+    document.getElementById('chat-input').disabled = false;
+    return true;
+  }
+
+  chatHistory.push({ role: 'assistant', content: reply });
+  addMessage('ai', reply);
+
+  isThinking = false;
+  document.getElementById('thinking').style.display = 'none';
+  document.getElementById('btn-send').disabled = false;
+  document.getElementById('chat-input').disabled = false;
+  return true;
+}
+
+function selectTopic(btn,topic){
+  document.querySelectorAll('.module-card').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentTopic=topic;
+  document.getElementById('chat-title').textContent=TOPIC_LABELS[topic];
+  newSession();
+  // Scroll to chat area
+  setTimeout(()=>{const chat=document.getElementById('chat-messages');if(chat)chat.scrollIntoView({behavior:'smooth',block:'start'});},400);
+}
+function selectTopicById(topic){
+  const btn=document.getElementById('sb-'+topic);
+  if(btn)selectTopic(btn,topic);
+  else{currentTopic=topic;document.getElementById('chat-title').textContent=TOPIC_LABELS[topic];newSession();}
+}
+function newSession(){
+  window._sessionRunning = false;
+  chatHistory=[];
+  clozeSubmitted=false;
+  document.getElementById('chat-messages').innerHTML='';
+  startSession();
+}
+
+async function startSession(){
+  if (window._sessionRunning) return;
+  window._sessionRunning = true;
+
+  const target = getDailyTargets()[currentTopic];
+  const doneToday = todayProgress[currentTopic+'_done'] || 0;
+  if (target && doneToday >= target) {
+    document.getElementById('chat-messages').innerHTML='';
+    chatHistory=[];
+    setChatInputVisible(true);
+    const isTrial=currentUser?.role==='tester'||currentUser?.role==='test';
+    const limitMsg = isTrial
+      ? `🔖 You've completed today's trial limit of ${target} for **${TOPIC_LABELS[currentTopic]}**. Upgrade to a full Student plan for unlimited daily practice!`
+      : `🎉 You've reached today's limit of ${target} for **${TOPIC_LABELS[currentTopic]}** (${doneToday}/${target} done). Come back tomorrow for more, or check your other mistakes in **My Mistakes**!`;
+    addMessage('ai', limitMsg);
+    chatHistory.push({role:'assistant', content: limitMsg});
+    window._sessionRunning = false;
+    return;
+  }
+
+  currentDBQuestions = null;
+  currentDBType = null;
+
+  const dbTopics = ['synthesis','cloze'];
+  if (dbTopics.includes(currentTopic)) {
+    const ok = await startDBSession(currentTopic);
+    if (ok) return;
+    document.getElementById('chat-messages').innerHTML='';
+    chatHistory=[];
+    setChatInputVisible(true);
+    const noDBMsg = `Hi ${currentUser?.display||'there'}! The question bank is being updated. Starting an AI-generated session instead. 🔄`;
+    addMessage('ai', noDBMsg);
+    chatHistory.push({role:'assistant', content: noDBMsg});
+  }
+
+  const greet=`Hi ${currentUser?.display||'there'}! Ready to practise **${TOPIC_LABELS[currentTopic]}**? Give it your best shot! 💪`;
+  if(!chatHistory.length){
+    document.getElementById('chat-messages').innerHTML='';
+    addMessage('ai',greet);
+    chatHistory.push({role:'assistant',content:greet});
+  }
+  const startMsg = currentTopic==='cloze' ? 'Give me a PSLE Comprehension Cloze passage now. Output ONLY the cloze passage with 15 numbered blanks. No MCQ. No vocabulary questions.' : 'Begin the session. Present the questions now.';
+  await askClaude(startMsg,false);
+  window._sessionRunning = false;
+}
+
+function addMessage(role,text){
+  const c=document.getElementById('chat-messages');
+  const div=document.createElement('div');div.className='msg '+role;
+  div.innerHTML=`<div class="msg-bubble">${formatMessage(text)}</div>`;
+  c.appendChild(div);div.scrollIntoView({block:'end',behavior:'smooth'});
+  if(role==='ai'){
+    const bubble=div.querySelector('.msg-bubble');
+    const hasSubmitText=bubble&&(bubble.textContent.includes('click Submit')||bubble.textContent.includes('Click Submit'));
+    const hasSubmitBtn=bubble&&bubble.querySelector('.mcq-submit,.submit-answers-btn,.st-submit');
+    if(hasSubmitText&&!hasSubmitBtn){
+      const fb=document.createElement('button');
+      fb.className='mcq-submit submit-answers-btn';
+      fb.textContent='Submit Answers';
+      fb.style.marginTop='10px';
+      fb.onclick=()=>{
+        const sels=[...bubble.querySelectorAll('.mcq-btn.mcq-selected')];
+        if(sels.length>0){
+          const qs=[...new Set(sels.map(b=>b.getAttribute('data-qnum')))].sort((a,b)=>a-b);
+          const ans=qs.map(q=>{const s=bubble.querySelector('.mcq-btn[data-qnum="'+q+'"].mcq-selected');return'Q'+q+': '+(s?s.getAttribute('data-letter'):'?');}).join(', ');
+          bubble.querySelectorAll('.mcq-btn').forEach(b=>b.disabled=true);
+          fb.disabled=true;
+          sendWithText('My answers: '+ans);
+        } else {
+          fb.disabled=true;
+          sendWithText('Submit');
+        }
+      };
+      bubble.appendChild(fb);
+    }
+  }
+  if(role==='ai'){
+    const wMatch=text.match(/WEAKNESS:\s*([^\n]+)/i);
+    if(wMatch){
+      const items=wMatch[1].split(/,|;/).map(s=>s.trim()).filter(w=>w.length>3&&!w.toLowerCase().includes('none')&&!w.toLowerCase().includes('perfect')&&!w.toLowerCase().includes('strong mastery')&&!w.toLowerCase().includes('no weakness'));
+      const filtered=items.filter(w=>!w.toLowerCase().includes('none')&&!w.toLowerCase().includes('perfect')&&!w.toLowerCase().includes('strong')&&!w.toLowerCase().includes('no weakness')&&!w.startsWith('**'));
+      if(filtered.length>0){filtered.forEach(w=>addWeakness(currentTopic,w));saveDailyProgress();}
+    }
+  }
+}
+
+function formatMessage(text){
+  const msgId='m'+Date.now()+Math.random().toString(36).slice(2,5);
+  let blankIdx=0, currentQ=0, hasMCQ=false;
+  const lines=text.split('\n');
+  const out=lines.map(line=>{
+    const isSTLine = line.startsWith('§ST§');
+    if(isSTLine) line = line.slice(4);
+    const isOrigLine = line.startsWith('§ORIG§');
+    if(isOrigLine) line = line.slice(6);
+    const qm=line.match(/^\*\*Question\s*(\d+)\*\*(.*)/);
+    if(qm){currentQ=parseInt(qm[1]);return '<div class="q-header">Question '+qm[1]+(qm[2]||'')+'</div>';}
+    const om=line.match(/^\[([ABCD])\]\s*(.+)/) || line.match(/^([ABCD])\.\s+(.+)/);
+    if(om){
+      hasMCQ=true;
+      const lt=om[1], qn=(currentQ||1);
+      const label=lt+'. '+om[2].trim();
+      return '<button class="mcq-btn" data-letter="'+lt+'" data-qnum="'+qn+'" data-msgid="'+msgId+'">'+label+'</button>';
+    }
+    let l=line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    l=l.replace(/§H§(.+?)§H§/g,'<mark class="hint-mark">$1</mark>');
+l=l.replace(/§TECH§(.+?)§\/TECH§/g,'<span class="exp-technique"><strong>$1</strong></span>');
+l=l.replace(/§HINT§(.+?)§\/HINT§/g,'<div class="exp-hint">💡 $1</div>');
+l=l.replace(/§EXAM§(.+?)§\/EXAM§/g,'<div class="exp-example">e.g. $1</div>');
+    l=l.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>');
+    if(isOrigLine) return '<div class="st-original-line">'+l+'</div>';
+    if(isSTLine || l.includes('&gt;&gt;INPUT&lt;&lt;')){
+      blankIdx++;
+      const stId=msgId+'-st-'+blankIdx;
+      const qIdx=blankIdx-1;
+      // Replace each ____________________ with an input box
+      // For middle/both questions there will be two sets of underscores on the same line
+      let inputCount = 0;
+      l=l.replace(/_{4,}/g, () => {
+        inputCount++;
+        const thisStId = inputCount === 1 ? stId : stId + '-b';
+        return '<input class="st-input" type="text" placeholder="Your answer…" id="' + thisStId + '" data-stblank="' + blankIdx + '"/>';
+      });
+      if(!l.includes('st-input')){
+        l=l+'<input class="st-input" type="text" placeholder="Your answer…" id="'+stId+'" data-stblank="'+blankIdx+'"/>';
+      }
+      l+='<div class="st-submit-row"><button class="st-submit-one" data-qidx="'+qIdx+'" data-stid="'+stId+'" onclick="submitOneST(this)">Submit</button></div><div class="st-feedback" id="stfeedback-'+stId+'"></div>';
+      l='<div class="st-answer-block">'+l+'</div>';
+    }
+    if(!clozeSubmitted)l=l.replace(/\((\d{1,2})\)\s*_{2,}/g,(m,n)=>{blankIdx++;return'<input class="fill-blank" type="text" placeholder="'+n+'" data-blank="'+n+'" id="'+msgId+'-'+blankIdx+'" oninput="autoExpandBlank(this)"\/>';});
+    if(!clozeSubmitted)l=l.replace(/\((\d{1,2})\)/g,(m,n)=>{blankIdx++;return'<input class="fill-blank" type="text" placeholder="'+n+'" data-blank="'+n+'" id="'+msgId+'-'+blankIdx+'" oninput="autoExpandBlank(this)"\/>';});
+    l=l.replace(/_{4,}/g,()=>{blankIdx++;return'<input class="fill-blank" type="text" placeholder="answer" data-blank="'+blankIdx+'" id="'+msgId+'-'+blankIdx+'" oninput="autoExpandBlank(this)"/>';});
+    return l;
+  });
+  let result=out.join('<br>');
+  result=result.replace(/<br>\s*(<div)/g,'$1').replace(/(<\/div>)\s*<br>/g,'$1');
+  const hasSTInputs=(result.match(/class="st-input"/g)||[]).length>0;
+  if(hasMCQ){
+    result+='<br><button class="mcq-submit submit-answers-btn" data-msgid="'+msgId+'">Submit Answers</button>';
+  } else if(!hasSTInputs && blankIdx>0){
+    result+='<br><button class="submit-answers-btn" data-msgid="'+msgId+'" data-blanks="'+blankIdx+'" onclick="submitBlanks(this)">Submit Answers</button>';
+  }
+  return result;
+}
+
+document.addEventListener('click', function(e){
+  if(e.target.classList.contains('mcq-btn') && !e.target.disabled){
+    const btn=e.target;
+    const q=btn.getAttribute('data-qnum');
+    const bubble=btn.closest('.msg-bubble');
+    bubble.querySelectorAll('.mcq-btn[data-qnum="'+q+'"]').forEach(b=>b.classList.remove('mcq-selected'));
+    btn.classList.add('mcq-selected');
+  }
+  if(e.target.classList.contains('mcq-submit') && !e.target.disabled){
+    const sb=e.target;
+    const bubble=sb.closest('.msg-bubble');
+    const allBtns=[...bubble.querySelectorAll('.mcq-btn')];
+    const qs=[...new Set(allBtns.map(b=>b.getAttribute('data-qnum')))].sort((a,b)=>a-b);
+    const ans=qs.map(q=>{
+      const s=bubble.querySelector('.mcq-btn[data-qnum="'+q+'"].mcq-selected');
+      return 'Q'+q+': '+(s?s.getAttribute('data-letter'):'?');
+    }).join(', ');
+    allBtns.forEach(b=>b.disabled=true);
+    sb.disabled=true;
+    sendWithText('My answers: '+ans);
+  }
 });
 
-self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  if (e.request.url.includes('/api/')) return;
-  if (e.request.url.includes('supabase.co')) return;
+// ══════════════════════════════════════════════════════════
+// ★ UPDATED: submitOneST — handles 1 or 2 input boxes
+// ══════════════════════════════════════════════════════════
+function submitOneST(btn) {
+  const qIdx = parseInt(btn.getAttribute('data-qidx'));
+  const stId = btn.getAttribute('data-stid');
 
-  // 'cache: no-store' forces a real network round-trip every time, bypassing
-  // Safari's HTTP disk cache. Without this, e.request can be satisfied
-  // straight from disk cache (a layer BELOW the Service Worker), so even
-  // though this handler is "network-first" in intent, it was silently
-  // serving stale index.html/JS on iOS Safari Home Screen apps — which
-  // re-check the SW script correctly but not the page content it fetches.
-  e.respondWith(
-    fetch(e.request, { cache: 'no-store' })
-      .then(res => {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
-        return res;
-      })
-      .catch(() => caches.match(e.request))
-  );
-});
+  // Find the answer block containing this button
+  const block = btn.closest('.st-answer-block');
+  const inputs = block ? [...block.querySelectorAll('.st-input')] : [];
+
+  // Disable all inputs and the button
+  inputs.forEach(inp => inp.disabled = true);
+  btn.disabled = true;
+
+  const q = currentDBQuestions[qIdx];
+  const pos = q.keyword_position || 'end';
+  const fb = document.getElementById('stfeedback-' + stId);
+
+  let studentAns = '';
+
+  if (pos === 'end') {
+    // One input box — just take its value
+    studentAns = (inputs[0]?.value || '').trim();
+
+  } else if (pos === 'middle') {
+    // Two input boxes: part1 + keyword + part2
+    const part1 = (inputs[0]?.value || '').trim();
+    const part2 = (inputs[1]?.value || '').trim();
+    studentAns = `${part1} ${q.keyword} ${part2}`.trim();
+
+  } else if (pos === 'both') {
+    // Two input boxes: starter + part1 + keyword + part2
+    const part1 = (inputs[0]?.value || '').trim();
+    const part2 = (inputs[1]?.value || '').trim();
+    const starter = q.starter ? q.starter + ' ' : '';
+    studentAns = `${starter}${part1} ${q.keyword} ${part2}`.trim();
+  }
+
+  const ok = isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
+
+  if (ok) {
+    stCorrect++;
+    fb.innerHTML = '✅ Correct!';
+    fb.className = 'st-feedback correct';
+  } else {
+    saveWrongQuestion(q.original_sentence, q.model_answer, studentAns, 'synthesis', { starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null });
+    fb.innerHTML = buildSTFeedback(q);
+    fb.className = 'st-feedback wrong';
+  }
+
+  stSubmittedCount++;
+  if (stSubmittedCount >= currentDBQuestions.length) {
+    const msg = `**Set complete! Score: ${stCorrect}/${currentDBQuestions.length}** 🎉`;
+    addMessage('ai', msg);
+    chatHistory.push({ role: 'assistant', content: msg });
+    incrementProgress('synthesis', currentDBQuestions.length, stCorrect);
+  }
+}
+
+var stMistakeData = {};
+
+function stEscapeHtml(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function stFullAnswer(q){
+  var pos = q.keyword_position || 'end';
+  var starter = q.starter ? String(q.starter).trim() : '';
+  var body = q.model_answer ? String(q.model_answer).trim() : '';
+  var ending = q.ending ? String(q.ending).trim() : '';
+  var out = body;
+  if (pos === 'end' && starter && body.toLowerCase().indexOf(starter.toLowerCase()) !== 0) { out = starter + ' ' + body; }
+  if (ending && out.toLowerCase().indexOf(ending.toLowerCase()) === -1) { out = /^[,.!?;:]/.test(ending) ? (out + ending) : (out + ' ' + ending); }
+  return out.trim();
+}
+
+function stParseExplanation(raw){
+  if (!raw) return null;
+  var obj = raw;
+  if (typeof raw === 'string') {
+    try { obj = JSON.parse(raw); } catch(e) { return { legacy: raw }; }
+  }
+  if (!obj || typeof obj !== 'object') return null;
+  if (!Array.isArray(obj.changes)) obj.changes = [];
+  return obj;
+}
+
+function stBuildAnswerHtml(q, exp){
+  var full = stFullAnswer(q);
+  var esc = stEscapeHtml(full);
+  var changes = (exp && exp.changes) ? exp.changes : [];
+  var slots = [];
+  for (var i = 0; i < changes.length; i++) {
+    var c = changes[i] || {};
+    var toTxt = c.to ? stEscapeHtml(String(c.to).trim()) : '';
+    if (!toTxt) continue;
+    var at = esc.indexOf(toTxt);
+    if (at === -1) continue;
+    var token = '\u0001' + slots.length + '\u0001';
+    esc = esc.slice(0, at) + token + esc.slice(at + toTxt.length);
+    slots.push({ oldTxt: c.from ? stEscapeHtml(String(c.from).trim()) : '', newTxt: toTxt });
+  }
+  for (var j = 0; j < slots.length; j++) {
+    var sl = slots[j];
+    var block = '<span class="st-chg">'
+      + (sl.oldTxt ? '<span class="st-chg-old">' + sl.oldTxt + '</span>' : '')
+      + '<span class="st-chg-new">' + sl.newTxt + '</span></span>';
+    esc = esc.split('\u0001' + j + '\u0001').join(block);
+  }
+  return '<div class="st-ans-line">' + esc + '</div>';
+}
+
+function buildSTFeedback(q){
+  var exp = stParseExplanation(q.explanation);
+  if (exp && exp.legacy) {
+    return '<div class="st-wrong-head">Model answer</div><div class="st-ans-line">'
+      + stEscapeHtml(stFullAnswer(q)) + '</div><div class="st-rule">' + exp.legacy + '</div>';
+  }
+  var html = '<div class="st-wrong-head">Model answer</div>' + stBuildAnswerHtml(q, exp);
+  if (exp && exp.rule) { html += '<div class="st-rule">' + stEscapeHtml(exp.rule) + '</div>'; }
+  return html;
+}
+
+function trySTMistake(id){
+  var d = stMistakeData[id] || {};
+  var pos = d.keyword_position || 'end';
+  var a = document.getElementById('wretry-' + id);
+  var b = document.getElementById('wretry-' + id + '-b');
+  if (!a || a.disabled) return;
+  var feedback = document.getElementById('wfeedback-' + id);
+  var card = document.getElementById('wcard-' + id);
+  var p1 = (a.value || '').trim();
+  var p2 = b ? (b.value || '').trim() : '';
+  var studentAns = '';
+  if (pos === 'middle') { studentAns = (p1 + ' ' + (d.keyword || '') + ' ' + p2).trim(); }
+  else if (pos === 'both') { studentAns = ((d.starter ? d.starter + ' ' : '') + p1 + ' ' + (d.keyword || '') + ' ' + p2).trim(); }
+  else { studentAns = p1; }
+  var isCorrect = isAnswerCorrect(studentAns, d.model_answer);
+  a.disabled = true; if (b) b.disabled = true;
+  var btn = card ? card.querySelector('.wrong-retry-btn') : null;
+  if (btn) btn.disabled = true;
+  if (isCorrect) {
+    feedback.innerHTML = '\u2705 Correct!';
+    feedback.className = 'wrong-retry-feedback correct';
+  } else {
+    feedback.innerHTML = buildSTFeedback(d);
+    feedback.className = 'wrong-retry-feedback wrong';
+    setTimeout(function(){ a.disabled = false; a.value = ''; if (b) { b.disabled = false; b.value = ''; } a.focus(); if (btn) btn.disabled = false; }, 3000);
+  }
+  updateMistakeStreak(id, isCorrect, card);
+}
+
+function autoExpandBlank(input){input.style.width=Math.max(75,input.value.length*10+20)+'px';}
+
+function submitBlanks(submitEl){
+  const msgId=submitEl.getAttribute("data-msgid");const count=parseInt(submitEl.getAttribute("data-blanks"));
+  const answers=[];
+  let filledCount=0;
+  const bubble=submitEl.closest('.msg-bubble');
+  for(let i=1;i<=count;i++){
+    const el=document.getElementById(msgId+'-'+i);
+    if(el){
+      const val=el.value.trim();
+      if(val) filledCount++;
+      answers.push(`(${el.getAttribute('data-blank')}) ${val}`);
+      el.disabled=true;el.style.opacity='0.4';
+    }
+  }
+  submitEl.style.display='none';
+  clozeSubmitted=true;
+  const blankCount=count-filledCount;
+  const summaryMsg=blankCount>0
+    ? `✅ Submitted ${filledCount}/${count} blanks (${blankCount} left blank).`
+    : `✅ Submitted all ${count} blanks.`;
+  sendWithText('My answers:\n'+answers.join('\n'),summaryMsg);
+}
+
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
+function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,100)+'px';}
+
+function sendMessage(){
+  const inp=document.getElementById('chat-input');
+  const text=inp.value.trim();
+  if(!text||isThinking)return;
+  inp.value='';inp.style.height='auto';
+  sendWithText(text);
+}
+
+async function sendWithText(text,displayText){
+  addMessage('user',displayText||text);
+  chatHistory.push({role:'user',content:text});
+
+  if (currentDBQuestions && currentDBType) {
+    await markDBAnswers(text, currentDBType);
+    return;
+  }
+
+  await askClaude(null,true);
+}
+
+async function askClaude(forcedMsg,countProgress){
+  isThinking=true;
+  document.getElementById('thinking').style.display='block';
+  document.getElementById('btn-send').disabled=true;
+  document.getElementById('chat-input').disabled=true;
+  const messages=[...chatHistory];
+  if(forcedMsg)messages.push({role:'user',content:forcedMsg});
+  try{
+    const res=await fetch('/api/claude',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1500,system:getSysPrompt(),messages})
+    });
+    if(!res.ok){
+      const err=await res.json().catch(()=>({}));
+      const msg=err.error?.message||'';
+      if(msg.includes('credit'))addMessage('ai','⚠️ API credits run out. Please top up at console.anthropic.com.');
+      else if(msg.includes('api-key')||msg.includes('authentication'))addMessage('ai','⚠️ Server API key issue. Contact your teacher.');
+      else addMessage('ai','⚠️ Error: '+(msg||'Something went wrong.'));
+      return;
+    }
+    const data=await res.json();
+    const reply=data.content?.[0]?.text||'Sorry, no response.';
+    chatHistory.push({role:'assistant',content:reply});
+    addMessage('ai',reply);
+    if(countProgress&&['cloze','synthesis'].includes(currentTopic)){
+      incrementProgress(currentTopic);
+    }
+  }catch(e){addMessage('ai','⚠️ Connection error. Check your internet.');}
+  finally{
+    isThinking=false;
+    document.getElementById('thinking').style.display='none';
+    document.getElementById('btn-send').disabled=false;
+    document.getElementById('chat-input').disabled=false;
+    document.getElementById('chat-input').focus();
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// HOME PAGE WIDGETS
+// ══════════════════════════════════════════════════════════
+
+// ── Stats Bar ─────────────────────────────────────────────
+function updateStatsBar(){
+  const t=todayProgress;
+  const totalAttempted=(t.cloze_attempted||0)+(t.synthesis_attempted||0);
+  const totalCorrect=(t.cloze_correct||0)+(t.synthesis_correct||0);
+  const totalSessions=(t.cloze_done||0)+(t.synthesis_done||0);
+  const acc=totalAttempted>0?Math.round(totalCorrect/totalAttempted*100)+'%':'—';
+  const tp2=getDailyTargets();const QUOTA=tp2.cloze+tp2.synthesis;
+
+  const elToday=document.getElementById('stat-today');
+  const elSess=document.getElementById('stat-sessions');
+  const elAcc=document.getElementById('stat-accuracy');
+  const elQuota=document.getElementById('stat-quota');
+  if(elToday)elToday.textContent=totalAttempted;
+  if(elSess)elSess.textContent=totalSessions;
+  if(elAcc)elAcc.textContent=acc;
+  if(elQuota){
+    elQuota.textContent=`${Math.min(totalSessions,QUOTA)}/${QUOTA}`;
+    elQuota.style.color=totalSessions>=QUOTA?'var(--green)':'';
+  }
+  renderDailyTask();
+  renderContinueCta();
+}
+
+// ── Today's Mission ───────────────────────────────────────
+let _pendingMistakesCount=-1;
+function renderDailyTask(){
+  const el=document.getElementById('daily-task-section');if(!el)return;
+  const _dt=getDailyTargets();const clozeDone=(todayProgress.cloze_done||0)>=_dt.cloze;
+  const synthDone=(todayProgress.synthesis_done||0)>=_dt.synthesis;
+  const mistakesDone=_pendingMistakesCount===0;
+  const allDone=clozeDone&&synthDone&&mistakesDone&&_pendingMistakesCount>=0;
+
+  if(allDone){
+    el.innerHTML=`<div class="daily-complete-wrap"><div class="daily-medal">🏆</div><div class="daily-complete-title">Today's Mission Complete!</div><div class="daily-complete-sub">Cloze ✅ · Synthesis ✅ · Mistakes ✅</div></div>`;
+    return;
+  }
+
+  const mistakesText=_pendingMistakesCount<0?'—':(_pendingMistakesCount>0?_pendingMistakesCount+' left':'Clear!');
+  el.innerHTML=`<div class="daily-task-wrap">
+    <div class="daily-task-title">📋 Today's Mission</div>
+    <div class="daily-task-items">
+      <div class="daily-task-item" onclick="selectTopicById('cloze')">
+        <div class="task-check ${clozeDone?'done':''}"><span>${clozeDone?'✓':''}</span></div>
+        <span class="task-label ${clozeDone?'done':''}">Comprehension Cloze</span>
+        <span class="task-progress-text">${Math.min(todayProgress.cloze_done||0,_dt.cloze)}/${_dt.cloze}</span>
+      </div>
+      <div class="daily-task-item" onclick="selectTopicById('synthesis')">
+        <div class="task-check ${synthDone?'done':''}"><span>${synthDone?'✓':''}</span></div>
+        <span class="task-label ${synthDone?'done':''}">Synthesis &amp; Trans.</span>
+        <span class="task-progress-text">${Math.min(todayProgress.synthesis_done||0,_dt.synthesis)}/${_dt.synthesis}</span>
+      </div>
+      <div class="daily-task-item" onclick="showTab('mistakes')">
+        <div class="task-check ${mistakesDone?'done':''}"><span>${mistakesDone?'✓':''}</span></div>
+        <span class="task-label ${mistakesDone?'done':''}">Clear My Mistakes</span>
+        <span class="task-progress-text">${mistakesText}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function loadMistakesCount(){
+  if(!currentUser)return;
+  try{
+    const thirtyDaysAgo=new Date();thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30);
+    const dateStr=thirtyDaysAgo.toISOString().split('T')[0];
+    const rows=await sbFetch(`coach_wrong_questions?username=eq.${encodeURIComponent(currentUser.username)}&status=eq.active&wrong_date=gte.${dateStr}&select=id`);
+    _pendingMistakesCount=(rows||[]).length;
+    renderDailyTask();
+  }catch(e){_pendingMistakesCount=-1;}
+}
+
+// ── Continue CTA ──────────────────────────────────────────
+function renderContinueCta(){
+  const el=document.getElementById('continue-cta');if(!el)return;
+  const _dt2=getDailyTargets();const clozeDone=(todayProgress.cloze_done||0)>=_dt2.cloze;
+  const synthDone=(todayProgress.synthesis_done||0)>=_dt2.synthesis;
+  let label='';
+  if(!clozeDone)label='▶ Continue: Comprehension Cloze';
+  else if(!synthDone)label='▶ Continue: Synthesis &amp; Trans.';
+  else if(_pendingMistakesCount>0)label=`▶ Continue: My Mistakes (${_pendingMistakesCount} left)`;
+  el.innerHTML=label?`<button class="continue-cta-btn" onclick="continueToday()">${label}</button>`:'';
+}
+
+function continueToday(){
+  const _dt3=getDailyTargets();const clozeDone=(todayProgress.cloze_done||0)>=_dt3.cloze;
+  const synthDone=(todayProgress.synthesis_done||0)>=_dt3.synthesis;
+  if(!clozeDone){selectTopicById('cloze');return;}
+  if(!synthDone){selectTopicById('synthesis');return;}
+  if(_pendingMistakesCount>0){showTab('mistakes');return;}
+  showToast('🎉 All done for today! Great work!');
+}
+
+// ── Streak Widget ─────────────────────────────────────────
+async function loadStreakWidget(){
+  const el=document.getElementById('streak-widget');if(!el||!currentUser)return;
+  try{
+    const rows=await sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&order=date.desc&limit=60&select=date,cloze_done,synthesis_done`)||[];
+    const doneDates=new Set(rows.filter(r=>{const _sdt=getDailyTargets();return(r.cloze_done||0)>=_sdt.cloze&&(r.synthesis_done||0)>=_sdt.synthesis;}).map(r=>r.date));
+    const today=TODAY;
+    const yestDate=new Date();yestDate.setDate(yestDate.getDate()-1);
+    const yesterday=yestDate.toISOString().split('T')[0];
+    let streak=0;
+    if(doneDates.has(today)||doneDates.has(yesterday)){
+      let d=doneDates.has(today)?new Date():yestDate;
+      while(doneDates.has(d.toISOString().split('T')[0])){streak++;d.setDate(d.getDate()-1);}
+    }
+    if(streak>0){
+      const encourage=!doneDates.has(today)?" — do today's practice to keep it going!":'';
+      el.innerHTML=`<div class="streak-widget">🔥 <span class="streak-num">${streak}</span> Day${streak>1?'s':''} Streak${encourage}</div>`;
+    }else{
+      el.innerHTML=`<div class="streak-widget streak-widget-new">🔥 Start your streak today — do Cloze + S&amp;T!</div>`;
+    }
+  }catch(e){el.innerHTML='';}
+}
+
+// ── Mini Leaderboard ──────────────────────────────────────
+async function renderMiniLeaderboard(){
+  const el=document.getElementById('mini-leaderboard');if(!el||!currentUser)return;
+  try{
+    const [progressRows,userRows]=await Promise.all([
+      sbFetch('cloze_daily_progress?select=username,cloze_attempted,cloze_correct,synthesis_attempted,synthesis_correct'),
+      sbFetch('cloze_users?select=username,display,role')
+    ]);
+    if(!progressRows||!userRows)return;
+    const displayMap={},roleMap={};
+    userRows.forEach(u=>{displayMap[u.username]=u.display||u.username;roleMap[u.username]=u.role;});
+    const totals={};
+    progressRows.forEach(r=>{
+      if(!totals[r.username])totals[r.username]={attempted:0,correct:0};
+      totals[r.username].attempted+=(r.cloze_attempted||0)+(r.synthesis_attempted||0);
+      totals[r.username].correct+=(r.cloze_correct||0)+(r.synthesis_correct||0);
+    });
+    const ranked=Object.entries(totals)
+      .filter(([u])=>roleMap[u]!=='admin'&&displayMap[u])
+      .map(([u,t])=>({username:u,display:displayMap[u]||u,score:calcScore(t.attempted,t.correct)}))
+      .sort((a,b)=>b.score-a.score);
+    if(!ranked.length)return;
+    const myRank=ranked.findIndex(r=>r.username===currentUser.username)+1;
+    const top3=ranked.slice(0,3);
+    const MEDALS=['🥇','🥈','🥉'];
+    const rows=top3.map((r,i)=>{
+      const isMe=r.username===currentUser.username;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid rgba(91,65,236,0.08)">
+        <span style="font-size:16px;min-width:24px">${MEDALS[i]}</span>
+        <span style="flex:1;font-size:13px;font-weight:${isMe?700:500};color:${isMe?'var(--gold)':'var(--text)'}">${r.display}${isMe?' (you)':''}</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text-dim)">${r.score}<span style="font-size:10px;font-weight:400"> pts</span></span>
+      </div>`;
+    }).join('');
+    const myLine=myRank>3?`<div style="margin-top:6px;padding:6px 10px;background:rgba(91,65,236,0.08);border-radius:8px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:12px;font-weight:700;color:var(--gold);min-width:24px">#${myRank}</span>
+      <span style="flex:1;font-size:13px;font-weight:700;color:var(--gold)">${currentUser.display||currentUser.username} (you)</span>
+      <span style="font-size:13px;font-weight:700;color:var(--gold)">${ranked[myRank-1]?.score||0}<span style="font-size:10px;font-weight:400"> pts</span></span>
+    </div>`:'';
+    el.innerHTML=`<div style="background:var(--dark2);border:1.5px solid rgba(91,65,236,0.12);border-radius:var(--radius);padding:14px 16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px">🏆 Rankings</span>
+        <button onclick="showTab('ranks')" style="background:none;border:none;font-size:12px;color:var(--gold);font-weight:600;cursor:pointer;padding:0">View all →</button>
+      </div>${rows}${myLine}</div>`;
+    // Also load mistakes count for the mission card
+    loadMistakesCount();
+  }catch(e){el.innerHTML='';}
+}
+
+// ── Invite Banner ─────────────────────────────────────────
+function loadInviteBanner(){
+  const slot=document.getElementById('invite-banner-slot');if(!slot)return;
+  if(!currentUser||currentUser.role!=='student'||!currentUser.referral_code){slot.innerHTML='';return;}
+  const code=currentUser.referral_code;
+  slot.innerHTML=`<div class="invite-banner">
+    <div class="invite-banner-header">
+      <div class="invite-banner-icon">🎁</div>
+      <div>
+        <div class="invite-banner-title">Share AL1 with friends</div>
+        <div class="invite-banner-desc">Friends get a 3-day free trial · You earn credits when they upgrade</div>
+      </div>
+    </div>
+    <div class="invite-banner-row">
+      <div class="invite-code-chip">${code}</div>
+      <div class="invite-actions">
+        <button class="btn-invite-copy" onclick="copyInviteCode('${code}')">Copy code</button>
+        <button class="btn-invite-share" onclick="shareInviteCode('${code}')">Invite →</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function copyInviteCode(code){
+  navigator.clipboard.writeText(code).then(()=>showToast('Referral code copied ✓')).catch(()=>{
+    const el=document.createElement('textarea');el.value=code;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);showToast('Referral code copied ✓');
+  });
+}
+
+function shareInviteCode(code){
+  const appUrl='https://al1-cloze-synthesis-coach.vercel.app';
+  const text=`Try AL1 Cloze & Synthesis Coach free for 3 days!\n🔑 Referral code: ${code}\n${appUrl}`;
+  if(navigator.share){navigator.share({title:'AL1 Cloze & Synthesis Coach',text}).catch(()=>{});}
+  else{navigator.clipboard.writeText(text).then(()=>showToast('Invite message copied — paste it to a friend!')).catch(()=>{const el=document.createElement('textarea');el.value=text;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);showToast('Invite message copied — paste it to a friend!');});}
+}
+
+// ══════════════════════════════════
+// TOAST
+// ══════════════════════════════════
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => {
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              newWorker.postMessage({ action: 'skipWaiting' });
+              window.location.reload();
+            }
+          });
+        });
+        setInterval(() => { reg.update(); }, 5 * 60 * 1000);
+      });
+  });
+}
+</script>
+</body>
+</html>
