@@ -276,6 +276,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .st-feedback:empty{margin:0;}
 .st-feedback.correct{color:#16a34a;font-weight:600;}
 .st-feedback.wrong{color:#e05a5a;}
+.st-ans-line{font-size:15px;line-height:2.6;color:#1f2937;margin:2px 0 0;}
+.st-chg{display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;margin:0 3px;}
+.st-chg-old{font-size:16px;font-weight:500;color:#1f2937;text-decoration:line-through;text-decoration-color:#e0245e;text-decoration-thickness:2.5px;line-height:1.2;}
+.st-chg-new{background:rgba(0,199,202,0.15);color:#086668;font-weight:500;padding:0 7px;border-radius:4px;border-bottom:2px solid #00c7ca;line-height:1.45;}
+.st-rule{border-left:3px solid #f59e0b;background:#fffbeb;border-radius:0 6px 6px 0;padding:9px 13px;margin-top:12px;font-size:13px;line-height:1.8;color:#78350f;}
+.st-wrong-head{font-size:13px;color:#e05a5a;font-weight:500;margin-bottom:2px;}
 
 /* MCQ clickable buttons */
 .mcq-btn{display:block;width:100%;text-align:left;background:var(--dark3);border:1.5px solid rgba(91,65,236,0.25);border-radius:10px;padding:10px 14px;margin:5px 0;font-size:15px;color:var(--text);cursor:pointer;transition:all 0.15s;font-family:'Outfit',sans-serif;}
@@ -2252,7 +2258,7 @@ function submitOneST(btn) {
     fb.className = 'st-feedback correct';
   } else {
     saveWrongQuestion(q.original_sentence, q.model_answer, studentAns, 'synthesis', null);
-    fb.innerHTML = `❌ Model answer: ${q.model_answer}${q.explanation ? '<br>' + q.explanation : ''}`;
+    fb.innerHTML = buildSTFeedback(q);
     fb.className = 'st-feedback wrong';
   }
 
@@ -2263,6 +2269,64 @@ function submitOneST(btn) {
     chatHistory.push({ role: 'assistant', content: msg });
     incrementProgress('synthesis', currentDBQuestions.length, stCorrect);
   }
+}
+
+function stEscapeHtml(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function stFullAnswer(q){
+  var starter = q.starter ? String(q.starter).trim() : '';
+  var body = q.model_answer ? String(q.model_answer).trim() : '';
+  var ending = q.ending ? String(q.ending).trim() : '';
+  var out = starter ? (starter + ' ' + body) : body;
+  if (ending) { out = /^[,.!?;:]/.test(ending) ? (out + ending) : (out + ' ' + ending); }
+  return out.trim();
+}
+
+function stParseExplanation(raw){
+  if (!raw) return null;
+  var obj = raw;
+  if (typeof raw === 'string') {
+    try { obj = JSON.parse(raw); } catch(e) { return { legacy: raw }; }
+  }
+  if (!obj || typeof obj !== 'object') return null;
+  if (!Array.isArray(obj.changes)) obj.changes = [];
+  return obj;
+}
+
+function stBuildAnswerHtml(q, exp){
+  var full = stFullAnswer(q);
+  var esc = stEscapeHtml(full);
+  var changes = (exp && exp.changes) ? exp.changes : [];
+  var slots = [];
+  for (var i = 0; i < changes.length; i++) {
+    var c = changes[i] || {};
+    var toTxt = c.to ? stEscapeHtml(String(c.to).trim()) : '';
+    if (!toTxt) continue;
+    var at = esc.indexOf(toTxt);
+    if (at === -1) continue;
+    var token = '\u0001' + slots.length + '\u0001';
+    esc = esc.slice(0, at) + token + esc.slice(at + toTxt.length);
+    slots.push({ oldTxt: c.from ? stEscapeHtml(String(c.from).trim()) : '', newTxt: toTxt });
+  }
+  for (var j = 0; j < slots.length; j++) {
+    var sl = slots[j];
+    var block = '<span class="st-chg">'
+      + (sl.oldTxt ? '<span class="st-chg-old">' + sl.oldTxt + '</span>' : '')
+      + '<span class="st-chg-new">' + sl.newTxt + '</span></span>';
+    esc = esc.split('\u0001' + j + '\u0001').join(block);
+  }
+  return '<div class="st-ans-line">' + esc + '</div>';
+}
+
+function buildSTFeedback(q){
+  var exp = stParseExplanation(q.explanation);
+  if (exp && exp.legacy) {
+    return '<div class="st-wrong-head">Model answer</div><div class="st-ans-line">'
+      + stEscapeHtml(stFullAnswer(q)) + '</div><div class="st-rule">' + exp.legacy + '</div>';
+  }
+  var html = '<div class="st-wrong-head">Model answer</div>' + stBuildAnswerHtml(q, exp);
+  if (exp && exp.rule) { html += '<div class="st-rule">' + stEscapeHtml(exp.rule) + '</div>'; }
+  return html;
 }
 
 function autoExpandBlank(input){input.style.width=Math.max(75,input.value.length*10+20)+'px';}
