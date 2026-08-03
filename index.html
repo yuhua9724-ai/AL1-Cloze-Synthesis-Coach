@@ -950,14 +950,23 @@ function renderWrongCard(q) {
   if (q.question_type === 'synthesis') {
     var o = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : {};
     o = o || {};
-    stMistakeData[q.id] = { starter: o.starter || '', ending: o.ending || '', model_answer: q.correct_answer || '', explanation: o.explanation || null };
-    var st = o.starter ? '<span style="font-size:14px;color:var(--text);margin-right:6px;">' + stEscapeHtml(o.starter) + '</span>' : '';
+    var pos = o.keyword_position || 'end';
+    var kw = o.keyword || '';
+    var stt = o.starter || '';
+    var endg = o.ending || '';
+    stMistakeData[q.id] = { starter: stt, keyword: kw, keyword_position: pos, ending: endg, model_answer: q.correct_answer || '', explanation: o.explanation || null };
+    function _t(x){ return '<span style="font-size:15px;color:var(--text);">' + stEscapeHtml(x) + '</span>'; }
+    function _in(sfx){ return '<input type="text" class="wrong-retry-input" style="flex:1 1 140px;min-width:120px;" id="wretry-' + q.id + sfx + '" placeholder="Your answer…" onkeydown="if(event.key===\'Enter\')trySTMistake(\'' + q.id + '\')"/>'; }
+    var line = '';
+    if (pos === 'middle') { line = _in('') + _t(kw) + _in('-b'); }
+    else if (pos === 'both') { line = _t(stt) + _in('') + _t(kw) + _in('-b'); }
+    else { line = (stt ? _t(stt) : '') + _in(''); }
+    if (endg) { line += _t(endg); }
     return '<div class="wrong-card" id="wcard-' + q.id + '">'
       + '<div class="wrong-card-meta"><span class="wrong-card-type">synthesis</span><span class="wrong-card-date">' + q.wrong_date + '</span></div>'
       + '<div class="wrong-card-q">' + stEscapeHtml(q.question_text || '') + '</div>'
-      + '<div class="wrong-retry-row" style="flex-wrap:wrap;align-items:center;">' + st
-      + '<input type="text" class="wrong-retry-input" id="wretry-' + q.id + '" placeholder="Type your answer…" onkeydown="if(event.key===\'Enter\')trySTMistake(\'' + q.id + '\')"/>'
-      + '<button class="wrong-retry-btn" onclick="trySTMistake(\'' + q.id + '\')">Check</button></div>'
+      + '<div class="wrong-retry-row" style="flex-wrap:wrap;align-items:center;gap:8px;">' + line + '</div>'
+      + '<div style="margin-top:8px;"><button class="wrong-retry-btn" onclick="trySTMistake(\'' + q.id + '\')">Check</button></div>'
       + '<div class="wrong-retry-feedback" id="wfeedback-' + q.id + '"></div>'
       + '<div class="wrong-card-footer"><span class="wrong-streak">Streak: <b>' + streak + '/2</b> correct needed</span></div>'
       + '</div>';
@@ -1961,7 +1970,7 @@ async function markDBAnswers(studentAnswer, type) {
       const studentAns = studentMap[qNum] || '';
       const ok = isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
       if (ok) { correct++; return `Q${qNum}: ✅ ${studentAns}`; }
-      saveWrongQuestion(q.original_sentence || `Synthesis Q${qNum}`, q.model_answer, studentAns, 'synthesis', { starter: q.starter || '', ending: q.ending || '', explanation: q.explanation || null });
+      saveWrongQuestion(q.original_sentence || `Synthesis Q${qNum}`, q.model_answer, studentAns, 'synthesis', { starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null });
       return `Q${qNum}: ❌ Your answer: ${studentAns || '(blank)'}\nModel answer: ${q.model_answer}${q.explanation ? '\n' + q.explanation : ''}`;
     });
     reply = `**Score: ${correct}/${qs.length}**\n\n${lines.join('\n\n')}`;
@@ -2272,7 +2281,7 @@ function submitOneST(btn) {
     fb.innerHTML = '✅ Correct!';
     fb.className = 'st-feedback correct';
   } else {
-    saveWrongQuestion(q.original_sentence, q.model_answer, studentAns, 'synthesis', { starter: q.starter || '', ending: q.ending || '', explanation: q.explanation || null });
+    saveWrongQuestion(q.original_sentence, q.model_answer, studentAns, 'synthesis', { starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null });
     fb.innerHTML = buildSTFeedback(q);
     fb.className = 'st-feedback wrong';
   }
@@ -2291,11 +2300,13 @@ var stMistakeData = {};
 function stEscapeHtml(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function stFullAnswer(q){
+  var pos = q.keyword_position || 'end';
   var starter = q.starter ? String(q.starter).trim() : '';
   var body = q.model_answer ? String(q.model_answer).trim() : '';
   var ending = q.ending ? String(q.ending).trim() : '';
-  var out = starter ? (starter + ' ' + body) : body;
-  if (ending) { out = /^[,.!?;:]/.test(ending) ? (out + ending) : (out + ' ' + ending); }
+  var out = body;
+  if (pos === 'end' && starter && body.toLowerCase().indexOf(starter.toLowerCase()) !== 0) { out = starter + ' ' + body; }
+  if (ending && out.toLowerCase().indexOf(ending.toLowerCase()) === -1) { out = /^[,.!?;:]/.test(ending) ? (out + ending) : (out + ' ' + ending); }
   return out.trim();
 }
 
@@ -2347,14 +2358,21 @@ function buildSTFeedback(q){
 }
 
 function trySTMistake(id){
-  var input = document.getElementById('wretry-' + id);
-  if (!input || input.disabled) return;
+  var d = stMistakeData[id] || {};
+  var pos = d.keyword_position || 'end';
+  var a = document.getElementById('wretry-' + id);
+  var b = document.getElementById('wretry-' + id + '-b');
+  if (!a || a.disabled) return;
   var feedback = document.getElementById('wfeedback-' + id);
   var card = document.getElementById('wcard-' + id);
-  var d = stMistakeData[id] || {};
-  var studentAns = (input.value || '').trim();
+  var p1 = (a.value || '').trim();
+  var p2 = b ? (b.value || '').trim() : '';
+  var studentAns = '';
+  if (pos === 'middle') { studentAns = (p1 + ' ' + (d.keyword || '') + ' ' + p2).trim(); }
+  else if (pos === 'both') { studentAns = ((d.starter ? d.starter + ' ' : '') + p1 + ' ' + (d.keyword || '') + ' ' + p2).trim(); }
+  else { studentAns = p1; }
   var isCorrect = isAnswerCorrect(studentAns, d.model_answer);
-  input.disabled = true;
+  a.disabled = true; if (b) b.disabled = true;
   var btn = card ? card.querySelector('.wrong-retry-btn') : null;
   if (btn) btn.disabled = true;
   if (isCorrect) {
@@ -2363,7 +2381,7 @@ function trySTMistake(id){
   } else {
     feedback.innerHTML = buildSTFeedback(d);
     feedback.className = 'wrong-retry-feedback wrong';
-    setTimeout(function(){ input.disabled = false; input.value = ''; input.focus(); if (btn) btn.disabled = false; }, 3000);
+    setTimeout(function(){ a.disabled = false; a.value = ''; if (b) { b.disabled = false; b.value = ''; } a.focus(); if (btn) btn.disabled = false; }, 3000);
   }
   updateMistakeStreak(id, isCorrect, card);
 }
