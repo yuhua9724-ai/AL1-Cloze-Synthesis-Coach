@@ -282,6 +282,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .st-chg-new{background:rgba(0,199,202,0.15);color:#086668;font-weight:500;padding:0 7px;border-radius:4px;border-bottom:2px solid #00c7ca;line-height:1.45;}
 .st-rule{border-left:3px solid #f59e0b;background:#fffbeb;border-radius:0 6px 6px 0;padding:9px 13px;margin-top:12px;font-size:13px;line-height:1.8;color:#78350f;}
 .st-wrong-head{font-size:13px;color:#e05a5a;font-weight:500;margin-bottom:2px;}
+.st-chg-missing{color:#9ca3af;font-style:italic;text-decoration:none;}
 
 /* MCQ clickable buttons */
 .mcq-btn{display:block;width:100%;text-align:left;background:var(--dark3);border:1.5px solid rgba(91,65,236,0.25);border-radius:10px;padding:10px 14px;margin:5px 0;font-size:15px;color:var(--text);cursor:pointer;transition:all 0.15s;font-family:'Outfit',sans-serif;}
@@ -2282,7 +2283,7 @@ function submitOneST(btn) {
     fb.className = 'st-feedback correct';
   } else {
     saveWrongQuestion(q.original_sentence, q.model_answer, studentAns, 'synthesis', { starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null });
-    fb.innerHTML = buildSTFeedback(q);
+    fb.innerHTML = buildSTFeedback(q, studentAns);
     fb.className = 'st-feedback wrong';
   }
 
@@ -2321,39 +2322,70 @@ function stParseExplanation(raw){
   return obj;
 }
 
-function stBuildAnswerHtml(q, exp){
-  var full = stFullAnswer(q);
-  var esc = stEscapeHtml(full);
-  var changes = (exp && exp.changes) ? exp.changes : [];
-  var slots = [];
-  for (var i = 0; i < changes.length; i++) {
-    var c = changes[i] || {};
-    var toTxt = c.to ? stEscapeHtml(String(c.to).trim()) : '';
-    if (!toTxt) continue;
-    var at = esc.indexOf(toTxt);
-    if (at === -1) continue;
-    var token = '\u0001' + slots.length + '\u0001';
-    esc = esc.slice(0, at) + token + esc.slice(at + toTxt.length);
-    slots.push({ oldTxt: c.from ? stEscapeHtml(String(c.from).trim()) : '', newTxt: toTxt });
-  }
-  for (var j = 0; j < slots.length; j++) {
-    var sl = slots[j];
-    var block = '<span class="st-chg">'
-      + (sl.oldTxt ? '<span class="st-chg-old">' + sl.oldTxt + '</span>' : '')
-      + '<span class="st-chg-new">' + sl.newTxt + '</span></span>';
-    esc = esc.split('\u0001' + j + '\u0001').join(block);
-  }
-  return '<div class="st-ans-line">' + esc + '</div>';
+function stTokenize(t){
+  return String(t||'').trim().split(/\s+/).filter(function(x){return x.length;});
 }
 
-function buildSTFeedback(q){
-  var exp = stParseExplanation(q.explanation);
-  if (exp && exp.legacy) {
-    return '<div class="st-wrong-head">Model answer</div><div class="st-ans-line">'
-      + stEscapeHtml(stFullAnswer(q)) + '</div><div class="st-rule">' + exp.legacy + '</div>';
+function stNormWord(w){
+  return String(w||'').toLowerCase().replace(/[\u2018\u2019\u201b`\u00b4']/g,'').replace(/^[.,!?;:"()]+|[.,!?;:"()]+$/g,'');
+}
+
+// Word-level LCS diff: returns [{type:'same'|'chg', correct:[], student:[]}]
+function stDiffWords(studentTxt, correctTxt){
+  var A = stTokenize(studentTxt), B = stTokenize(correctTxt);
+  var n = A.length, m = B.length;
+  var dp = [];
+  for (var i = 0; i <= n; i++){ dp.push(new Array(m + 1).fill(0)); }
+  for (var i2 = n - 1; i2 >= 0; i2--){
+    for (var j2 = m - 1; j2 >= 0; j2--){
+      dp[i2][j2] = (stNormWord(A[i2]) === stNormWord(B[j2]))
+        ? dp[i2 + 1][j2 + 1] + 1
+        : Math.max(dp[i2 + 1][j2], dp[i2][j2 + 1]);
+    }
   }
-  var html = '<div class="st-wrong-head">Model answer</div>' + stBuildAnswerHtml(q, exp);
-  if (exp && exp.rule) { html += '<div class="st-rule">' + stEscapeHtml(exp.rule) + '</div>'; }
+  var out = [], i = 0, j = 0, pendA = [], pendB = [];
+  function flush(){
+    if (pendA.length || pendB.length){ out.push({ type:'chg', student: pendA, correct: pendB }); pendA = []; pendB = []; }
+  }
+  while (i < n && j < m){
+    if (stNormWord(A[i]) === stNormWord(B[j])){
+      flush();
+      out.push({ type:'same', correct:[B[j]] });
+      i++; j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) { pendA.push(A[i++]); }
+    else { pendB.push(B[j++]); }
+  }
+  while (i < n){ pendA.push(A[i++]); }
+  while (j < m){ pendB.push(B[j++]); }
+  flush();
+  return out;
+}
+
+function stBuildDiffHtml(studentTxt, correctTxt){
+  var parts = stDiffWords(studentTxt, correctTxt);
+  var html = '';
+  for (var i = 0; i < parts.length; i++){
+    var p = parts[i];
+    if (p.type === 'same'){ html += ' ' + stEscapeHtml(p.correct.join(' ')); continue; }
+    var oldTxt = p.student.join(' ');
+    var newTxt = p.correct.join(' ');
+    html += ' <span class="st-chg">'
+      + (oldTxt ? '<span class="st-chg-old">' + stEscapeHtml(oldTxt) + '</span>' : '<span class="st-chg-old st-chg-missing">(missing)</span>')
+      + (newTxt ? '<span class="st-chg-new">' + stEscapeHtml(newTxt) + '</span>' : '<span class="st-chg-new">&nbsp;</span>')
+      + '</span>';
+  }
+  return '<div class="st-ans-line">' + html.trim() + '</div>';
+}
+
+function buildSTFeedback(q, studentAns){
+  var exp = stParseExplanation(q.explanation);
+  var full = stFullAnswer(q);
+  var html = '<div class="st-wrong-head">Model answer</div>';
+  html += (studentAns && String(studentAns).trim())
+    ? stBuildDiffHtml(studentAns, full)
+    : '<div class="st-ans-line">' + stEscapeHtml(full) + '</div>';
+  if (exp && exp.legacy) { html += '<div class="st-rule">' + exp.legacy + '</div>'; }
+  else if (exp && exp.rule) { html += '<div class="st-rule">' + stEscapeHtml(exp.rule) + '</div>'; }
   return html;
 }
 
@@ -2379,7 +2411,7 @@ function trySTMistake(id){
     feedback.innerHTML = '\u2705 Correct!';
     feedback.className = 'wrong-retry-feedback correct';
   } else {
-    feedback.innerHTML = buildSTFeedback(d);
+    feedback.innerHTML = buildSTFeedback(d, studentAns);
     feedback.className = 'wrong-retry-feedback wrong';
     setTimeout(function(){ a.disabled = false; a.value = ''; if (b) { b.disabled = false; b.value = ''; } a.focus(); if (btn) btn.disabled = false; }, 3000);
   }
