@@ -597,6 +597,27 @@ async function sbFetch(path,opts={}){
   return data;
 }
 
+// 分页拉取 —— Supabase 单次最多返回 1000 行，题库超过就要翻页
+async function sbFetchAll(path){
+  const pageSize=1000;
+  let all=[],from=0;
+  while(true){
+    const res=await fetch(SB_URL+'/rest/v1/'+path,{
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json',
+               'Range-Unit':'items','Range':from+'-'+(from+pageSize-1)},
+      cache:'no-store'
+    });
+    if(!res.ok)return all.length?all:null;
+    let page;
+    try{page=JSON.parse(await res.text());}catch(e){return all.length?all:null;}
+    if(!Array.isArray(page)||page.length===0)break;
+    all=all.concat(page);
+    if(page.length<pageSize)break;
+    from+=pageSize;
+  }
+  return all;
+}
+
 // ══════════════════════════════════
 // AUTH
 // ══════════════════════════════════
@@ -631,8 +652,8 @@ async function doLogin(){
     currentUser=user;
     const sessionToken = Date.now().toString(36) + Math.random().toString(36).slice(2);
     currentUser.sessionToken = sessionToken;
-    sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
-    sessionStorage.setItem('cal1_token', sessionToken);
+    localStorage.setItem('cal1_user',JSON.stringify(currentUser));
+    localStorage.setItem('cal1_token', sessionToken);
     try{
       await sbFetch(`cloze_users?username=eq.${encodeURIComponent(user.username)}`,
         {method:'PATCH',prefer:'return=minimal',body:{session_token:sessionToken}});
@@ -674,6 +695,10 @@ async function doSignup(){
   const code=document.getElementById('signup-code-field').value.trim().toUpperCase();
   const errEl=document.getElementById('signup-err');
   errEl.style.display='none';
+  if(!/^[689]\d{7}$/.test(username)){
+    errEl.textContent='Please enter a valid Singapore phone number (8 digits, starting with 6, 8 or 9).';
+    errEl.style.display='block';return;
+  }
   btn.textContent='Checking code…';btn.disabled=true;
   try{
     // 1. Validate referral code
@@ -710,8 +735,8 @@ async function doSignup(){
     currentUser=r[0];
     const sessionToken=Date.now().toString(36)+Math.random().toString(36).slice(2);
     currentUser.sessionToken=sessionToken;
-    sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
-    sessionStorage.setItem('cal1_token',sessionToken);
+    localStorage.setItem('cal1_user',JSON.stringify(currentUser));
+    localStorage.setItem('cal1_token',sessionToken);
     try{await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}`,{method:'PATCH',prefer:'return=minimal',body:{session_token:sessionToken}});}catch(e){}
     enterApp();
   }catch(e){
@@ -749,7 +774,7 @@ async function enterApp(){
 }
 
 function doLogout(){
-  currentUser=null;sessionStorage.removeItem('cal1_user');chatHistory=[];
+  currentUser=null;localStorage.removeItem('cal1_user');chatHistory=[];
   document.getElementById('app-screen').classList.remove('active');
   document.getElementById('login-screen').classList.add('active');
   document.getElementById('login-user').value='';
@@ -757,9 +782,29 @@ function doLogout(){
   document.getElementById('login-error').style.display='none';
 }
 
-window.addEventListener('DOMContentLoaded',()=>{
-  const s=sessionStorage.getItem('cal1_user');
-  if(s){try{currentUser=JSON.parse(s);if(currentUser.expiry&&new Date(currentUser.expiry)<new Date()){sessionStorage.removeItem('cal1_user');currentUser=null;}else{enterApp();}}catch(e){sessionStorage.removeItem('cal1_user');}}
+window.addEventListener('DOMContentLoaded',async()=>{
+  const s=localStorage.getItem('cal1_user');
+  const t=localStorage.getItem('cal1_token');
+  if(!s)return;
+  let u;
+  try{u=JSON.parse(s);}catch(e){localStorage.removeItem('cal1_user');return;}
+  if(u.expiry&&new Date(u.expiry)<new Date()){
+    localStorage.removeItem('cal1_user');localStorage.removeItem('cal1_token');return;
+  }
+  // 校验 token —— 账号在别的设备登录过就不恢复
+  try{
+    const rows=await sbFetch('cloze_users?username=eq.'+encodeURIComponent(u.username)+'&select=*');
+    if(!rows||!rows.length){localStorage.removeItem('cal1_user');return;}
+    const fresh=rows[0];
+    if(fresh.session_token&&t&&fresh.session_token!==t){
+      localStorage.removeItem('cal1_user');localStorage.removeItem('cal1_token');
+      showLoginError('Your account was signed in on another device. Please sign in again.');
+      return;
+    }
+    currentUser={...fresh,sessionToken:t};
+    localStorage.setItem('cal1_user',JSON.stringify(currentUser));
+  }catch(e){currentUser=u;}
+  enterApp();
 });
 
 // ══════════════════════════════════
@@ -776,7 +821,7 @@ async function changePassword(){
   try{
     await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}`,{method:'PATCH',prefer:'return=minimal',body:{password:nw}});
     currentUser.password=nw;
-    sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
+    localStorage.setItem('cal1_user',JSON.stringify(currentUser));
     document.getElementById('pw-current').value='';
     document.getElementById('pw-new').value='';
     document.getElementById('pw-confirm').value='';
@@ -1226,7 +1271,7 @@ async function loadAccountPage(){
         const newCode=generateReferralCode(allCodes);
         await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}`,{method:'PATCH',prefer:'return=minimal',body:{referral_code:newCode}});
         currentUser.referral_code=newCode;
-        sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
+        localStorage.setItem('cal1_user',JSON.stringify(currentUser));
       }catch(e){console.warn('referral code gen failed',e);}
     }
 
@@ -1254,7 +1299,7 @@ async function loadAccountPage(){
       try{
         await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}`,{method:'PATCH',prefer:'return=minimal',body:{credit:totalCreditsEarned}});
         currentUser.credit=totalCreditsEarned;
-        sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
+        localStorage.setItem('cal1_user',JSON.stringify(currentUser));
       }catch(e){}
     }
 
@@ -1619,33 +1664,61 @@ async function loadQuestionsFromDB(type) {
   if (dbLoaded[type] && total > 0 && used < total * 0.8) return;
 
   const isTrial = currentUser?.role === 'tester' || currentUser?.role === 'test';
+  const table = type === 'cloze' ? 'cloze_passages' : 'synthesis_questions';
+  // 只取需要的字段 —— select=* 会把大字段一起拉下来，手机上会慢
+  const fields = type === 'cloze'
+    ? 'id,title,passage,blanks,answers,explanations,source,topic,difficulty,used_count,priority'
+    : 'id,original_sentence,question_line,model_answer,acceptable_answers,keyword,keyword_position,starter,ending,st_type,sub_type,source,explanation,used_count,priority';
 
   try {
-    if (type === 'cloze') {
-      let rows;
-      if (isTrial && currentUser?.demo_cloze_ids?.length) {
-        const ids = currentUser.demo_cloze_ids.join(',');
-        rows = await sbFetch(`cloze_passages?id=in.(${ids})&select=*&order=used_count.asc`);
-      } else {
-        rows = await sbFetch('cloze_passages?select=*&order=used_count.asc&limit=30');
-      }
-      if (rows && rows.length > 0) { dbQuestions.cloze = shuffle(rows); dbLoaded.cloze = true; }
-    } else if (type === 'synthesis') {
-      let rows;
-      if (isTrial && currentUser?.demo_synthesis_ids?.length) {
-        const ids = currentUser.demo_synthesis_ids.join(',');
-        rows = await sbFetch(`synthesis_questions?id=in.(${ids})&select=*`);
-      } else {
-        rows = await sbFetch('synthesis_questions?select=*&limit=50');
-      }
-      if (rows && rows.length > 0) { dbQuestions.synthesis = shuffle(rows); dbLoaded.synthesis = true; }
+    let rows;
+    const demoIds = type === 'cloze' ? currentUser?.demo_cloze_ids : currentUser?.demo_synthesis_ids;
+    if (isTrial && demoIds?.length) {
+      rows = await sbFetch(table + '?id=in.(' + demoIds.join(',') + ')&approved=eq.true&select=' + fields);
     } else {
-      const rows = await sbFetch(`questions?type=eq.${type}&select=*&limit=60`);
-      if (rows && rows.length > 0) { dbQuestions[type] = shuffle(rows); dbLoaded[type] = true; }
+      rows = await sbFetchAll(table + '?approved=eq.true&select=' + fields);
     }
+    if (!rows || !rows.length) return;
+    const seenSet = await loadSeenIds(type);
+    dbQuestions[type] = orderQuestionPool(rows, seenSet);
+    dbLoaded[type] = true;
   } catch(e) {
     console.error('DB load error for', type, ':', e.message);
   }
+}
+
+// 这个学生做过哪些题
+async function loadSeenIds(type) {
+  if (!currentUser?.username) return new Set();
+  try {
+    const rows = await sbFetchAll('cloze_question_seen?username=eq.' + encodeURIComponent(currentUser.username) + '&question_type=eq.' + type + '&select=question_id');
+    return new Set((rows || []).map(r => r.question_id));
+  } catch(e) { return new Set(); }
+}
+
+// 出题顺序：没做过的全部排在做过的前面
+// 每一半内部再分四档：priority 推送 → PSLE 真题 → Prelim 模拟卷 → 练习题
+// 每一档内部随机打乱
+function orderQuestionPool(rows, seenSet) {
+  const src = q => (q.source || '').toLowerCase();
+  const isPSLE = q => src(q).includes('psle');
+  const isPrelim = q => !isPSLE(q) && (src(q).includes('prelim') || src(q).includes('primary'));
+  const tier = q => (q.priority || 0) > 0 ? 0 : isPSLE(q) ? 1 : isPrelim(q) ? 2 : 3;
+  const buckets = [[], [], [], [], [], [], [], []];
+  rows.forEach(q => { buckets[tier(q) + (seenSet.has(q.id) ? 4 : 0)].push(q); });
+  return buckets.reduce((acc, b) => acc.concat(shuffle(b)), []);
+}
+
+// 记下学生做过这些题 —— 下次不再优先出
+async function markQuestionsSeen(type, questions) {
+  if (!currentUser?.username || !questions || !questions.length) return;
+  const rows = questions.filter(q => q && q.id).map(q => ({
+    username: currentUser.username, question_type: type, question_id: q.id
+  }));
+  if (!rows.length) return;
+  try {
+    await sbFetch('cloze_question_seen', { method: 'POST', prefer: 'return=minimal,resolution=merge-duplicates', body: rows });
+  } catch(e) { console.warn('markQuestionsSeen failed', e); }
 }
 
 function shuffle(arr) {
@@ -1782,6 +1855,7 @@ async function startDBSession(type) {
 
   if (type === 'synthesis') {
     const qs = getUnusedQuestions(type, 5);
+    markQuestionsSeen(type, qs);
     currentDBQuestions = qs;
     currentDBType = type;
     stIndex = 0;
@@ -1805,6 +1879,7 @@ async function startDBSession(type) {
       window._sessionRunning = false;
       return false;
     }
+    markQuestionsSeen(type, passages);
     currentDBQuestions = passages[0];
     currentDBType = type;
     setChatInputVisible(false);
@@ -1824,10 +1899,43 @@ async function startDBSession(type) {
 }
 
 // ── Local answer matching ──────────────────────────────────
-function normalizeAnswerText(s) {
+// All apostrophe shapes (curly, full-width, backtick...) become one straight '
+// The apostrophe itself is NEVER removed: brother's and brothers are different answers.
+function unifyApostrophes(s) {
   return (s == null ? '' : String(s)).trim().toLowerCase()
-    .replace(/[''‛`´]/g, '')
-    .replace(/[.!?,;:'"]+$/, '').replace(/\s+/g, ' ');
+    .replace(/[\u2018\u2019\u201A\u201B\u02BC\u02B9\u2032\u0060\u00B4\uFF07]/g, "'");
+}
+
+// Contractions spelled out, so I'm and I am count as the same answer.
+// it's -> it is keeps the contraction distinct from the possessive its.
+function expandContractions(s) {
+  return s
+    .replace(/\bcannot\b/g, 'can not')
+    .replace(/\bwon't\b/g, 'will not')
+    .replace(/\bshan't\b/g, 'shall not')
+    .replace(/\bcan't\b/g, 'can not')
+    .replace(/n't\b/g, ' not')
+    .replace(/\bit's\b/g, 'it is')
+    .replace(/\blet's\b/g, 'let us')
+    .replace(/\bi'm\b/g, 'i am')
+    .replace(/'re\b/g, ' are')
+    .replace(/'ve\b/g, ' have')
+    .replace(/'ll\b/g, ' will');
+}
+
+// Trailing punctuation is ignored, but a trailing apostrophe is kept
+// because plural possessives end in one: the students'
+function tidyAnswerText(s) {
+  return s.replace(/[.!?,;:\"]+$/, '').replace(/\s+/g, ' ').trim();
+}
+
+// Form 1: as written, apostrophe shape unified
+function normalizeAnswerText(s) {
+  return tidyAnswerText(unifyApostrophes(s));
+}
+// Form 2: contractions spelled out
+function normalizeAnswerLong(s) {
+  return tidyAnswerText(expandContractions(unifyApostrophes(s)));
 }
 
 function toAnswerList(val) {
@@ -1839,10 +1947,11 @@ function toAnswerList(val) {
 }
 
 function isAnswerCorrect(studentAns, ...correctVals) {
-  const norm = normalizeAnswerText(studentAns);
-  if (!norm) return false;
+  const short = normalizeAnswerText(studentAns);
+  const long = normalizeAnswerLong(studentAns);
+  if (!short) return false;
   const pool = correctVals.flatMap(v => toAnswerList(v));
-  return pool.some(v => normalizeAnswerText(v) === norm);
+  return pool.some(v => normalizeAnswerText(v) === short || normalizeAnswerLong(v) === long);
 }
 
 function parseNumberedAnswers(text, pattern) {
@@ -2379,7 +2488,9 @@ function stTokenize(t){
 }
 
 function stNormWord(w){
-  return String(w||'').toLowerCase().replace(/[\u2018\u2019\u201b`\u00b4']/g,'').replace(/^[.,!?;:"()]+|[.,!?;:"()]+$/g,'');
+  // Same rule as marking: apostrophe shape is unified but never dropped,
+  // so a missing apostrophe shows up as a highlighted difference.
+  return unifyApostrophes(w).replace(/^[.,!?;:"()]+|[.,!?;:"()]+$/g,'');
 }
 
 // Word-level LCS diff: returns [{type:'same'|'chg', correct:[], student:[]}]
