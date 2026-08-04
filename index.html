@@ -951,18 +951,23 @@ function renderWrongCard(q) {
   if (q.question_type === 'synthesis') {
     var o = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : {};
     o = o || {};
-    var pos = o.keyword_position || 'end';
-    var kw = o.keyword || '';
-    var stt = o.starter || '';
-    var endg = o.ending || '';
-    stMistakeData[q.id] = { starter: stt, keyword: kw, keyword_position: pos, ending: endg, model_answer: q.correct_answer || '', explanation: o.explanation || null };
-    function _t(x){ return '<span style="font-size:15px;color:var(--text);">' + stEscapeHtml(x) + '</span>'; }
-    function _in(sfx){ return '<input type="text" class="wrong-retry-input" style="flex:1 1 140px;min-width:120px;" id="wretry-' + q.id + sfx + '" placeholder="Your answer…" onkeydown="if(event.key===\'Enter\')trySTMistake(\'' + q.id + '\')"/>'; }
+    stMistakeData[q.id] = { question_line: o.question_line || '', starter: o.starter || '', keyword: o.keyword || '', keyword_position: o.keyword_position || 'end', ending: o.ending || '', model_answer: q.correct_answer || '', explanation: o.explanation || null };
+    var _t = function(x){ return '<span style="font-size:15px;color:var(--text);">' + stEscapeHtml(x) + '</span>'; };
+    var _n = 0;
+    var _in = function(){ var sfx = _n === 0 ? '' : ('-' + _n); _n++; return '<input type="text" class="wrong-retry-input" style="flex:1 1 130px;min-width:110px;" id="wretry-' + q.id + sfx + '" placeholder="Your answer…" onkeydown="if(event.key===\'Enter\')trySTMistake(\'' + q.id + '\')"/>'; };
     var line = '';
-    if (pos === 'middle') { line = _in('') + _t(kw) + _in('-b'); }
-    else if (pos === 'both') { line = _t(stt) + _in('') + _t(kw) + _in('-b'); }
-    else { line = (stt ? _t(stt) : '') + _in(''); }
-    if (endg) { line += _t(endg); }
+    if (o.question_line && String(o.question_line).indexOf('_') !== -1) {
+      var segs = stParseLine(o.question_line);
+      for (var si = 0; si < segs.length; si++) {
+        line += (segs[si].type === 'text') ? _t(segs[si].value) : _in();
+      }
+    } else {
+      var pos = o.keyword_position || 'end';
+      if (pos === 'middle') { line = _in() + _t(o.keyword || '') + _in(); }
+      else if (pos === 'both') { line = _t(o.starter || '') + _in() + _t(o.keyword || '') + _in(); }
+      else { line = (o.starter ? _t(o.starter) : '') + _in(); }
+      if (o.ending) { line += _t(o.ending); }
+    }
     return '<div class="wrong-card" id="wcard-' + q.id + '">'
       + '<div class="wrong-card-meta"><span class="wrong-card-type">synthesis</span><span class="wrong-card-date">' + q.wrong_date + '</span></div>'
       + '<div class="wrong-card-q">' + stEscapeHtml(q.question_text || '') + '</div>'
@@ -1672,31 +1677,31 @@ function formatAllSTQuestions(questions) {
   let text = '';
   questions.forEach((q, i) => {
     const src = q.source ? ` *(${q.source})*` : '';
-    const pos = q.keyword_position || 'end';
     text += `**Question ${i+1}**${src}\n`;
-    text += `§ORIG§**${q.original_sentence}**\n`;
+    text += `\u00a7ORIG\u00a7**${q.original_sentence}**\n`;
 
+    // Preferred path: the exam line, copied exactly as printed
+    if (stHasLine(q)) {
+      const segs = stParseLine(q.question_line);
+      let line = '';
+      segs.forEach(sg => {
+        line += (sg.type === 'text') ? (sg.value + ' ') : '____________________ ';
+      });
+      text += `\u00a7ST\u00a7${line.trim()}\n`;
+      return;
+    }
+
+    // Legacy path: starter / keyword / ending fields
+    const pos = q.keyword_position || 'end';
+    const starter = q.starter ? q.starter + ' ' : '';
+    const keyword = q.keyword || '';
+    const ending = q.ending ? (/^[,.!?;:]/.test(q.ending) ? q.ending : ' ' + q.ending) : '';
     if (pos === 'end') {
-      // Starter gives the beginning, one input box at the end
-      // e.g. "Gavin told his mother ____________________"
-      const starter = q.starter ? q.starter + ' ' : '';
-      const ending = q.ending ? (/^[,.!?;:]/.test(q.ending) ? q.ending : ' ' + q.ending) : '';
-      text += `§ST§${starter}____________________${ending}\n`;
-
+      text += `\u00a7ST\u00a7${starter}____________________${ending}\n`;
     } else if (pos === 'middle') {
-      // Keyword in the middle, two input boxes (before and after keyword)
-      // e.g. "____________________ unless ____________________"
-      const keyword = q.keyword || '';
-      const ending = q.ending ? (/^[,.!?;:]/.test(q.ending) ? q.ending : ' ' + q.ending) : '';
-      text += `§ST§____________________ ${keyword} ____________________${ending}\n`;
-
-    } else if (pos === 'both') {
-      // Starter gives the beginning, keyword in the middle, two input boxes
-      // e.g. "Ali showed ____________________ when ____________________"
-      const starter = q.starter ? q.starter + ' ' : '';
-      const keyword = q.keyword || '';
-      const ending = q.ending ? (/^[,.!?;:]/.test(q.ending) ? q.ending : ' ' + q.ending) : '';
-      text += `§ST§${starter}____________________ ${keyword} ____________________${ending}\n`;
+      text += `\u00a7ST\u00a7____________________ ${keyword} ____________________${ending}\n`;
+    } else {
+      text += `\u00a7ST\u00a7${starter}____________________ ${keyword} ____________________${ending}\n`;
     }
   });
   return text.trim();
@@ -1971,7 +1976,7 @@ async function markDBAnswers(studentAnswer, type) {
       const studentAns = studentMap[qNum] || '';
       const ok = isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
       if (ok) { correct++; return `Q${qNum}: ✅ ${studentAns}`; }
-      saveWrongQuestion(q.original_sentence || `Synthesis Q${qNum}`, q.model_answer, studentAns, 'synthesis', { starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null });
+      saveWrongQuestion(q.original_sentence || `Synthesis Q${qNum}`, q.model_answer, studentAns, 'synthesis', { question_line: q.question_line || '', starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null });
       return `Q${qNum}: ❌ Your answer: ${studentAns || '(blank)'}\nModel answer: ${q.model_answer}${q.explanation ? '\n' + q.explanation : ''}`;
     });
     reply = `**Score: ${correct}/${qs.length}**\n\n${lines.join('\n\n')}`;
@@ -2252,27 +2257,27 @@ function submitOneST(btn) {
   btn.disabled = true;
 
   const q = currentDBQuestions[qIdx];
-  const pos = q.keyword_position || 'end';
   const fb = document.getElementById('stfeedback-' + stId);
 
   let studentAns = '';
 
-  if (pos === 'end') {
-    // One input box — just take its value
-    studentAns = (inputs[0]?.value || '').trim();
-
-  } else if (pos === 'middle') {
-    // Two input boxes: part1 + keyword + part2
-    const part1 = (inputs[0]?.value || '').trim();
-    const part2 = (inputs[1]?.value || '').trim();
-    studentAns = `${part1} ${q.keyword} ${part2}`.trim();
-
-  } else if (pos === 'both') {
-    // Two input boxes: starter + part1 + keyword + part2
-    const part1 = (inputs[0]?.value || '').trim();
-    const part2 = (inputs[1]?.value || '').trim();
-    const starter = q.starter ? q.starter + ' ' : '';
-    studentAns = `${starter}${part1} ${q.keyword} ${part2}`.trim();
+  if (stHasLine(q)) {
+    const segs = stParseLine(q.question_line);
+    studentAns = stAssembleFromLine(segs, inputs.map(inp => inp.value || ''));
+  } else {
+    const pos = q.keyword_position || 'end';
+    if (pos === 'end') {
+      studentAns = (inputs[0]?.value || '').trim();
+    } else if (pos === 'middle') {
+      const part1 = (inputs[0]?.value || '').trim();
+      const part2 = (inputs[1]?.value || '').trim();
+      studentAns = `${part1} ${q.keyword} ${part2}`.trim();
+    } else {
+      const part1 = (inputs[0]?.value || '').trim();
+      const part2 = (inputs[1]?.value || '').trim();
+      const starter = q.starter ? q.starter + ' ' : '';
+      studentAns = `${starter}${part1} ${q.keyword} ${part2}`.trim();
+    }
   }
 
   const ok = isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
@@ -2282,7 +2287,7 @@ function submitOneST(btn) {
     fb.innerHTML = '✅ Correct!';
     fb.className = 'st-feedback correct';
   } else {
-    saveWrongQuestion(q.original_sentence, q.model_answer, studentAns, 'synthesis', { starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null });
+    saveWrongQuestion(q.original_sentence, q.model_answer, studentAns, 'synthesis', { question_line: q.question_line || '', starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null });
     fb.innerHTML = buildSTFeedback(q, studentAns);
     fb.className = 'st-feedback wrong';
   }
@@ -2298,13 +2303,60 @@ function submitOneST(btn) {
 
 var stMistakeData = {};
 
+// ── question_line parser ────────────────────────────────
+// Reads the exam line exactly as printed, e.g.
+//   "Mary told her brother ___"          → text + blank
+//   "Ali showed ___ when ___"            → text + blank + text + blank
+//   "___ unless ___"                     → blank + text + blank
+//   "___ spirit."                        → blank + text
+// Adjacent underscore runs (separated only by spaces) merge into ONE blank.
+function stParseLine(line){
+  var raw = String(line == null ? '' : line);
+  // any run of 3+ underscores (possibly several separated by spaces) = one blank
+  var norm = raw.replace(/_{3,}(\s*_{3,})*/g, '\u0002');
+  var pieces = norm.split('\u0002');
+  var segs = [];
+  for (var i = 0; i < pieces.length; i++){
+    var t = pieces[i];
+    if (t && t.trim()) segs.push({ type:'text', value: t.trim() });
+    if (i < pieces.length - 1) segs.push({ type:'blank' });
+  }
+  return segs;
+}
+
+function stHasLine(q){
+  return !!(q && q.question_line && String(q.question_line).indexOf('_') !== -1);
+}
+
+function stBlankCount(segs){
+  var n = 0;
+  for (var i = 0; i < segs.length; i++){ if (segs[i].type === 'blank') n++; }
+  return n;
+}
+
+// Joins printed text + student input back into one sentence for marking
+function stAssembleFromLine(segs, values){
+  var out = [], vi = 0;
+  for (var i = 0; i < segs.length; i++){
+    if (segs[i].type === 'text') out.push(segs[i].value);
+    else out.push((values[vi++] || '').trim());
+  }
+  return out.join(' ').replace(/\s+/g, ' ').replace(/\s+([,.!?;:])/g, '$1').trim();
+}
+
+// The full model answer for a question_line question
+function stLineModelAnswer(q){
+  return String(q.model_answer == null ? '' : q.model_answer).trim();
+}
+
 function stEscapeHtml(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function stFullAnswer(q){
-  var pos = q.keyword_position || 'end';
+  if (stHasLine(q)) { return stLineModelAnswer(q); }
   var starter = q.starter ? String(q.starter).trim() : '';
   var body = q.model_answer ? String(q.model_answer).trim() : '';
   var ending = q.ending ? String(q.ending).trim() : '';
+  var pos = q.keyword_position || 'end';
   var out = body;
   if (pos === 'end' && starter && body.toLowerCase().indexOf(starter.toLowerCase()) !== 0) { out = starter + ' ' + body; }
   if (ending && out.toLowerCase().indexOf(ending.toLowerCase()) === -1) { out = /^[,.!?;:]/.test(ending) ? (out + ending) : (out + ' ' + ending); }
@@ -2371,7 +2423,7 @@ function stBuildDiffHtml(studentTxt, correctTxt){
     var newTxt = p.correct.join(' ');
     html += ' <span class="st-chg">'
       + (oldTxt ? '<span class="st-chg-old">' + stEscapeHtml(oldTxt) + '</span>' : '<span class="st-chg-old st-chg-missing">(missing)</span>')
-      + (newTxt ? '<span class="st-chg-new">' + stEscapeHtml(newTxt) + '</span>' : '<span class="st-chg-new">&nbsp;</span>')
+      + (newTxt ? '<span class="st-chg-new">' + stEscapeHtml(newTxt) + '</span>' : '')
       + '</span>';
   }
   return '<div class="st-ans-line">' + html.trim() + '</div>';
@@ -2391,20 +2443,30 @@ function buildSTFeedback(q, studentAns){
 
 function trySTMistake(id){
   var d = stMistakeData[id] || {};
-  var pos = d.keyword_position || 'end';
   var a = document.getElementById('wretry-' + id);
-  var b = document.getElementById('wretry-' + id + '-b');
   if (!a || a.disabled) return;
   var feedback = document.getElementById('wfeedback-' + id);
   var card = document.getElementById('wcard-' + id);
-  var p1 = (a.value || '').trim();
-  var p2 = b ? (b.value || '').trim() : '';
+  var boxes = [a];
+  for (var k = 1; k < 6; k++) {
+    var extra = document.getElementById('wretry-' + id + '-' + k);
+    if (!extra) break;
+    boxes.push(extra);
+  }
   var studentAns = '';
-  if (pos === 'middle') { studentAns = (p1 + ' ' + (d.keyword || '') + ' ' + p2).trim(); }
-  else if (pos === 'both') { studentAns = ((d.starter ? d.starter + ' ' : '') + p1 + ' ' + (d.keyword || '') + ' ' + p2).trim(); }
-  else { studentAns = p1; }
+  if (d.question_line && String(d.question_line).indexOf('_') !== -1) {
+    var segs = stParseLine(d.question_line);
+    studentAns = stAssembleFromLine(segs, boxes.map(function(b){ return b.value || ''; }));
+  } else {
+    var pos = d.keyword_position || 'end';
+    var p1 = (boxes[0].value || '').trim();
+    var p2 = boxes[1] ? (boxes[1].value || '').trim() : '';
+    if (pos === 'middle') { studentAns = (p1 + ' ' + (d.keyword || '') + ' ' + p2).trim(); }
+    else if (pos === 'both') { studentAns = ((d.starter ? d.starter + ' ' : '') + p1 + ' ' + (d.keyword || '') + ' ' + p2).trim(); }
+    else { studentAns = p1; }
+  }
   var isCorrect = isAnswerCorrect(studentAns, d.model_answer);
-  a.disabled = true; if (b) b.disabled = true;
+  boxes.forEach(function(b){ b.disabled = true; });
   var btn = card ? card.querySelector('.wrong-retry-btn') : null;
   if (btn) btn.disabled = true;
   if (isCorrect) {
@@ -2413,7 +2475,7 @@ function trySTMistake(id){
   } else {
     feedback.innerHTML = buildSTFeedback(d, studentAns);
     feedback.className = 'wrong-retry-feedback wrong';
-    setTimeout(function(){ a.disabled = false; a.value = ''; if (b) { b.disabled = false; b.value = ''; } a.focus(); if (btn) btn.disabled = false; }, 3000);
+    setTimeout(function(){ boxes.forEach(function(b){ b.disabled = false; b.value = ''; }); boxes[0].focus(); if (btn) btn.disabled = false; }, 3000);
   }
   updateMistakeStreak(id, isCorrect, card);
 }
