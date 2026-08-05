@@ -412,6 +412,10 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
       <div class="login-field">
         <label>Password</label>
         <input type="password" id="signup-pass" placeholder="Create a password" autocomplete="new-password" oninput="updateSignupBtn()"/>
+        <div style="font-size:11px;color:#6b7280;line-height:1.5;margin-top:8px;">
+          <strong>Parents, please help your child complete this step.</strong><br>
+          家长请协助孩子完成这一步。
+        </div>
       </div>
       <div class="login-field">
         <label>Referral Code</label>
@@ -568,21 +572,38 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 // ══════════════════════════════════
 // SUPABASE
 // ══════════════════════════════════
-const SB_URL='https://eogcpcrrhfrqgsueofik.supabase.co';
-const SB_KEY='sb_publishable_VIkz5z0KV0ILngsasDWv2A_YQI-O16e';
+const SB_URL='https://vvtbddvecrgcsknhknnb.supabase.co';
+const SB_KEY='sb_publishable_gltOMElYfak3HrP3ih3reg_WlQ1c9_F';   // ← 换成新项目的 publishable key
+// 电话号码在背后拼成邮箱，家长完全看不到
+const EMAIL_DOMAIN='al1cloze.app';
+// 学生用电话号码；管理员沿用旧账号名。两者背后都拼成同一个网域的邮箱。
+const emailOf=(id)=>String(id).trim().toLowerCase()+'@'+EMAIL_DOMAIN;
+const PHONE_RE=/^[689]\d{7}$/;
 
+const sb = window.supabase.createClient(SB_URL, SB_KEY, {
+  auth:{ persistSession:true, autoRefreshToken:true, storageKey:'al1cloze-auth' }
+});
+
+// 拿目前这位学生的凭证。它只代表他自己，碰不到别人的资料。
+async function accessToken(){
+  const { data } = await sb.auth.getSession();
+  return data?.session?.access_token || null;
+}
+
+// 读写资料库。凭证过期时 Supabase 客户端会自动换新的。
 async function sbFetch(path,opts={}){
+  const token = await accessToken();
   const res=await fetch(SB_URL+'/rest/v1/'+path,{
     headers:{
       'apikey':SB_KEY,
-      'Authorization':'Bearer '+SB_KEY,
+      'Authorization':'Bearer '+(token||SB_KEY),
       'Content-Type':'application/json',
       'Prefer':opts.prefer||'return=representation',
-      'X-Client-Info':'supabase-js/2.0.0',
       ...(opts.headers||{})
     },
     method:opts.method||'GET',
@@ -597,29 +618,24 @@ async function sbFetch(path,opts={}){
   return data;
 }
 
-// 分页拉取 —— Supabase 单次最多返回 1000 行，题库超过就要翻页
-async function sbFetchAll(path){
-  const pageSize=1000;
-  let all=[],from=0;
-  while(true){
-    const res=await fetch(SB_URL+'/rest/v1/'+path,{
-      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json',
-               'Range-Unit':'items','Range':from+'-'+(from+pageSize-1)},
-      cache:'no-store'
-    });
-    if(!res.ok)return all.length?all:null;
-    let page;
-    try{page=JSON.parse(await res.text());}catch(e){return all.length?all:null;}
-    if(!Array.isArray(page)||page.length===0)break;
-    all=all.concat(page);
-    if(page.length<pageSize)break;
-    from+=pageSize;
+// 呼叫服务端函数（注册 / 后台 / 提现）。这些动作学生的浏览器做不了。
+async function api(name, body){
+  const token = await accessToken();
+  const res = await fetch('/api/'+name, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', ...(token?{'Authorization':'Bearer '+token}:{}) },
+    body: JSON.stringify(body||{})
+  });
+  let data=null;
+  try{ data = await res.json(); }catch(e){}
+  if(!res.ok || !data || data.ok === false){
+    throw new Error((data && data.error) || 'Something went wrong. Please try again.');
   }
-  return all;
+  return data;
 }
 
 // ══════════════════════════════════
-// AUTH
+// AUTH — 电话号码登入，凭证由 Supabase 保管
 // ══════════════════════════════════
 let currentUser=null;
 
@@ -630,40 +646,54 @@ function togglePwVisibility(){
   else{input.type='password';icon.textContent='👁';}
 }
 
+function showLoginError(msg){const el=document.getElementById('login-error');el.textContent=msg;el.style.display='block';}
+
+// 登入后把个人资料读回来。读不到 = 帐号资料不完整。
+async function loadProfile(){
+  const { data } = await sb.auth.getUser();
+  if(!data || !data.user) return null;
+  const rows = await sbFetch('profiles?id=eq.'+data.user.id+'&select=*');
+  if(!rows || !rows.length) return null;
+  const p = rows[0];
+  p.username = p.phone;          // 旧代码沿用 username，这里对齐
+  return p;
+}
+
 async function doLogin(){
-  const u=document.getElementById('login-user').value.trim();
-  const p=document.getElementById('login-pass').value;
-  if(!u||!p){showLoginError('Please enter username and password.');return;}
+  const phone=document.getElementById('login-user').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  if(!phone||!pass){showLoginError('Please enter your phone number and password.');return;}
+  // 纯数字 = 学生的电话号码，要检查格式；其他 = 管理员账号，直接放行
+  if(/^\d+$/.test(phone) && !PHONE_RE.test(phone)){
+    showLoginError('Please enter a valid Singapore mobile number (8 digits, starting with 6, 8 or 9).');return;
+  }
+
   document.getElementById('login-error').style.display='none';
   document.getElementById('login-loading').style.display='block';
   document.getElementById('btn-login').disabled=true;
   try{
-    const rows=await sbFetch(`cloze_users?username=eq.${encodeURIComponent(u)}&password=eq.${encodeURIComponent(p)}&select=*`);
-    if(!rows||rows.length===0){showLoginError('Incorrect username or password. Please try again.');return;}
-    const user=rows[0];
-    if(user.role !== 'admin') {
-      const allowed = user.allowed_apps || 'all';
-      if(allowed !== 'all' && !allowed.split(',').map(s=>s.trim()).includes('english')) {
-        showLoginError('Your account does not have access to this app. Please contact your teacher.');
-        return;
-      }
-    }
-    if(user.expiry&&new Date(user.expiry)<new Date()){showLoginError('Your account has expired. Please contact your teacher to renew.');return;}
-    currentUser=user;
-    const sessionToken = Date.now().toString(36) + Math.random().toString(36).slice(2);
-    currentUser.sessionToken = sessionToken;
-    localStorage.setItem('cal1_user',JSON.stringify(currentUser));
-    localStorage.setItem('cal1_token', sessionToken);
-    try{
-      await sbFetch(`cloze_users?username=eq.${encodeURIComponent(user.username)}`,
-        {method:'PATCH',prefer:'return=minimal',body:{session_token:sessionToken}});
-    }catch(e){console.warn('Token update failed',e);}
-    enterApp();
-  }catch(e){showLoginError('Connection error. Please try again.');}
-  finally{document.getElementById('login-loading').style.display='none';document.getElementById('btn-login').disabled=false;}
-}
+    const { error } = await sb.auth.signInWithPassword({ email: emailOf(phone), password: pass });
+    if(error){ showLoginError('Incorrect phone number or password. Please try again.'); return; }
 
-function showLoginError(msg){const el=document.getElementById('login-error');el.textContent=msg;el.style.display='block';}
+    const profile = await loadProfile();
+    if(!profile){ await sb.auth.signOut(); showLoginError('Your account is not set up yet. Please contact your teacher.'); return; }
+
+    const today=new Date().toISOString().split('T')[0];
+    if(profile.role!=='admin' && profile.expiry && profile.expiry < today){
+      await sb.auth.signOut();
+      showLoginError('Your trial has ended. Please contact us to continue.');
+      return;
+    }
+    currentUser=profile;
+    await enterApp();
+  }catch(e){
+    console.error('login failed:', e);
+    showLoginError('Connection error. Please try again.');
+  }finally{
+    document.getElementById('login-loading').style.display='none';
+    document.getElementById('btn-login').disabled=false;
+  }
+}
 
 function showSignup(e){
   if(e)e.preventDefault();
@@ -678,93 +708,49 @@ function showLogin(e){
   document.getElementById('login-error').style.display='none';
 }
 function updateSignupBtn(){
-  const user=document.getElementById('signup-user').value.trim();
+  const phone=document.getElementById('signup-user').value.trim();
   const display=document.getElementById('signup-display').value.trim();
   const pass=document.getElementById('signup-pass').value;
   const code=document.getElementById('signup-code-field').value.trim();
   const btn=document.getElementById('btn-signup');
-  const ready=user.length>=6&&display.length>=2&&pass.length>=4&&code.length>=4;
-  btn.classList.toggle('ready',ready);
+  btn.classList.toggle('ready', PHONE_RE.test(phone) && display.length>=2 && pass.length>=4 && code.length>=4);
 }
+
+// 注册：浏览器只递四样东西进去。
+// 身份 tester、3 天试用、推荐关系，全部由服务器写死，学生填不到那些格子。
 async function doSignup(){
   const btn=document.getElementById('btn-signup');
   if(!btn.classList.contains('ready'))return;
-  const username=document.getElementById('signup-user').value.trim();
-  const displayName=document.getElementById('signup-display').value.trim();
+  const phone=document.getElementById('signup-user').value.trim();
+  const display=document.getElementById('signup-display').value.trim();
   const password=document.getElementById('signup-pass').value;
   const code=document.getElementById('signup-code-field').value.trim().toUpperCase();
   const errEl=document.getElementById('signup-err');
   errEl.style.display='none';
-  if(!/^[689]\d{7}$/.test(username)){
-    errEl.textContent='Please enter a valid Singapore phone number (8 digits, starting with 6, 8 or 9).';
-    errEl.style.display='block';return;
-  }
-  btn.textContent='Checking code…';btn.disabled=true;
+  btn.textContent='Creating account…'; btn.disabled=true;
   try{
-    // 1. Validate referral code
-    const referrer=await sbFetch(`cloze_users?referral_code=eq.${encodeURIComponent(code)}&select=username`);
-    if(!referrer||!referrer.length){
-      errEl.textContent='Invalid referral code. Please check with your friend and try again.';
-      errEl.style.display='block';btn.textContent='Create Account';btn.disabled=false;return;
-    }
-    // 2. Check username not already taken
-    const existing=await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}&select=username`);
-    if(existing&&existing.length){
-      errEl.textContent='This username is already registered. Please sign in instead.';
-      errEl.style.display='block';btn.textContent='Create Account';btn.disabled=false;return;
-    }
-    // 3. Create account (3-day trial)
-    btn.textContent='Creating account…';
-    // Copy demo question IDs from test account
-    const testAcct=await sbFetch('cloze_users?role=eq.test&select=demo_cloze_ids,demo_synthesis_ids&limit=1');
-    const demoClozeIds=(testAcct&&testAcct[0]?.demo_cloze_ids)||null;
-    const demoSynthesisIds=(testAcct&&testAcct[0]?.demo_synthesis_ids)||null;
-
-    const expiryDate=new Date();expiryDate.setDate(expiryDate.getDate()+3);
-    const expiry=expiryDate.toISOString().split('T')[0];
-    const r=await sbFetch('cloze_users',{
-      method:'POST',prefer:'return=representation',
-      body:{username,password,display:displayName||username,role:'tester',start_date:TODAY,expiry,referred_by:referrer[0].username,level:'P6',daily_limit:5,demo_cloze_ids:demoClozeIds,demo_synthesis_ids:demoSynthesisIds}
-    });
-    if(!r||!r.length){
-      errEl.textContent='Something went wrong. Please try again.';
-      errEl.style.display='block';btn.textContent='Create Account';btn.disabled=false;return;
-    }
-    btn.textContent='Create Account';btn.disabled=false;
-    // Auto log in
-    currentUser=r[0];
-    const sessionToken=Date.now().toString(36)+Math.random().toString(36).slice(2);
-    currentUser.sessionToken=sessionToken;
-    localStorage.setItem('cal1_user',JSON.stringify(currentUser));
-    localStorage.setItem('cal1_token',sessionToken);
-    try{await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}`,{method:'PATCH',prefer:'return=minimal',body:{session_token:sessionToken}});}catch(e){}
-    enterApp();
+    await api('signup', { phone, display, password, code });
+    const { error } = await sb.auth.signInWithPassword({ email: emailOf(phone), password });
+    if(error) throw new Error('Account created. Please sign in with your phone number.');
+    currentUser = await loadProfile();
+    if(!currentUser) throw new Error('Account created. Please sign in with your phone number.');
+    await enterApp();
   }catch(e){
-    errEl.textContent='Connection error. Please try again.';
-    errEl.style.display='block';btn.textContent='Create Account';btn.disabled=false;
+    errEl.textContent = e.message || 'Something went wrong. Please try again.';
+    errEl.style.display='block';
+  }finally{
+    btn.textContent='Create Account'; btn.disabled=false;
   }
 }
 
 async function enterApp(){
   document.getElementById('login-screen').classList.remove('active');
   document.getElementById('app-screen').classList.add('active');
-  if(window._sessionCheck) clearInterval(window._sessionCheck);
-  window._sessionCheck = setInterval(async()=>{
-    if(!currentUser) return;
-    try{
-      const rows = await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}&select=session_token`);
-      if(rows && rows[0] && rows[0].session_token !== currentUser.sessionToken){
-        clearInterval(window._sessionCheck);
-        alert('Your account has been logged in from another device. You have been signed out.');
-        doLogout();
-      }
-    }catch(e){}
-  }, 60000);
-  document.getElementById('nav-user').textContent=currentUser.display||currentUser.username;
+  document.getElementById('nav-user').textContent=currentUser.display||currentUser.phone;
+  if(currentUser.role==='admin') loadStudentList();
   const isAdmin=currentUser.role==='admin';
-  const isTrial=currentUser.role==='tester'||currentUser.role==='test';
+  const isTrial=currentUser.role==='tester';
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=isAdmin?'block':'none');
-  // Show trial badge
   const trialBadge=document.getElementById('trial-badge');
   if(trialBadge)trialBadge.style.display=isTrial?'inline-block':'none';
   await loadDailyProgress();
@@ -773,8 +759,9 @@ async function enterApp(){
   renderMiniLeaderboard();
 }
 
-function doLogout(){
-  currentUser=null;localStorage.removeItem('cal1_user');chatHistory=[];
+async function doLogout(){
+  try{ await sb.auth.signOut(); }catch(e){}
+  currentUser=null; chatHistory=[];
   document.getElementById('app-screen').classList.remove('active');
   document.getElementById('login-screen').classList.add('active');
   document.getElementById('login-user').value='';
@@ -782,29 +769,18 @@ function doLogout(){
   document.getElementById('login-error').style.display='none';
 }
 
-window.addEventListener('DOMContentLoaded',async()=>{
-  const s=localStorage.getItem('cal1_user');
-  const t=localStorage.getItem('cal1_token');
-  if(!s)return;
-  let u;
-  try{u=JSON.parse(s);}catch(e){localStorage.removeItem('cal1_user');return;}
-  if(u.expiry&&new Date(u.expiry)<new Date()){
-    localStorage.removeItem('cal1_user');localStorage.removeItem('cal1_token');return;
-  }
-  // 校验 token —— 账号在别的设备登录过就不恢复
+// 开启网页时自动恢复登入状态。换手机或换电脑才要重新输入。
+window.addEventListener('DOMContentLoaded', async ()=>{
   try{
-    const rows=await sbFetch('cloze_users?username=eq.'+encodeURIComponent(u.username)+'&select=*');
-    if(!rows||!rows.length){localStorage.removeItem('cal1_user');return;}
-    const fresh=rows[0];
-    if(fresh.session_token&&t&&fresh.session_token!==t){
-      localStorage.removeItem('cal1_user');localStorage.removeItem('cal1_token');
-      showLoginError('Your account was signed in on another device. Please sign in again.');
-      return;
-    }
-    currentUser={...fresh,sessionToken:t};
-    localStorage.setItem('cal1_user',JSON.stringify(currentUser));
-  }catch(e){currentUser=u;}
-  enterApp();
+    const { data } = await sb.auth.getSession();
+    if(!data || !data.session) return;
+    const profile = await loadProfile();
+    if(!profile){ await sb.auth.signOut(); return; }
+    const today=new Date().toISOString().split('T')[0];
+    if(profile.role!=='admin' && profile.expiry && profile.expiry < today){ await sb.auth.signOut(); return; }
+    currentUser=profile;
+    await enterApp();
+  }catch(e){ console.warn('session restore failed', e); }
 });
 
 // ══════════════════════════════════
@@ -815,13 +791,14 @@ async function changePassword(){
   const nw=document.getElementById('pw-new').value;
   const cf=document.getElementById('pw-confirm').value;
   if(!cur||!nw||!cf){showToast('⚠️ Fill in all password fields.');return;}
-  if(cur!==currentUser.password){showToast('❌ Current password is incorrect.');return;}
   if(nw!==cf){showToast('❌ New passwords do not match.');return;}
   if(nw.length<4){showToast('⚠️ Password must be at least 4 characters.');return;}
   try{
-    await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}`,{method:'PATCH',prefer:'return=minimal',body:{password:nw}});
-    currentUser.password=nw;
-    localStorage.setItem('cal1_user',JSON.stringify(currentUser));
+    // 先用旧密码验一次身分，确认是本人在改
+    const { error: checkErr } = await sb.auth.signInWithPassword({ email: emailOf(currentUser.phone), password: cur });
+    if(checkErr){ showToast('❌ Current password is incorrect.'); return; }
+    const { error } = await sb.auth.updateUser({ password: nw });
+    if(error){ showToast('❌ Error updating password. Try again.'); return; }
     document.getElementById('pw-current').value='';
     document.getElementById('pw-new').value='';
     document.getElementById('pw-confirm').value='';
@@ -836,35 +813,49 @@ let todayProgress={cloze_done:0,synthesis_done:0,weak_cloze:'',weak_synthesis:''
 const DAILY_TARGETS={cloze:5,synthesis:5}; // overridden per-user in getDailyTargets()
 function getDailyTargets(){
   const limit=currentUser?.daily_limit||5;
-  return{cloze:limit,synthesis:limit};
+  // Cloze 一次一篇；S&T 一次 5 题。换算成「题数」后额度跟以前一样。
+  return{cloze:limit, synthesis:limit*ST_PER_SESSION};
+}
+const ST_PER_SESSION=5;
+
+// 每做一题记一行，只能新增。今天做了多少 = 数有多少行。
+async function logAttempts(rows){
+  if(!currentUser||!rows||!rows.length)return;
+  try{
+    await sbFetch('attempts',{method:'POST',prefer:'return=minimal',
+      body:rows.map(r=>Object.assign({user_id:currentUser.id},r))});
+  }catch(e){console.warn('logAttempts failed',e);}
 }
 const TODAY=new Date().toISOString().split('T')[0];
 
 async function loadDailyProgress(){
   if(!currentUser)return;
   try{
-    const rows=await sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&date=eq.${TODAY}&select=*`);
-    if(rows&&rows.length>0)todayProgress=rows[0];
-    else todayProgress={cloze_done:0,synthesis_done:0,weak_cloze:'',weak_synthesis:''};
+    const rows=await sbFetch(`attempts?user_id=eq.${currentUser.id}&attempt_date=eq.${TODAY}&select=question_type,source_id,is_correct`)||[];
+    const tp={cloze_done:0,synthesis_done:0,cloze_attempted:0,cloze_correct:0,synthesis_attempted:0,synthesis_correct:0,weak_cloze:'',weak_synthesis:''};
+    const seen={cloze:new Set(),synthesis:new Set()};
+    rows.forEach(r=>{
+      const t=r.question_type;
+      if(t!=='cloze'&&t!=='synthesis')return;
+      tp[t+'_attempted']++;
+      if(r.is_correct)tp[t+'_correct']++;
+      if(r.source_id!=null)seen[t].add(r.source_id);
+    });
+    tp.cloze_done=seen.cloze.size;
+    tp.synthesis_done=seen.synthesis.size;
+    todayProgress=Object.assign(tp,{weak_cloze:todayProgress.weak_cloze||'',weak_synthesis:todayProgress.weak_synthesis||''});
     updateProgressBars();
     updateWeakness();
     updateStatsBar();
   }catch(e){console.error('Progress load error',e);}
 }
 
+// 进度不再另外存一份 —— 作答流水本身就是进度。
+// 这里只负责把画面刷新一次。
 async function saveDailyProgress(){
-  if(!currentUser)return;
-  try{
-    const rows=await sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&date=eq.${TODAY}&select=id`);
-    if(rows&&rows.length>0){
-      await sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&date=eq.${TODAY}`,{method:'PATCH',prefer:'return=minimal',body:todayProgress});
-    }else{
-      await sbFetch('cloze_daily_progress',{method:'POST',prefer:'return=minimal',body:{...todayProgress,username:currentUser.username,date:TODAY}});
-    }
-    updateProgressBars();
-    updateWeakness();
-    updateStatsBar();
-  }catch(e){console.error('Progress save error',e);}
+  updateProgressBars();
+  updateWeakness();
+  updateStatsBar();
 }
 
 function updateProgressBars(){
@@ -916,17 +907,17 @@ function updateWeakness(){}
 async function saveWrongQuestion(questionText, correctAnswer, userAnswer, type, options) {
   if (!currentUser) return;
   try {
-    const existing = await sbFetch(`coach_wrong_questions?username=eq.${encodeURIComponent(currentUser.username)}&question_text=eq.${encodeURIComponent(questionText)}&status=eq.active&select=id`);
+    const existing = await sbFetch(`mistakes?user_id=eq.${currentUser.id}&question_text=eq.${encodeURIComponent(questionText)}&status=eq.active&select=id`);
     if (existing && existing.length > 0) return;
-    await sbFetch('coach_wrong_questions', {
+    await sbFetch('mistakes', {
       method: 'POST', prefer: 'return=minimal',
       body: {
-        username: currentUser.username,
+        user_id: currentUser.id,
         question_type: type,
         question_text: questionText,
         correct_answer: correctAnswer,
-        user_answer: userAnswer || '',
-        options: options || null,
+        student_answer: userAnswer || '',
+        payload: options || null,
         wrong_date: new Date().toISOString().split('T')[0],
         next_review: new Date().toISOString().split('T')[0],
         correct_streak: 0,
@@ -940,17 +931,18 @@ async function saveWrongPassage(p) {
   if (!currentUser || !p?.id) return;
   try {
     const questionText = `Redo passage: ${p.title}`;
-    const existing = await sbFetch(`coach_wrong_questions?username=eq.${encodeURIComponent(currentUser.username)}&question_text=eq.${encodeURIComponent(questionText)}&status=eq.active&select=id`);
+    const existing = await sbFetch(`mistakes?user_id=eq.${currentUser.id}&question_text=eq.${encodeURIComponent(questionText)}&status=eq.active&select=id`);
     if (existing && existing.length > 0) return;
-    await sbFetch('coach_wrong_questions', {
+    await sbFetch('mistakes', {
       method: 'POST', prefer: 'return=minimal',
       body: {
-        username: currentUser.username,
+        user_id: currentUser.id,
         question_type: 'cloze_full',
         question_text: questionText,
         correct_answer: '',
-        user_answer: '',
-        options: { passage_id: p.id },
+        student_answer: '',
+        payload: { passage_id: p.id },
+        source_id: p.id,
         wrong_date: new Date().toISOString().split('T')[0],
         next_review: new Date().toISOString().split('T')[0],
         correct_streak: 0,
@@ -967,7 +959,8 @@ async function loadWrongBank() {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
-    const rows = await sbFetch(`coach_wrong_questions?username=eq.${encodeURIComponent(currentUser.username)}&status=eq.active&wrong_date=gte.${dateStr}&order=wrong_date.desc&limit=20&select=*`);
+    const raw = await sbFetch(`mistakes?user_id=eq.${currentUser.id}&status=eq.active&wrong_date=gte.${dateStr}&order=wrong_date.desc&limit=20&select=*`);
+    const rows = (raw||[]).map(r=>Object.assign({},r,{options:r.payload,user_answer:r.student_answer}));
     if (!rows || rows.length === 0) {
       el.innerHTML = '<div class="wrong-bank-empty">✅ No recent mistakes — great work!</div>';
       return;
@@ -1065,18 +1058,18 @@ function renderWrongCard(q) {
 
 async function updateMistakeStreak(id, isCorrect, card) {
   try {
-    const rows = await sbFetch(`coach_wrong_questions?id=eq.${id}&select=correct_streak`);
+    const rows = await sbFetch(`mistakes?id=eq.${id}&select=correct_streak`);
     const streak = (rows && rows[0] ? rows[0].correct_streak : 0) || 0;
     const newStreak = isCorrect ? streak + 1 : 0;
     if (newStreak >= 2) {
-      await sbFetch(`coach_wrong_questions?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{status:'mastered', correct_streak:2}});
+      await sbFetch(`mistakes?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{status:'mastered', correct_streak:2}});
       setTimeout(() => {
         card.style.transition = 'opacity 0.5s';
         card.style.opacity = '0';
         setTimeout(() => card.remove(), 500);
       }, 3000);
     } else {
-      await sbFetch(`coach_wrong_questions?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{correct_streak:newStreak}});
+      await sbFetch(`mistakes?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{correct_streak:newStreak}});
       const streakEl = card.querySelector('.wrong-streak b');
       if (streakEl) streakEl.textContent = `${newStreak}/2`;
     }
@@ -1271,7 +1264,7 @@ async function loadAccountPage(){
         const newCode=generateReferralCode(allCodes);
         await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}`,{method:'PATCH',prefer:'return=minimal',body:{referral_code:newCode}});
         currentUser.referral_code=newCode;
-        localStorage.setItem('cal1_user',JSON.stringify(currentUser));
+        sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
       }catch(e){console.warn('referral code gen failed',e);}
     }
 
@@ -1299,7 +1292,7 @@ async function loadAccountPage(){
       try{
         await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}`,{method:'PATCH',prefer:'return=minimal',body:{credit:totalCreditsEarned}});
         currentUser.credit=totalCreditsEarned;
-        localStorage.setItem('cal1_user',JSON.stringify(currentUser));
+        sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
       }catch(e){}
     }
 
@@ -1404,15 +1397,18 @@ async function loadAccountPage(){
 }
 
 // ══════════════════════════════════
-// ADMIN
+// ADMIN — 每个动作都由服务器先验明身分再执行
 // ══════════════════════════════════
+let _adminStudents=[];
+
 async function loadStudentList(){
   const list=document.getElementById('users-list');
   list.innerHTML='<p style="font-size:13px;color:var(--text-dim);">Loading…</p>';
   try{
-    const rows=await sbFetch('cloze_users?role=in.(student,tester)&select=*&order=role.asc,display.asc');
-    if(!rows||rows.length===0){list.innerHTML='<p style="font-size:13px;color:var(--text-dim);">No students yet.</p>';return;}
-    list.innerHTML=rows.map(u=>{
+    const res=await api('admin',{action:'list_students'});
+    _adminStudents=res.students||[];
+    if(!_adminStudents.length){list.innerHTML='<p style="font-size:13px;color:var(--text-dim);">No students yet.</p>';return;}
+    list.innerHTML=_adminStudents.map(u=>{
       const days=u.expiry?Math.ceil((new Date(u.expiry)-new Date())/86400000):null;
       let expHtml='';
       if(days!==null){
@@ -1422,60 +1418,69 @@ async function loadStudentList(){
       }
       const isTester=u.role==='tester';
       const roleBadge=isTester?'<span style="background:rgba(244,121,32,0.15);color:#c05a00;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;">TRIAL</span>':'';
-      const upgradeBtn=isTester?`<button style="background:rgba(0,199,202,0.1);border:1px solid rgba(0,199,202,0.3);color:#086668;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;font-family:inherit;margin-right:6px;" onclick="upgradeToStudent('${u.username}')">Upgrade ✅</button>`:'';
-      return`<div class="user-row"><div><div class="user-name">${u.display||u.username}${roleBadge}</div><div class="user-meta">@${u.username} · ${u.level||'P6'} · ${u.daily_limit||5}/day · Start: ${u.start_date||'—'} ${expHtml}</div></div><div style="display:flex;align-items:center;">${upgradeBtn}<button class="btn-delete" onclick="deleteStudent('${u.username}')">Remove</button></div></div>`;
+      const upgradeBtn=isTester?`<button style="background:rgba(0,199,202,0.1);border:1px solid rgba(0,199,202,0.3);color:#086668;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;font-family:inherit;margin-right:6px;" onclick="upgradeToStudent('${u.id}')">Upgrade ✅</button>`:'';
+      const planLabel=u.plan?` · ${u.plan}`:'';
+      return`<div class="user-row"><div><div class="user-name">${u.display||u.phone}${roleBadge}</div><div class="user-meta">${u.phone} · ${u.level||'P6'} · ${u.daily_limit||5}/day${planLabel} · Start: ${u.start_date||'—'} ${expHtml}</div></div><div style="display:flex;align-items:center;">${upgradeBtn}<button class="btn-delete" onclick="resetStudentPassword('${u.id}')" style="margin-right:6px;">Reset PW</button><button class="btn-delete" onclick="deleteStudent('${u.id}')">Remove</button></div></div>`;
     }).join('');
   }catch(e){list.innerHTML='<p style="font-size:13px;color:var(--red);">Error: '+e.message+'</p>';}
 }
 
-async function upgradeToStudent(username){
-  if(!confirm(`Upgrade @${username} from Trial → Full Student?\n\n✅ Full access activated\n✅ Referral code generated\n✅ +15 pts awarded to their referrer`))return;
+const PLAN_CHOICES={'1':'week','2':'month','3':'quarter','4':'half_year'};
+
+// 升级 / 续费。到期日和推荐奖励全部由服务器算，你只选方案。
+async function upgradeToStudent(userId){
+  const u=_adminStudents.find(x=>x.id===userId)||{};
+  const ans=prompt(`Upgrade ${u.display||u.phone} — which plan did they pay for?\n\n1 = 1 week\n2 = 1 month\n3 = 3 months\n4 = 6 months`);
+  if(ans===null)return;
+  const plan=PLAN_CHOICES[String(ans).trim()];
+  if(!plan){showToast('❌ Enter 1, 2, 3 or 4.');return;}
   try{
-    const rows=await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}&select=*`);
-    if(!rows||!rows.length){showToast('User not found');return;}
-    const tester=rows[0];
-    const allCodes=await sbFetch('cloze_users?select=referral_code')||[];
-    const newCode=generateReferralCode(allCodes);
-    await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}`,{method:'PATCH',prefer:'return=minimal',body:{role:'student',referral_code:newCode,daily_limit:5,expiry:null}});
-    if(tester.referred_by){
-      const refRows=await sbFetch(`cloze_users?username=eq.${encodeURIComponent(tester.referred_by)}&select=credit`);
-      if(refRows&&refRows.length){
-        await sbFetch(`cloze_users?username=eq.${encodeURIComponent(tester.referred_by)}`,{method:'PATCH',prefer:'return=minimal',body:{credit:(refRows[0].credit||0)+15}});
-        showToast(`✅ ${tester.display||username} upgraded! +15 pts → @${tester.referred_by} 🎉`);
-      }else{showToast(`✅ ${tester.display||username} is now a Full Student!`);}
-    }else{showToast(`✅ ${tester.display||username} is now a Full Student!`);}
+    const res=await api('admin',{action:'upgrade', user_id:userId, plan});
+    showToast('✅ '+(res.message||'Upgraded'));
     loadStudentList();
-  }catch(e){showToast('❌ Error: '+e.message);}
+  }catch(e){showToast('❌ '+e.message);}
 }
 
+async function resetStudentPassword(userId){
+  const u=_adminStudents.find(x=>x.id===userId)||{};
+  const pw=prompt(`New password for ${u.display||u.phone} (at least 4 characters):`);
+  if(!pw)return;
+  try{
+    await api('admin',{action:'reset_password', user_id:userId, password:pw});
+    showToast('✅ Password updated.');
+  }catch(e){showToast('❌ '+e.message);}
+}
+
+// 新增帐号也走服务端：邀请码、试用期、身分都不由浏览器决定
 async function addStudent(){
-  const username=document.getElementById('new-user').value.trim();
+  const phone=document.getElementById('new-user').value.trim();
   const password=document.getElementById('new-pass').value;
   const display=document.getElementById('new-display').value.trim();
-  const level=document.getElementById('new-level').value;
-  const daily_limit=parseInt(document.getElementById('new-limit').value)||5;
-  const start_date=document.getElementById('new-start').value;
-  const expiry=document.getElementById('new-end').value;
-  if(!username||!password||!display){showToast('⚠️ Fill in username, password, name.');return;}
+  if(!phone||!password||!display){showToast('⚠️ Fill in phone number, password, name.');return;}
+  if(!PHONE_RE.test(phone)){showToast('⚠️ Phone must be 8 digits starting with 6, 8 or 9.');return;}
+  const code=prompt('Referral code to attach this account to (ask the referrer for theirs):');
+  if(!code){showToast('⚠️ A referral code is required.');return;}
   const btn=document.getElementById('btn-create');
   btn.disabled=true;btn.textContent='Creating…';
   try{
-    await sbFetch('cloze_users',{method:'POST',prefer:'return=minimal',body:{username,password,display,level,role:'student',start_date:start_date||null,expiry:expiry||null,daily_limit}});
-    ['new-user','new-pass','new-display','new-start','new-end'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('new-limit').value='5';
-    showToast(`✅ Account created for ${display}!`);
+    await api('signup',{phone, display, password, code:code.trim().toUpperCase()});
+    ['new-user','new-pass','new-display','new-start','new-end'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    const lim=document.getElementById('new-limit'); if(lim)lim.value='5';
+    showToast(`✅ Trial account created for ${display}!`);
     loadStudentList();
   }catch(e){
-    showToast(e.message.includes('duplicate')?'⚠️ Username already exists.':'❌ Error: '+e.message);
+    showToast('❌ '+e.message);
   }finally{btn.disabled=false;btn.textContent='Create Account';}
 }
 
-async function deleteStudent(username){
-  if(!confirm(`Remove @${username}? Cannot be undone.`))return;
+async function deleteStudent(userId){
+  const u=_adminStudents.find(x=>x.id===userId)||{};
+  if(!confirm(`Remove ${u.display||u.phone}?\n\nThis also deletes their progress, mistakes and credit records. Cannot be undone.`))return;
   try{
-    await sbFetch(`cloze_users?username=eq.${encodeURIComponent(username)}`,{method:'DELETE',prefer:'return=minimal'});
-    showToast('🗑 Account removed.');loadStudentList();
-  }catch(e){showToast('❌ Error: '+e.message);}
+    await api('admin',{action:'delete_student', user_id:userId});
+    showToast('✅ Account removed.');
+    loadStudentList();
+  }catch(e){showToast('❌ '+e.message);}
 }
 
 // ══════════════════════════════════
@@ -1661,64 +1666,33 @@ let usedIds = {synthesis:new Set(), cloze:new Set()};
 async function loadQuestionsFromDB(type) {
   const used = usedIds[type]?.size || 0;
   const total = dbQuestions[type]?.length || 0;
-  if (dbLoaded[type] && total > 0 && used < total * 0.8) return;
+  if (dbLoaded[type] && total > 0 && used < total) return;
 
   const isTrial = currentUser?.role === 'tester' || currentUser?.role === 'test';
-  const table = type === 'cloze' ? 'cloze_passages' : 'synthesis_questions';
-  // 只取需要的字段 —— select=* 会把大字段一起拉下来，手机上会慢
-  const fields = type === 'cloze'
-    ? 'id,title,passage,blanks,answers,explanations,source,topic,difficulty,used_count,priority'
-    : 'id,original_sentence,question_line,model_answer,acceptable_answers,keyword,keyword_position,starter,ending,st_type,sub_type,source,explanation,used_count,priority';
 
   try {
-    let rows;
-    const demoIds = type === 'cloze' ? currentUser?.demo_cloze_ids : currentUser?.demo_synthesis_ids;
-    if (isTrial && demoIds?.length) {
-      rows = await sbFetch(table + '?id=in.(' + demoIds.join(',') + ')&approved=eq.true&select=' + fields);
-    } else {
-      rows = await sbFetchAll(table + '?approved=eq.true&select=' + fields);
+    if (type === 'cloze') {
+      let rows;
+      if (isTrial && currentUser?.demo_cloze_ids?.length) {
+        const ids = currentUser.demo_cloze_ids.join(',');
+        rows = await sbFetch(`cloze_passages?id=in.(${ids})&approved=eq.true&select=*`);
+      } else {
+        rows = await sbFetch('cloze_passages?approved=eq.true&select=*&order=priority.desc,used_count.asc&limit=3');
+      }
+      if (rows && rows.length > 0) { dbQuestions.cloze = shuffle(rows); dbLoaded.cloze = true; }
+    } else if (type === 'synthesis') {
+      let rows;
+      if (isTrial && currentUser?.demo_synthesis_ids?.length) {
+        const ids = currentUser.demo_synthesis_ids.join(',');
+        rows = await sbFetch(`synthesis_questions?id=in.(${ids})&approved=eq.true&select=*`);
+      } else {
+        rows = await sbFetch('synthesis_questions?approved=eq.true&select=*&order=priority.desc,used_count.asc&limit=15');
+      }
+      if (rows && rows.length > 0) { dbQuestions.synthesis = shuffle(rows); dbLoaded.synthesis = true; }
     }
-    if (!rows || !rows.length) return;
-    const seenSet = await loadSeenIds(type);
-    dbQuestions[type] = orderQuestionPool(rows, seenSet);
-    dbLoaded[type] = true;
   } catch(e) {
     console.error('DB load error for', type, ':', e.message);
   }
-}
-
-// 这个学生做过哪些题
-async function loadSeenIds(type) {
-  if (!currentUser?.username) return new Set();
-  try {
-    const rows = await sbFetchAll('cloze_question_seen?username=eq.' + encodeURIComponent(currentUser.username) + '&question_type=eq.' + type + '&select=question_id');
-    return new Set((rows || []).map(r => r.question_id));
-  } catch(e) { return new Set(); }
-}
-
-// 出题顺序：没做过的全部排在做过的前面
-// 每一半内部再分四档：priority 推送 → PSLE 真题 → Prelim 模拟卷 → 练习题
-// 每一档内部随机打乱
-function orderQuestionPool(rows, seenSet) {
-  const src = q => (q.source || '').toLowerCase();
-  const isPSLE = q => src(q).includes('psle');
-  const isPrelim = q => !isPSLE(q) && (src(q).includes('prelim') || src(q).includes('primary'));
-  const tier = q => (q.priority || 0) > 0 ? 0 : isPSLE(q) ? 1 : isPrelim(q) ? 2 : 3;
-  const buckets = [[], [], [], [], [], [], [], []];
-  rows.forEach(q => { buckets[tier(q) + (seenSet.has(q.id) ? 4 : 0)].push(q); });
-  return buckets.reduce((acc, b) => acc.concat(shuffle(b)), []);
-}
-
-// 记下学生做过这些题 —— 下次不再优先出
-async function markQuestionsSeen(type, questions) {
-  if (!currentUser?.username || !questions || !questions.length) return;
-  const rows = questions.filter(q => q && q.id).map(q => ({
-    username: currentUser.username, question_type: type, question_id: q.id
-  }));
-  if (!rows.length) return;
-  try {
-    await sbFetch('cloze_question_seen', { method: 'POST', prefer: 'return=minimal,resolution=merge-duplicates', body: rows });
-  } catch(e) { console.warn('markQuestionsSeen failed', e); }
 }
 
 function shuffle(arr) {
@@ -1855,7 +1829,6 @@ async function startDBSession(type) {
 
   if (type === 'synthesis') {
     const qs = getUnusedQuestions(type, 5);
-    markQuestionsSeen(type, qs);
     currentDBQuestions = qs;
     currentDBType = type;
     stIndex = 0;
@@ -1879,7 +1852,6 @@ async function startDBSession(type) {
       window._sessionRunning = false;
       return false;
     }
-    markQuestionsSeen(type, passages);
     currentDBQuestions = passages[0];
     currentDBType = type;
     setChatInputVisible(false);
@@ -1899,43 +1871,10 @@ async function startDBSession(type) {
 }
 
 // ── Local answer matching ──────────────────────────────────
-// All apostrophe shapes (curly, full-width, backtick...) become one straight '
-// The apostrophe itself is NEVER removed: brother's and brothers are different answers.
-function unifyApostrophes(s) {
-  return (s == null ? '' : String(s)).trim().toLowerCase()
-    .replace(/[\u2018\u2019\u201A\u201B\u02BC\u02B9\u2032\u0060\u00B4\uFF07]/g, "'");
-}
-
-// Contractions spelled out, so I'm and I am count as the same answer.
-// it's -> it is keeps the contraction distinct from the possessive its.
-function expandContractions(s) {
-  return s
-    .replace(/\bcannot\b/g, 'can not')
-    .replace(/\bwon't\b/g, 'will not')
-    .replace(/\bshan't\b/g, 'shall not')
-    .replace(/\bcan't\b/g, 'can not')
-    .replace(/n't\b/g, ' not')
-    .replace(/\bit's\b/g, 'it is')
-    .replace(/\blet's\b/g, 'let us')
-    .replace(/\bi'm\b/g, 'i am')
-    .replace(/'re\b/g, ' are')
-    .replace(/'ve\b/g, ' have')
-    .replace(/'ll\b/g, ' will');
-}
-
-// Trailing punctuation is ignored, but a trailing apostrophe is kept
-// because plural possessives end in one: the students'
-function tidyAnswerText(s) {
-  return s.replace(/[.!?,;:\"]+$/, '').replace(/\s+/g, ' ').trim();
-}
-
-// Form 1: as written, apostrophe shape unified
 function normalizeAnswerText(s) {
-  return tidyAnswerText(unifyApostrophes(s));
-}
-// Form 2: contractions spelled out
-function normalizeAnswerLong(s) {
-  return tidyAnswerText(expandContractions(unifyApostrophes(s)));
+  return (s == null ? '' : String(s)).trim().toLowerCase()
+    .replace(/[''‛`´]/g, '')
+    .replace(/[.!?,;:'"]+$/, '').replace(/\s+/g, ' ');
 }
 
 function toAnswerList(val) {
@@ -1947,11 +1886,10 @@ function toAnswerList(val) {
 }
 
 function isAnswerCorrect(studentAns, ...correctVals) {
-  const short = normalizeAnswerText(studentAns);
-  const long = normalizeAnswerLong(studentAns);
-  if (!short) return false;
+  const norm = normalizeAnswerText(studentAns);
+  if (!norm) return false;
   const pool = correctVals.flatMap(v => toAnswerList(v));
-  return pool.some(v => normalizeAnswerText(v) === short || normalizeAnswerLong(v) === long);
+  return pool.some(v => normalizeAnswerText(v) === norm);
 }
 
 function parseNumberedAnswers(text, pattern) {
@@ -2028,6 +1966,10 @@ function buildHintBlock(exp, blankNum){
       const expHl=exp.explanation.replace(/\*\*(.+?)\*\*/g,'<mark class="hint-mark">$1</mark>');
       inner+=`<span style="display:block;font-size:13px;color:var(--text);margin:2px 0 4px;line-height:1.5;">${expHl}</span>`;
     }
+  }
+  if(exp.examples&&exp.examples.length){
+    const eg=String(exp.examples[0]).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+    inner+=`<div style="font-size:12px;color:#92400e;opacity:.85;margin-top:5px;font-style:italic;">e.g. ${eg}</div>`;
   }
   return inner?`<div style="border-left:3px solid #f59e0b;background:#fffbeb;border-radius:0 6px 6px 0;padding:8px 12px;margin:6px 0 12px;">${inner}</div>`:'';
 }
@@ -2126,18 +2068,19 @@ async function markDBAnswers(studentAnswer, type) {
     if (redoingWrongMistakeId) {
       if (wrongCount < 8) {
         try {
-          await sbFetch(`coach_wrong_questions?id=eq.${redoingWrongMistakeId}`, {method:'PATCH', prefer:'return=minimal', body:{status:'mastered'}});
+          await sbFetch(`mistakes?id=eq.${redoingWrongMistakeId}`, {method:'PATCH', prefer:'return=minimal', body:{status:'mastered'}});
         } catch(e) { console.warn('mark redo mastered failed', e); }
       }
       redoingWrongMistakeId = null;
     }
+    await logAttempts(keys.map(k=>({
+      question_type:'cloze', source_id:p.id||null, blank_no:parseInt(k,10)||null,
+      question_text:(p.title||''), correct_answer:toAnswerList(answers[k]).join(' / '),
+      student_answer:studentMap[k]||'', is_correct:isAnswerCorrect(studentMap[k], answers[k])
+    })));
     incrementProgress(type, keys.length, correct);
-    if (p.id) {
-      try {
-        const cur = p.used_count || 0;
-        await sbFetch(`cloze_passages?id=eq.${p.id}`, { method: 'PATCH', prefer: 'return=minimal', body: { used_count: cur + 1 } });
-      } catch (e) { console.warn('used_count update failed', e); }
-    }
+    await loadDailyProgress();
+    // 题库对学生只读，used_count 不再由前端更新
     const scoreColor = wrongCount === 0 ? '#10b981' : '#e0245e';
     const scoreHtml = `<div style="font-weight:700;font-size:16px;color:${scoreColor};margin-bottom:14px;">Score: ${correct}/${keys.length}</div>`;
     const passageHtml = renderInlinePassage(p, answers, explanations, studentMap, keys);
@@ -2211,10 +2154,10 @@ async function startSession(){
     if (ok) return;
     document.getElementById('chat-messages').innerHTML='';
     chatHistory=[];
-    setChatInputVisible(true);
-    const noDBMsg = `Hi ${currentUser?.display||'there'}! The question bank is being updated. Starting an AI-generated session instead. 🔄`;
-    addMessage('ai', noDBMsg);
-    chatHistory.push({role:'assistant', content: noDBMsg});
+    setChatInputVisible(false);
+    addMessage('ai', `Hi ${currentUser?.display||'there'}! The questions could not be loaded right now. Please check your internet connection and try again, or let your teacher know.`);
+    window._sessionRunning = false;
+    return;
   }
 
   const greet=`Hi ${currentUser?.display||'there'}! Ready to practise **${TOPIC_LABELS[currentTopic]}**? Give it your best shot! 💪`;
@@ -2353,7 +2296,7 @@ document.addEventListener('click', function(e){
 // ══════════════════════════════════════════════════════════
 // ★ UPDATED: submitOneST — handles 1 or 2 input boxes
 // ══════════════════════════════════════════════════════════
-function submitOneST(btn) {
+async function submitOneST(btn) {
   const qIdx = parseInt(btn.getAttribute('data-qidx'));
   const stId = btn.getAttribute('data-stid');
 
@@ -2391,6 +2334,12 @@ function submitOneST(btn) {
 
   const ok = isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
 
+  await logAttempts([{
+    question_type:'synthesis', source_id:q.id||null,
+    question_text:q.question_line||q.original_sentence||'',
+    correct_answer:q.model_answer||'', student_answer:studentAns, is_correct:ok
+  }]);
+
   if (ok) {
     stCorrect++;
     fb.innerHTML = '✅ Correct!';
@@ -2407,6 +2356,7 @@ function submitOneST(btn) {
     addMessage('ai', msg);
     chatHistory.push({ role: 'assistant', content: msg });
     incrementProgress('synthesis', currentDBQuestions.length, stCorrect);
+    await loadDailyProgress();
   }
 }
 
@@ -2488,9 +2438,7 @@ function stTokenize(t){
 }
 
 function stNormWord(w){
-  // Same rule as marking: apostrophe shape is unified but never dropped,
-  // so a missing apostrophe shows up as a highlighted difference.
-  return unifyApostrophes(w).replace(/^[.,!?;:"()]+|[.,!?;:"()]+$/g,'');
+  return String(w||'').toLowerCase().replace(/[\u2018\u2019\u201b`\u00b4']/g,'').replace(/^[.,!?;:"()]+|[.,!?;:"()]+$/g,'');
 }
 
 // Word-level LCS diff: returns [{type:'same'|'chg', correct:[], student:[]}]
@@ -2747,7 +2695,7 @@ async function loadMistakesCount(){
   try{
     const thirtyDaysAgo=new Date();thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30);
     const dateStr=thirtyDaysAgo.toISOString().split('T')[0];
-    const rows=await sbFetch(`coach_wrong_questions?username=eq.${encodeURIComponent(currentUser.username)}&status=eq.active&wrong_date=gte.${dateStr}&select=id`);
+    const rows=await sbFetch(`mistakes?user_id=eq.${currentUser.id}&status=eq.active&wrong_date=gte.${dateStr}&select=id`);
     _pendingMistakesCount=(rows||[]).length;
     renderDailyTask();
   }catch(e){_pendingMistakesCount=-1;}
