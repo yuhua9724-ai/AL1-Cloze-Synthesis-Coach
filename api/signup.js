@@ -58,7 +58,17 @@ export default async function handler(req, res) {
     if (!created || !created.id) throw new Error('Could not create account');
     newUserId = created.id;
 
-    // ── 4. 建立个人资料：身份和到期日由服务器写死 ────────────
+    // ── 4. 读试用题库清单（存在 app_config，学生读不到这张表）──
+    let demoCloze = null, demoSynthesis = null;
+    try {
+      const cfg = await db("app_config?key=in.(demo_cloze_ids,demo_synthesis_ids)&select=key,value");
+      (cfg || []).forEach((r) => {
+        if (r.key === 'demo_cloze_ids' && Array.isArray(r.value) && r.value.length) demoCloze = r.value;
+        if (r.key === 'demo_synthesis_ids' && Array.isArray(r.value) && r.value.length) demoSynthesis = r.value;
+      });
+    } catch (_) { /* 读不到就退回全库出题，不挡注册 */ }
+
+    // ── 5. 建立个人资料：身份和到期日由服务器写死 ────────────
     const today = sgToday();
     const profile = await db('profiles', {
       method: 'POST',
@@ -74,6 +84,8 @@ export default async function handler(req, res) {
         daily_limit: 5,
         referred_by: referrerId,
         referral_settled: false,
+        demo_cloze_ids: demoCloze,
+        demo_synthesis_ids: demoSynthesis,
       },
     });
     if (!profile || !profile.length) throw new Error('Could not create profile');
