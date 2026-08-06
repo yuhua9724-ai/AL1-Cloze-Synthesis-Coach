@@ -579,6 +579,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
 // ══════════════════════════════════
 const SB_URL='https://vvtbddvecrgcsknhknnb.supabase.co';
 const SB_KEY='sb_publishable_gltOMElYfak3HrP3ih3reg_WlQ1c9_F';   // ← 换成新项目的 publishable key
+
 // 电话号码在背后拼成邮箱，家长完全看不到
 const EMAIL_DOMAIN='al1cloze.app';
 // 学生用电话号码；管理员沿用旧账号名。两者背后都拼成同一个网域的邮箱。
@@ -744,6 +745,7 @@ async function doSignup(){
 }
 
 async function enterApp(){
+  setChatInputVisible(false);   // 还没开始做题，不要留一个空框在那边
   document.getElementById('login-screen').classList.remove('active');
   document.getElementById('app-screen').classList.add('active');
   document.getElementById('nav-user').textContent=currentUser.display||currentUser.phone;
@@ -1674,8 +1676,12 @@ async function loadQuestionsFromDB(type) {
     if (type === 'cloze') {
       let rows;
       if (isTrial && currentUser?.demo_cloze_ids?.length) {
-        const ids = currentUser.demo_cloze_ids.join(',');
-        rows = await sbFetch(`cloze_passages?id=in.(${ids})&approved=eq.true&select=*`);
+        const order = currentUser.demo_cloze_ids;
+        const rowsRaw = await sbFetch(`cloze_passages?id=in.(${order.join(',')})&approved=eq.true&select=*`);
+        // 照清单的先后出题：第 1 天最难，第 3 天最顺
+        rows = order.map(id => (rowsRaw||[]).find(r => r.id === id)).filter(Boolean);
+        dbQuestions[type] = rows; dbLoaded[type] = true;
+        return;
       } else {
         rows = await sbFetch('cloze_passages?approved=eq.true&select=*&order=priority.desc,used_count.asc&limit=3');
       }
@@ -1683,8 +1689,11 @@ async function loadQuestionsFromDB(type) {
     } else if (type === 'synthesis') {
       let rows;
       if (isTrial && currentUser?.demo_synthesis_ids?.length) {
-        const ids = currentUser.demo_synthesis_ids.join(',');
-        rows = await sbFetch(`synthesis_questions?id=in.(${ids})&approved=eq.true&select=*`);
+        const order = currentUser.demo_synthesis_ids;
+        const rowsRaw = await sbFetch(`synthesis_questions?id=in.(${order.join(',')})&approved=eq.true&select=*`);
+        rows = order.map(id => (rowsRaw||[]).find(r => r.id === id)).filter(Boolean);
+        dbQuestions[type] = rows; dbLoaded[type] = true;
+        return;
       } else {
         rows = await sbFetch('synthesis_questions?approved=eq.true&select=*&order=priority.desc,used_count.asc&limit=15');
       }
@@ -2134,7 +2143,7 @@ async function startSession(){
   if (target && doneToday >= target) {
     document.getElementById('chat-messages').innerHTML='';
     chatHistory=[];
-    setChatInputVisible(true);
+    setChatInputVisible(false);
     const isTrial=currentUser?.role==='tester'||currentUser?.role==='test';
     const limitMsg = isTrial
       ? `🔖 You've completed today's trial limit of ${target} for **${TOPIC_LABELS[currentTopic]}**. Upgrade to a full Student plan for unlimited daily practice!`
