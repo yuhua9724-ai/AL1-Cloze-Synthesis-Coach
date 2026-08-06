@@ -303,6 +303,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 /* Streak */
 .streak-widget{display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#fff7e6,#ffedd5);border:1.5px solid #fbbf24;border-radius:var(--radius);padding:11px 16px;margin-bottom:12px;font-size:14px;font-weight:700;color:#92400e;}
 .streak-widget .streak-num{font-size:20px;font-weight:800;color:#d97706;}
+.streak-risk{background:linear-gradient(135deg,#fff1f2,#ffe4e6);border:2px solid #f43f5e;border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;animation:riskPulse 2.4s ease-in-out infinite;}
+.streak-risk-top{font-size:16px;font-weight:800;color:#be123c;margin-bottom:4px;}
+.streak-risk-top b{color:#e11d48;}
+.streak-risk-sub{font-size:13px;color:#9f1239;line-height:1.5;margin-bottom:10px;}
+.streak-risk-btn{background:#e11d48;color:#fff;border:none;border-radius:10px;padding:10px 18px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;}
+.streak-risk-btn:hover{background:#be123c;}
+.streak-risk-broken{background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-color:#94a3b8;animation:none;}
+.streak-risk-broken .streak-risk-top{color:#475569;}
+.streak-risk-broken .streak-risk-sub{color:#64748b;}
+.streak-risk-broken .streak-risk-btn{background:#5b41ec;}
+@keyframes riskPulse{0%,100%{box-shadow:0 0 0 0 rgba(244,63,94,0.25);}50%{box-shadow:0 0 0 8px rgba(244,63,94,0);}}
 .streak-widget-new{background:var(--dark3);border-color:rgba(91,65,236,0.15);color:var(--text-dim);font-weight:600;}
 
 /* Continue CTA */
@@ -578,7 +589,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
 // SUPABASE
 // ══════════════════════════════════
 const SB_URL='https://vvtbddvecrgcsknhknnb.supabase.co';
-const SB_KEY='sb_publishable_gltOMElYfak3HrP3ih3reg_WlQ1c9_F';   // ← 换成新项目的 publishable key
+const SB_KEY='PASTE_PUBLISHABLE_KEY_HERE';   // ← 换成新项目的 publishable key
 
 // 电话号码在背后拼成邮箱，家长完全看不到
 const EMAIL_DOMAIN='al1cloze.app';
@@ -1128,10 +1139,17 @@ async function loadProgressPage(){
   const el=document.getElementById('progress-content');
   el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">Loading…</p>';
   try{
-    const [rows, allRows] = await Promise.all([
-      sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&order=date.desc&limit=7&select=*`),
-      sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&order=date.desc&select=*`)
-    ]);
+    const raw = await sbFetch(`attempts?user_id=eq.${currentUser.id}&select=attempt_date,question_type,source_id,is_correct&order=attempt_date.desc&limit=5000`)||[];
+    const byDay={};
+    raw.forEach(r=>{
+      const d=r.attempt_date; if(!d)return;
+      if(!byDay[d])byDay[d]={date:d,cloze_attempted:0,cloze_correct:0,synthesis_attempted:0,synthesis_correct:0,_c:new Set(),_s:new Set()};
+      const o=byDay[d];
+      if(r.question_type==='cloze'){o.cloze_attempted++;if(r.is_correct)o.cloze_correct++;if(r.source_id!=null)o._c.add(r.source_id);}
+      if(r.question_type==='synthesis'){o.synthesis_attempted++;if(r.is_correct)o.synthesis_correct++;if(r.source_id!=null)o._s.add(r.source_id);}
+    });
+    const allRows=Object.values(byDay).map(o=>({date:o.date,cloze_attempted:o.cloze_attempted,cloze_correct:o.cloze_correct,synthesis_attempted:o.synthesis_attempted,synthesis_correct:o.synthesis_correct,cloze_done:o._c.size,synthesis_done:o._s.size})).sort((a,b)=>b.date.localeCompare(a.date));
+    const rows=allRows.slice(0,7);
     if(!rows||rows.length===0){el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">No practice records yet. Start practising!</p>';return;}
 
     let totalAttempted=0,totalCorrect=0;
@@ -1210,26 +1228,16 @@ async function loadRanksPage(){
   const el=document.getElementById('ranks-content');
   el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">Loading…</p>';
   try{
-    const [progressRows, userRows] = await Promise.all([
-      sbFetch('cloze_daily_progress?select=username,cloze_attempted,cloze_correct,synthesis_attempted,synthesis_correct'),
-      sbFetch('cloze_users?select=username,display,role')
-    ]);
-    const displayMap={}, roleMap={};
-    (userRows||[]).forEach(u=>{ displayMap[u.username]=u.display||u.username; roleMap[u.username]=u.role; });
-    const totals={};
-    (progressRows||[]).forEach(r=>{
-      if(!totals[r.username]) totals[r.username]={attempted:0,correct:0};
-      totals[r.username].attempted+=(r.cloze_attempted||0)+(r.synthesis_attempted||0);
-      totals[r.username].correct+=(r.cloze_correct||0)+(r.synthesis_correct||0);
-    });
-    const ranked=Object.entries(totals)
-      .filter(([username])=>roleMap[username]!=='admin')
-      .map(([username,t])=>({username,score:calcScore(t.attempted,t.correct)}))
+    const lbRows = await sbFetch('rpc/leaderboard', {method:'POST', body:{}}) || [];
+    const displayMap={};
+    lbRows.forEach(r=>{ displayMap[r.user_id]=r.display||'Student'; });
+    const ranked = lbRows
+      .map(r=>({username:r.user_id, display:r.display||'Student', score:calcScore(Number(r.attempted)||0, Number(r.correct)||0)}))
       .sort((a,b)=>b.score-a.score);
     if(ranked.length===0){el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">No rankings yet. Start practising!</p>';return;}
     const medals=['🥇','🥈','🥉'];
     el.innerHTML=ranked.map((r,i)=>{
-      const isMe=r.username===currentUser.username;
+      const isMe=r.username===currentUser.id;
       return `<div class="rank-row${isMe?' me':''}">
         <span class="rank-medal">${medals[i]||(i+1)}</span>
         <span class="rank-name">${displayMap[r.username]||r.username}${isMe?' (you)':''}</span>
@@ -1259,24 +1267,13 @@ async function loadAccountPage(){
     const end=currentUser.expiry||'—';
     const daysLeft=currentUser.expiry?Math.max(0,Math.ceil((new Date(currentUser.expiry)-new Date())/86400000)):null;
 
-    // Auto-generate referral code for students who don't have one yet
-    if(currentUser.role==='student'&&!currentUser.referral_code){
-      try{
-        const allCodes=await sbFetch('cloze_users?select=referral_code')||[];
-        const newCode=generateReferralCode(allCodes);
-        await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}`,{method:'PATCH',prefer:'return=minimal',body:{referral_code:newCode}});
-        currentUser.referral_code=newCode;
-        sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
-      }catch(e){console.warn('referral code gen failed',e);}
-    }
-
-    // Fetch all referrals (students + testers)
+    // 邀请码在升级成正式学员时由服务器产生，前端不再自己写
     let allReferrals=[];
     if(currentUser.role==='student'){
       try{
-        const rows=await sbFetch(`cloze_users?referred_by=eq.${encodeURIComponent(currentUser.username)}&select=username,display,role,start_date&order=start_date.desc`);
-        allReferrals=rows||[];
-      }catch(e){}
+        const rows=await sbFetch('rpc/my_referrals', {method:'POST', body:{}});
+        allReferrals=(rows||[]).map(r=>Object.assign({},r,{username:r.phone}));
+      }catch(e){console.warn('referrals failed',e);}
     }
     const studentRefs=allReferrals.filter(u=>u.role==='student');
     const testerRefs=allReferrals.filter(u=>u.role==='tester'||u.role==='test');
@@ -1289,14 +1286,11 @@ async function loadAccountPage(){
     const totalCreditsEarned=creditsFromStudents+creditsFromTesters;
     const testerProgress=testerRefs.length%4; // 0-3 in current batch
 
-    // Update credit in DB if calculated total differs from stored
-    if(currentUser.role==='student'&&totalCreditsEarned!==(currentUser.credit||0)){
-      try{
-        await sbFetch(`cloze_users?username=eq.${encodeURIComponent(currentUser.username)}`,{method:'PATCH',prefer:'return=minimal',body:{credit:totalCreditsEarned}});
-        currentUser.credit=totalCreditsEarned;
-        sessionStorage.setItem('cal1_user',JSON.stringify(currentUser));
-      }catch(e){}
-    }
+    // credit 余额由资料库数流水算出来，前端不写回资料库
+    try{
+      const cr = await sbFetch('rpc/my_credit', {method:'POST', body:{}});
+      if(cr && cr.length){ currentUser.credit = cr[0].available; }
+    }catch(e){ console.warn('credit failed', e); }
 
     // ── Referral code banner FIRST (same as home page) ──
     if(isStudent&&currentUser.referral_code){
@@ -2732,55 +2726,77 @@ function continueToday(){
 }
 
 // ── Streak Widget ─────────────────────────────────────────
+// 连胜：从作答流水算，学生改不了
+// 「今天还没做」时给出显眼的警告 —— 连胜看不到就等于不存在
 async function loadStreakWidget(){
   const el=document.getElementById('streak-widget');if(!el||!currentUser)return;
   try{
-    const rows=await sbFetch(`cloze_daily_progress?username=eq.${encodeURIComponent(currentUser.username)}&order=date.desc&limit=60&select=date,cloze_done,synthesis_done`)||[];
-    const doneDates=new Set(rows.filter(r=>{const _sdt=getDailyTargets();return(r.cloze_done||0)>=_sdt.cloze&&(r.synthesis_done||0)>=_sdt.synthesis;}).map(r=>r.date));
+    const since=new Date();since.setDate(since.getDate()-90);
+    const rows=await sbFetch(`attempts?user_id=eq.${currentUser.id}&attempt_date=gte.${since.toISOString().split('T')[0]}&select=attempt_date,question_type,source_id`)||[];
+
+    // 每天分别数 Cloze 篇数和 S&T 题数，两边都达标才算完成
+    const perDay={};
+    rows.forEach(r=>{
+      const d=r.attempt_date; if(!d)return;
+      if(!perDay[d])perDay[d]={cloze:new Set(),synthesis:new Set()};
+      if(perDay[d][r.question_type]&&r.source_id!=null)perDay[d][r.question_type].add(r.source_id);
+    });
+    const t=getDailyTargets();
+    const doneDates=new Set(Object.keys(perDay).filter(d=>perDay[d].cloze.size>=t.cloze&&perDay[d].synthesis.size>=t.synthesis));
+
     const today=TODAY;
     const yestDate=new Date();yestDate.setDate(yestDate.getDate()-1);
     const yesterday=yestDate.toISOString().split('T')[0];
+    const doneToday=doneDates.has(today);
+
     let streak=0;
-    if(doneDates.has(today)||doneDates.has(yesterday)){
-      let d=doneDates.has(today)?new Date():yestDate;
+    if(doneToday||doneDates.has(yesterday)){
+      let d=doneToday?new Date():new Date(yestDate);
       while(doneDates.has(d.toISOString().split('T')[0])){streak++;d.setDate(d.getDate()-1);}
     }
-    if(streak>0){
-      const encourage=!doneDates.has(today)?" — do today's practice to keep it going!":'';
-      el.innerHTML=`<div class="streak-widget">🔥 <span class="streak-num">${streak}</span> Day${streak>1?'s':''} Streak${encourage}</div>`;
-    }else{
-      el.innerHTML=`<div class="streak-widget streak-widget-new">🔥 Start your streak today — do Cloze + S&amp;T!</div>`;
+
+    // 今天还没完成，而且连胜正挂在线上 → 醒目警告
+    if(streak>0&&!doneToday){
+      el.innerHTML=`<div class="streak-risk">
+        <div class="streak-risk-top">⚠️ Your <b>${streak}-day streak</b> ends tonight!</div>
+        <div class="streak-risk-sub">Finish today's practice to keep it alive. Don't lose ${streak} day${streak>1?'s':''} of hard work.</div>
+        <button class="streak-risk-btn" onclick="showTab('practice')">Save my streak →</button>
+      </div>`;
+      return;
     }
-  }catch(e){el.innerHTML='';}
+    if(streak>0){
+      el.innerHTML=`<div class="streak-widget">🔥 <span class="streak-num">${streak}</span> Day${streak>1?'s':''} Streak · today done ✅</div>`;
+      return;
+    }
+    // 昨天断了但前天有做 → 让他知道断在哪，而不是静悄悄归零
+    const d2=new Date();d2.setDate(d2.getDate()-2);
+    if(doneDates.has(d2.toISOString().split('T')[0])){
+      el.innerHTML=`<div class="streak-risk streak-risk-broken">
+        <div class="streak-risk-top">💔 Your streak was broken yesterday</div>
+        <div class="streak-risk-sub">Start a new one today — the longest streaks all began on a day like this.</div>
+        <button class="streak-risk-btn" onclick="showTab('practice')">Start again →</button>
+      </div>`;
+      return;
+    }
+    el.innerHTML=`<div class="streak-widget streak-widget-new">🔥 Start your streak today — do Cloze + S&amp;T!</div>`;
+  }catch(e){console.warn('streak failed',e);el.innerHTML='';}
 }
 
 // ── Mini Leaderboard ──────────────────────────────────────
 async function renderMiniLeaderboard(){
   const el=document.getElementById('mini-leaderboard');if(!el||!currentUser)return;
   try{
-    const [progressRows,userRows]=await Promise.all([
-      sbFetch('cloze_daily_progress?select=username,cloze_attempted,cloze_correct,synthesis_attempted,synthesis_correct'),
-      sbFetch('cloze_users?select=username,display,role')
-    ]);
-    if(!progressRows||!userRows)return;
-    const displayMap={},roleMap={};
-    userRows.forEach(u=>{displayMap[u.username]=u.display||u.username;roleMap[u.username]=u.role;});
-    const totals={};
-    progressRows.forEach(r=>{
-      if(!totals[r.username])totals[r.username]={attempted:0,correct:0};
-      totals[r.username].attempted+=(r.cloze_attempted||0)+(r.synthesis_attempted||0);
-      totals[r.username].correct+=(r.cloze_correct||0)+(r.synthesis_correct||0);
-    });
-    const ranked=Object.entries(totals)
-      .filter(([u])=>roleMap[u]!=='admin'&&displayMap[u])
-      .map(([u,t])=>({username:u,display:displayMap[u]||u,score:calcScore(t.attempted,t.correct)}))
+    const lbRows = await sbFetch('rpc/leaderboard', {method:'POST', body:{}});
+    if(!lbRows)return;
+    const ranked = lbRows
+      .map(r=>({username:r.user_id, display:r.display||'Student', score:calcScore(Number(r.attempted)||0, Number(r.correct)||0)}))
       .sort((a,b)=>b.score-a.score);
     if(!ranked.length)return;
-    const myRank=ranked.findIndex(r=>r.username===currentUser.username)+1;
+    const myRank=ranked.findIndex(r=>r.username===currentUser.id)+1;
     const top3=ranked.slice(0,3);
     const MEDALS=['🥇','🥈','🥉'];
     const rows=top3.map((r,i)=>{
-      const isMe=r.username===currentUser.username;
+      const isMe=r.username===currentUser.id;
       return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid rgba(91,65,236,0.08)">
         <span style="font-size:16px;min-width:24px">${MEDALS[i]}</span>
         <span style="flex:1;font-size:13px;font-weight:${isMe?700:500};color:${isMe?'var(--gold)':'var(--text)'}">${r.display}${isMe?' (you)':''}</span>
