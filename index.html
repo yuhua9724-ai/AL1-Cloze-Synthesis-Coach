@@ -1695,39 +1695,80 @@ let dbQuestions = {synthesis:[], cloze:[]};
 let dbLoaded = {synthesis:false, cloze:false};
 let usedIds = {synthesis:new Set(), cloze:new Set()};
 
-async function loadQuestionsFromDB(type) {
-  const used = usedIds[type]?.size || 0;
-  const total = dbQuestions[type]?.length || 0;
-  if (dbLoaded[type] && total > 0 && used < total) return;
+// 这个学生自己做过哪些题 —— 以资料库为准。换手机、隔几天，都还算做过。
+let doneIds = {synthesis:null, cloze:null};
+// 全部做完之后，学生自己按「再练一轮」才会重复出题
+let replayMode = {synthesis:false, cloze:false};
+let poolEmpty = {synthesis:false, cloze:false};
 
+async function loadDoneIds(type){
+  if (doneIds[type]) return doneIds[type];
+  const set = new Set();
+  try{
+    const PAGE = 1000;
+    let offset = 0;
+    while (true){
+      const rows = await sbFetch('attempts?user_id=eq.' + currentUser.id + '&question_type=eq.' + type + '&select=source_id&limit=' + PAGE + '&offset=' + offset);
+      if (!rows || !rows.length) break;
+      rows.forEach(r => { if (r.source_id != null) set.add(Number(r.source_id)); });
+      if (rows.length < PAGE) break;
+      offset += PAGE;
+    }
+  }catch(e){ console.warn('loadDoneIds failed', e); }
+  doneIds[type] = set;
+  return set;
+}
+
+function markDone(type, id){
+  if (id == null) return;
+  if (!doneIds[type]) doneIds[type] = new Set();
+  doneIds[type].add(Number(id));
+}
+
+async function fetchRowsByIds(table, ids){
+  if (!ids.length) return [];
+  const rows = await sbFetch(table + '?id=in.(' + ids.join(',') + ')&select=*') || [];
+  const byId = {};
+  rows.forEach(r => { byId[r.id] = r; });
+  return ids.map(id => byId[id]).filter(Boolean);
+}
+
+async function loadQuestionsFromDB(type) {
   const isTrial = currentUser?.role === 'tester' || currentUser?.role === 'test';
+  dbQuestions[type] = [];
+  dbLoaded[type] = false;
+  poolEmpty[type] = false;
 
   try {
+    const done = replayMode[type] ? new Set() : await loadDoneIds(type);
+
     if (type === 'cloze') {
-      let rows;
+      let candidates;
       if (isTrial && currentUser?.demo_cloze_ids?.length) {
-        const order = currentUser.demo_cloze_ids;
-        const rowsRaw = await sbFetch(`cloze_passages?id=in.(${order.join(',')})&approved=eq.true&select=*`);
-        // 照清单的先后出题：第 1 天最难，第 3 天最顺
-        rows = order.map(id => (rowsRaw||[]).find(r => r.id === id)).filter(Boolean);
-        dbQuestions[type] = rows; dbLoaded[type] = true;
-        return;
+        // 试用生：照清单顺序（先难后易），做过的跳过
+        candidates = currentUser.demo_cloze_ids.filter(id => !done.has(Number(id)));
       } else {
-        rows = await sbFetch('cloze_passages?approved=eq.true&select=*&order=priority.desc,used_count.asc&limit=3');
+        // 正式学员：全库按 id 由小到大，做过的跳过
+        const idRows = await sbFetch('cloze_passages?approved=eq.true&select=id&order=id.asc') || [];
+        candidates = idRows.map(r => r.id).filter(id => !done.has(Number(id)));
       }
-      if (rows && rows.length > 0) { dbQuestions.cloze = shuffle(rows); dbLoaded.cloze = true; }
+      if (!candidates.length) { poolEmpty.cloze = true; return; }
+      const rows = await fetchRowsByIds('cloze_passages', candidates.slice(0, 3));
+      if (rows.length) { dbQuestions.cloze = rows; dbLoaded.cloze = true; }
+
     } else if (type === 'synthesis') {
-      let rows;
+      let candidates;
       if (isTrial && currentUser?.demo_synthesis_ids?.length) {
-        const order = currentUser.demo_synthesis_ids;
-        const rowsRaw = await sbFetch(`synthesis_questions?id=in.(${order.join(',')})&approved=eq.true&select=*`);
-        rows = order.map(id => (rowsRaw||[]).find(r => r.id === id)).filter(Boolean);
-        dbQuestions[type] = rows; dbLoaded[type] = true;
-        return;
+        // 试用生：照清单顺序，做过的跳过
+        candidates = currentUser.demo_synthesis_ids.filter(id => !done.has(Number(id)));
       } else {
-        rows = await sbFetch('synthesis_questions?approved=eq.true&select=*&order=priority.desc,used_count.asc&limit=15');
+        // 正式学员：没做过的里面随机
+        const idRows = await sbFetch('synthesis_questions?approved=eq.true&select=id') || [];
+        candidates = shuffle(idRows.map(r => r.id).filter(id => !done.has(Number(id))));
       }
-      if (rows && rows.length > 0) { dbQuestions.synthesis = shuffle(rows); dbLoaded.synthesis = true; }
+      if (!candidates.length) { poolEmpty.synthesis = true; return; }
+      const rows = await fetchRowsByIds('synthesis_questions', candidates.slice(0, 5));
+      if (rows.length) { dbQuestions.synthesis = rows; dbLoaded.synthesis = true; }
     }
   } catch(e) {
     console.error('DB load error for', type, ':', e.message);
@@ -1744,16 +1785,14 @@ function shuffle(arr) {
 }
 
 function getUnusedQuestions(type, count) {
-  const pool = dbQuestions[type];
-  const used = usedIds[type];
-  const available = pool.filter(q => !used.has(q.id));
-  if (available.length < count) {
-    usedIds[type] = new Set();
-    return pool.slice(0, count);
-  }
-  const selected = available.slice(0, count);
-  selected.forEach(q => used.add(q.id));
-  return selected;
+  return (dbQuestions[type] || []).slice(0, count);
+}
+
+function replayAll(type){
+  replayMode[type] = true;
+  poolEmpty[type] = false;
+  showToast('New round started \u2014 all questions are available again.');
+  newSession();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2117,6 +2156,7 @@ async function markDBAnswers(studentAnswer, type) {
       question_text:(p.title||''), correct_answer:toAnswerList(answers[k]).join(' / '),
       student_answer:studentMap[k]||'', is_correct:isAnswerCorrect(studentMap[k], answers[k])
     })));
+    markDone('cloze', p.id);
     incrementProgress(type, keys.length, correct);
     await loadDailyProgress();
     checkWeeklyBadge();
@@ -2195,7 +2235,11 @@ async function startSession(){
     document.getElementById('chat-messages').innerHTML='';
     chatHistory=[];
     setChatInputVisible(false);
-    addMessage('ai', `Hi ${currentUser?.display||'there'}! The questions could not be loaded right now. Please check your internet connection and try again, or let your teacher know.`);
+    if (poolEmpty[currentTopic]) {
+      addHTMLMessage('🎉 <b>Amazing — you have finished every question we have for now!</b><br>New questions are on the way. Check back soon.<br><button class="submit-answers-btn" style="margin-top:10px" onclick="replayAll(\'' + currentTopic + '\')">Practise them again</button>');
+    } else {
+      addMessage('ai', `Hi ${currentUser?.display||'there'}! The questions could not be loaded right now. Please check your internet connection and try again, or let your teacher know.`);
+    }
     window._sessionRunning = false;
     return;
   }
@@ -2379,6 +2423,8 @@ async function submitOneST(btn) {
     question_text:q.question_line||q.original_sentence||'',
     correct_answer:q.model_answer||'', student_answer:studentAns, is_correct:ok
   }]);
+
+  markDone('synthesis', q.id);
 
   if (ok) {
     stCorrect++;
