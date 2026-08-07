@@ -848,9 +848,12 @@ async function changePassword(){
 // DAILY PROGRESS
 // ══════════════════════════════════
 let todayProgress={cloze_done:0,synthesis_done:0,weak_cloze:'',weak_synthesis:''};
-const DAILY_TARGETS={cloze:5,synthesis:5}; // overridden per-user in getDailyTargets()
+const DAILY_TARGETS={cloze:10,synthesis:10}; // overridden per-user in getDailyTargets()
+const STUDENT_DAILY_LIMIT=10;   // 正式学员：每天 10 篇 Cloze + 10 组 S&T
 function getDailyTargets(){
-  const limit=currentUser?.daily_limit||5;
+  const isTrial=currentUser?.role==='tester'||currentUser?.role==='test';
+  // 试用生照旧用他自己的额度（每天 2 篇 + 2 组）；正式学员一律 10
+  const limit=isTrial?(currentUser?.daily_limit||2):STUDENT_DAILY_LIMIT;
   // Cloze 一次一篇；S&T 一次 5 题。换算成「题数」后额度跟以前一样。
   return{cloze:limit, synthesis:limit*ST_PER_SESSION};
 }
