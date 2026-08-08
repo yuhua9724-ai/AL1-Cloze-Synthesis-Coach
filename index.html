@@ -97,6 +97,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .module-card{position:relative;border:1.5px solid rgba(91,65,236,0.2);border-radius:14px;padding:16px;cursor:pointer;transition:all 0.2s;background:linear-gradient(160deg,#fdfefb 0%,var(--dark2) 100%);}
 .module-card:hover{border-color:rgba(91,65,236,0.4);transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,0.08);}
 .module-card.active{border-color:var(--gold);background:var(--dark4);box-shadow:0 0 0 3px rgba(91,65,236,0.15);}
+.module-card.locked{opacity:0.45;filter:grayscale(1);cursor:not-allowed;background:var(--dark4);border-color:rgba(0,0,0,0.08);}
+.module-card.locked:hover{transform:none;box-shadow:none;border-color:rgba(0,0,0,0.08);}
 .module-icon{font-size:22px;margin-bottom:6px;}
 .module-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;}
 .module-count{font-size:11px;color:var(--text-dim);}
@@ -218,7 +220,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .btn-change-pw{background:rgba(91,65,236,0.15);border:1px solid rgba(91,65,236,0.3);color:var(--gold);font-size:13px;font-weight:500;border-radius:8px;padding:8px 16px;cursor:pointer;align-self:flex-start;}
 
 /* TOAST */
-.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark3);border:1px solid rgba(91,65,236,0.3);color:var(--text);font-size:13px;padding:9px 18px;border-radius:10px;opacity:0;transition:all 0.3s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark3);border:1px solid rgba(91,65,236,0.3);color:var(--text);font-size:13px;line-height:1.5;padding:11px 18px;border-radius:10px;opacity:0;transition:all 0.3s;pointer-events:none;z-index:999;white-space:normal;max-width:min(92vw,460px);text-align:center;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
 /* ── MOBILE RESPONSIVE ── */
@@ -315,7 +317,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .chain-cell{height:52px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;background:#f1efe8;}
 .chain-done{background:#fff0d6;}
 .chain-repaired{position:relative;}
-.chain-repaired::after{content:'🛡';position:absolute;top:-4px;right:-2px;font-size:11px;}
+
 .chain-today{background:#fff7e8;border:2.5px solid #e24b4a;}
 .chain-future{background:#f7f6f2;}
 .chain-missed{color:#b5b3ac;}
@@ -557,7 +559,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
   <!-- MY MISTAKES TAB -->
   <div id="panel-mistakes" style="display:none;" class="app-body-stacked">
     <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:6px;">My Mistakes</h2>
-    <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;">Last 30 days · retype the answer to clear a mistake — get it right twice in a row to master it</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;">Last 30 days · retype the answer — get it right once and the card is cleared</div>
     <div class="wrong-bank-wrap">
       <div id="wrong-bank-content"><div class="wrong-bank-empty">Loading…</div></div>
     </div>
@@ -850,10 +852,11 @@ async function changePassword(){
 let todayProgress={cloze_done:0,synthesis_done:0,weak_cloze:'',weak_synthesis:''};
 const DAILY_TARGETS={cloze:10,synthesis:10}; // overridden per-user in getDailyTargets()
 const STUDENT_DAILY_LIMIT=10;   // 正式学员：每天 10 篇 Cloze + 10 组 S&T
+const TRIAL_DAILY_LIMIT=2;      // 试用生：每天 2 篇 Cloze + 2 组 S&T（3 天共 6 篇）
 function getDailyTargets(){
   const isTrial=currentUser?.role==='tester'||currentUser?.role==='test';
-  // 试用生照旧用他自己的额度（每天 2 篇 + 2 组）；正式学员一律 10
-  const limit=isTrial?(currentUser?.daily_limit||2):STUDENT_DAILY_LIMIT;
+  // 两种身份都写死在这里，不读账号上的 daily_limit —— 服务端写什么都不影响
+  const limit=isTrial?TRIAL_DAILY_LIMIT:STUDENT_DAILY_LIMIT;
   // Cloze 一次一篇；S&T 一次 5 题。换算成「题数」后额度跟以前一样。
   return{cloze:limit, synthesis:limit*ST_PER_SESSION};
 }
@@ -882,6 +885,16 @@ async function loadDailyProgress(){
       if(r.is_correct)tp[t+'_correct']++;
       if(r.source_id!=null)seen[t].add(r.source_id);
     });
+    // 重做错题不占当天配额：今天做的题里，凡是更早的日子已经做过的，不计入今天的额度。
+    // 正确率、答题数照常统计，只是不吃掉当天的 10 篇 / 10 组。
+    for(const t of ['cloze','synthesis']){
+      const ids=[...seen[t]].filter(v=>v!=null);
+      if(!ids.length)continue;
+      try{
+        const prior=await sbFetch(`attempts?user_id=eq.${currentUser.id}&question_type=eq.${t}&attempt_date=lt.${TODAY}&source_id=in.(${ids.join(',')})&select=source_id`)||[];
+        prior.forEach(r=>{ if(r.source_id!=null) seen[t].delete(r.source_id); });
+      }catch(e){ console.warn('redo-quota filter failed for '+t, e); }
+    }
     tp.cloze_done=seen.cloze.size;
     tp.synthesis_done=seen.synthesis.size;
     todayProgress=Object.assign(tp,{weak_cloze:todayProgress.weak_cloze||'',weak_synthesis:todayProgress.weak_synthesis||''});
@@ -909,6 +922,12 @@ function updateProgressBars(){
     document.getElementById('dp-'+t+'-txt').textContent=done>=target?'✅ Done':done+'/'+target;
     const badge=document.getElementById('done-'+t);
     if(badge)badge.textContent=done>=target?'✅':'';
+    // 配额做满 → 模块卡片变灰，点不开新 session
+    const modCard=document.getElementById('sb-'+t);
+    if(modCard){
+      if(done>=target){modCard.classList.add('locked');modCard.classList.remove('active');}
+      else modCard.classList.remove('locked');
+    }
     const card=document.getElementById('task-'+t);
     if(card){
       card.style.borderColor=done>=target?'rgba(74,222,128,0.4)':'rgba(91,65,236,0.12)';
@@ -917,10 +936,10 @@ function updateProgressBars(){
   });
 }
 
-function incrementProgress(topic, attempted, correctCount){
+function incrementProgress(topic, attempted, correctCount, skipDone){
   const key=topic+'_done';
   const target=getDailyTargets()[topic]||4;
-  if((todayProgress[key]||0)<target*2){
+  if(!skipDone && (todayProgress[key]||0)<target*2){
     todayProgress[key]=(todayProgress[key]||0)+1;
   }
   if(attempted){
@@ -1064,7 +1083,7 @@ function renderWrongCard(q) {
       + '<div class="wrong-retry-row" style="flex-wrap:wrap;align-items:center;gap:8px;">' + line + '</div>'
       + '<div style="margin-top:8px;"><button class="wrong-retry-btn" onclick="trySTMistake(\'' + q.id + '\')">Check</button></div>'
       + '<div class="wrong-retry-feedback" id="wfeedback-' + q.id + '"></div>'
-      + '<div class="wrong-card-footer"><span class="wrong-streak">Streak: <b>' + streak + '/2</b> correct needed</span></div>'
+      + '<div class="wrong-card-footer"><span class="wrong-streak">Get it right once to clear this card</span></div>'
       + '</div>';
   }
   const opts = q.options ? JSON.parse(typeof q.options === 'string' ? q.options : JSON.stringify(q.options)) : null;
@@ -1103,27 +1122,23 @@ function renderWrongCard(q) {
     <div class="wrong-card-q">${questionHtml}</div>
     ${bodyHtml}
     <div class="wrong-card-footer">
-      <span class="wrong-streak">Streak: <b>${streak}/2</b> correct needed</span>
+      <span class="wrong-streak">Get it right once to clear this card</span>
     </div>
   </div>`;
 }
 
 async function updateMistakeStreak(id, isCorrect, card) {
   try {
-    const rows = await sbFetch(`mistakes?id=eq.${id}&select=correct_streak`);
-    const streak = (rows && rows[0] ? rows[0].correct_streak : 0) || 0;
-    const newStreak = isCorrect ? streak + 1 : 0;
-    if (newStreak >= 2) {
-      await sbFetch(`mistakes?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{status:'mastered', correct_streak:2}});
+    // 单空错题：答对一次就消失；答错则留着，继续练
+    if (isCorrect) {
+      await sbFetch(`mistakes?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{status:'mastered', correct_streak:1}});
       setTimeout(() => {
         card.style.transition = 'opacity 0.5s';
         card.style.opacity = '0';
         setTimeout(() => card.remove(), 500);
       }, 3000);
     } else {
-      await sbFetch(`mistakes?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{correct_streak:newStreak}});
-      const streakEl = card.querySelector('.wrong-streak b');
-      if (streakEl) streakEl.textContent = `${newStreak}/2`;
+      await sbFetch(`mistakes?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{correct_streak:0}});
     }
   } catch(e) { console.warn('updateMistakeStreak error', e); }
 }
@@ -2146,6 +2161,7 @@ async function markDBAnswers(studentAnswer, type) {
     } else if (wrongCount > 0) {
       wrongBlanks.forEach(w => saveWrongQuestion(extractSentenceForBlank(p.passage, w.k), w.correctDisplay, w.studentAns, 'cloze', { explanation: explanations[w.k], blank_num: w.k }));
     }
+    const _wasRedo = !!redoingWrongMistakeId;
     if (redoingWrongMistakeId) {
       if (wrongCount < 8) {
         try {
@@ -2160,7 +2176,8 @@ async function markDBAnswers(studentAnswer, type) {
       student_answer:studentMap[k]||'', is_correct:isAnswerCorrect(studentMap[k], answers[k])
     })));
     markDone('cloze', p.id);
-    incrementProgress(type, keys.length, correct);
+    // 重做错题不占当天配额 —— 只记答题数和正确数，不加「完成篇数」
+    incrementProgress(type, keys.length, correct, _wasRedo);
     await loadDailyProgress();
     checkWeeklyBadge();
     // 题库对学生只读，used_count 不再由前端更新
@@ -2187,6 +2204,17 @@ async function markDBAnswers(studentAnswer, type) {
 }
 
 function selectTopic(btn,topic){
+  // 今天这个模块的额度已经做满 → 不开新 session
+  const _tgt=getDailyTargets()[topic];
+  const _done=todayProgress[topic+'_done']||0;
+  if(_tgt && _done>=_tgt){
+    const isTrial=currentUser?.role==='tester'||currentUser?.role==='test';
+    const unit=topic==='cloze'?'10 passages a day':'10 sets a day';
+    showToast(isTrial
+      ? `Today's trial practice for ${TOPIC_LABELS[topic]} is done. Check your My Mistakes — or unlock the full question bank now to practise ${unit}.`
+      : `🎉 Today's ${TOPIC_LABELS[topic]} is complete. Come back tomorrow!`, 15000);
+    return;
+  }
   document.querySelectorAll('.module-card').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   currentTopic=topic;
@@ -2239,7 +2267,13 @@ async function startSession(){
     chatHistory=[];
     setChatInputVisible(false);
     if (poolEmpty[currentTopic]) {
-      addHTMLMessage('🎉 <b>Amazing — you have finished every question we have for now!</b><br>New questions are on the way. Check back soon.<br><button class="submit-answers-btn" style="margin-top:10px" onclick="replayAll(\'' + currentTopic + '\')">Practise them again</button>');
+      const trialEnd = currentUser?.role === 'tester' || currentUser?.role === 'test';
+      if (trialEnd) {
+        // 试用生做完那 6 篇 —— 引导升级，不给「再练一轮」
+        addHTMLMessage("🎉 <b>Congratulations! You've completed all the practice in your trial.</b><br>Contact us to unlock the full question bank.");
+      } else {
+        addHTMLMessage('🎉 <b>Amazing — you have finished every question we have for now!</b><br>New questions are on the way. Check back soon.<br><button class="submit-answers-btn" style="margin-top:10px" onclick="replayAll(\'' + currentTopic + '\')">Practise them again</button>');
+      }
     } else {
       addMessage('ai', `Hi ${currentUser?.display||'there'}! The questions could not be loaded right now. Please check your internet connection and try again, or let your teacher know.`);
     }
@@ -2872,8 +2906,9 @@ async function loadStreakWidget(){
       const label=DOW[days.indexOf(d)];
       let cls='chain-cell', inner='';
       if(d.is_done){
+        // 补打卡补上的格子显示 ✓，正常完成的显示 🔥
         cls+=d.is_repaired?' chain-done chain-repaired':' chain-done';
-        inner='🔥';
+        inner=d.is_repaired?'✓':'🔥';
       }else if(isToday){
         cls+=' chain-today'; inner='🔥';
       }else if(isFuture){
@@ -2891,8 +2926,24 @@ async function loadStreakWidget(){
 
     let footer='';
     if(firstFixable&&todayDone){
-      footer=`<div class="chain-fix-note"><b>${firstFixable}</b> can still be fixed — tap to bring it back.</div>
+      // 补打卡：那天缺多少，今天就要在额度之外多做多少
+      const _t=getDailyTargets();
+      const fixRow=days.find(d=>d.day_date===firstFixable)||{};
+      const todayRow=days.find(d=>d.day_date===today)||{};
+      const needC=Math.max(0,_t.cloze-(fixRow.cloze_done||0));
+      const needS=Math.max(0,_t.synthesis-(fixRow.st_done||0));
+      const leftC=Math.max(0,needC-Math.max(0,(todayRow.cloze_done||0)-_t.cloze));
+      const leftS=Math.ceil(Math.max(0,needS-Math.max(0,(todayRow.st_done||0)-_t.synthesis))/5);
+      if(leftC===0&&leftS===0){
+        footer=`<div class="chain-fix-note">You've made up what <b>${firstFixable}</b> was missing — tap to bring it back.</div>
         <button class="chain-btn chain-btn-fix" onclick="repairDay('${firstFixable}')">Fix ${firstFixable}</button>`;
+      }else{
+        const bits=[];
+        if(leftC>0)bits.push(`${leftC} passage${leftC>1?'s':''}`);
+        if(leftS>0)bits.push(`${leftS} set${leftS>1?'s':''}`);
+        footer=`<div class="chain-fix-note">To bring back <b>${firstFixable}</b>, make up what was missed: <b>${bits.join(' and ')}</b> to go.</div>
+        <button class="chain-btn" onclick="showTab('practice')">Make up ${firstFixable}</button>`;
+      }
     }else if(firstFixable){
       footer=`<div class="chain-fix-note">Finish today's practice, then you can fix <b>${firstFixable}</b>.</div>
         <button class="chain-btn" onclick="showTab('practice')">Check in today</button>`;
@@ -3000,7 +3051,7 @@ function shareInviteCode(code){
 // ══════════════════════════════════
 // TOAST
 // ══════════════════════════════════
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+function showToast(msg,ms){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');if(t._hideTimer)clearTimeout(t._hideTimer);t._hideTimer=setTimeout(()=>t.classList.remove('show'),ms||3000);}
 </script>
 <script>
 if ('serviceWorker' in navigator) {

@@ -60,11 +60,31 @@ async function dayStatus(userId, dateStr, limit) {
   rows.forEach((r) => {
     if (seen[r.question_type] && r.source_id != null) seen[r.question_type].add(r.source_id);
   });
+
+  // 重做不算进当天：这一天做的题里，更早的日子已经做过的，剔掉。
+  // 跟前端和 my_week 的口径保持一致。
+  for (const t of ['cloze', 'synthesis']) {
+    const ids = [...seen[t]];
+    if (!ids.length) continue;
+    const prior = (await db(
+      `attempts?user_id=eq.${userId}&question_type=eq.${t}&attempt_date=lt.${dateStr}&source_id=in.(${ids.join(',')})&select=source_id`
+    )) || [];
+    prior.forEach((r) => { if (r.source_id != null) seen[t].delete(r.source_id); });
+  }
+
   return {
     cloze: seen.cloze.size,
     synthesis: seen.synthesis.size,
     done: seen.cloze.size >= limit && seen.synthesis.size >= limit * 5,
   };
+}
+
+// ── 每天要做多少：看身份，不看账号上的 daily_limit ──────────────
+// 试用生 2 篇 + 2 组，其余一律 10 篇 + 10 组。
+async function limitFor(userId) {
+  const rows = await db(`profiles?id=eq.${userId}&select=role`);
+  const role = (rows && rows[0] && rows[0].role) || 'student';
+  return (role === 'tester' || role === 'test') ? 2 : 10;
 }
 
 // ── 补签：把某一天的叉补回来 ──────────────────────────────────
@@ -77,8 +97,7 @@ async function repair(req, res, userId) {
   const today = sgToday();
   if (target >= today) return fail(res, 400, 'You can only repair a day that has already passed.');
 
-  const profiles = await db(`profiles?id=eq.${userId}&select=daily_limit`);
-  const limit = (profiles && profiles[0] && profiles[0].daily_limit) || 5;
+  const limit = await limitFor(userId);
 
   // 那天本来就做满了，不用补
   const st = await dayStatus(userId, target, limit);
@@ -88,6 +107,20 @@ async function repair(req, res, userId) {
   const todaySt = await dayStatus(userId, today, limit);
   if (!todaySt.done) {
     return fail(res, 400, `Finish today's practice first — ${limit} passages and ${limit} sets — then you can repair that day.`);
+  }
+
+  // 那一天缺多少，今天就要在额度之外多做多少，补齐了才算补签成功
+  const needCloze = Math.max(0, limit - st.cloze);
+  const needSyn   = Math.max(0, limit * 5 - st.synthesis);
+  const extraCloze = todaySt.cloze - limit;
+  const extraSyn   = todaySt.synthesis - limit * 5;
+  const leftCloze = Math.max(0, needCloze - extraCloze);
+  const leftSets  = Math.ceil(Math.max(0, needSyn - extraSyn) / 5);
+  if (leftCloze > 0 || leftSets > 0) {
+    const parts = [];
+    if (leftCloze > 0) parts.push(`${leftCloze} more passage${leftCloze > 1 ? 's' : ''}`);
+    if (leftSets  > 0) parts.push(`${leftSets} more set${leftSets > 1 ? 's' : ''}`);
+    return fail(res, 400, `To bring back ${target}, make up what was missed: ${parts.join(' and ')} to go.`);
   }
 
   const existing = await db(`streak_repairs?user_id=eq.${userId}&repaired_date=eq.${target}&select=id`);
@@ -110,8 +143,7 @@ async function repair(req, res, userId) {
 
 // ── 结算某一周：七天全部完成 + 补签不超过 1 次 → 拿到徽章 ────
 async function settleWeekFor(userId, ws) {
-  const profiles = await db(`profiles?id=eq.${userId}&select=daily_limit`);
-  const limit = (profiles && profiles[0] && profiles[0].daily_limit) || 5;
+  const limit = await limitFor(userId);
 
   const repairs = (await db(`streak_repairs?user_id=eq.${userId}&week_start=eq.${ws}&select=repaired_date`)) || [];
   const repairedSet = new Set(repairs.map((r) => r.repaired_date));
