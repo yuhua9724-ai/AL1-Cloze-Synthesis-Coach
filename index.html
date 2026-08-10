@@ -320,6 +320,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 .chain-today{background:#fff7e8;border:2.5px solid #e24b4a;}
 .chain-future{background:#f7f6f2;}
+.chain-future span{opacity:.3;filter:grayscale(1);}
 .chain-missed{color:#b5b3ac;}
 .chain-fixable{background:#fff;border:2.5px dashed #ba7517;color:#854f0b;}
 .chain-badge{background:#ffe0a3;opacity:.45;}
@@ -1194,13 +1195,22 @@ async function loadProgressPage(){
   el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">Loading…</p>';
   try{
     const raw = await sbFetch(`attempts?user_id=eq.${currentUser.id}&select=attempt_date,question_type,source_id,is_correct&order=attempt_date.desc&limit=5000`)||[];
+    // 重做不重复计入“完成篇数”：一道题只算在第一次做它的那一天。
+    // 答题数和正确数照常统计，口径跟首页一致。
+    const firstSeen={};
+    raw.forEach(r=>{
+      if(r.source_id==null||!r.attempt_date)return;
+      const k=r.question_type+':'+r.source_id;
+      if(!firstSeen[k]||r.attempt_date<firstSeen[k])firstSeen[k]=r.attempt_date;
+    });
     const byDay={};
     raw.forEach(r=>{
       const d=r.attempt_date; if(!d)return;
       if(!byDay[d])byDay[d]={date:d,cloze_attempted:0,cloze_correct:0,synthesis_attempted:0,synthesis_correct:0,_c:new Set(),_s:new Set()};
       const o=byDay[d];
-      if(r.question_type==='cloze'){o.cloze_attempted++;if(r.is_correct)o.cloze_correct++;if(r.source_id!=null)o._c.add(r.source_id);}
-      if(r.question_type==='synthesis'){o.synthesis_attempted++;if(r.is_correct)o.synthesis_correct++;if(r.source_id!=null)o._s.add(r.source_id);}
+      const isFirst=r.source_id!=null&&firstSeen[r.question_type+':'+r.source_id]===d;
+      if(r.question_type==='cloze'){o.cloze_attempted++;if(r.is_correct)o.cloze_correct++;if(isFirst)o._c.add(r.source_id);}
+      if(r.question_type==='synthesis'){o.synthesis_attempted++;if(r.is_correct)o.synthesis_correct++;if(isFirst)o._s.add(r.source_id);}
     });
     const allRows=Object.values(byDay).map(o=>({date:o.date,cloze_attempted:o.cloze_attempted,cloze_correct:o.cloze_correct,synthesis_attempted:o.synthesis_attempted,synthesis_correct:o.synthesis_correct,cloze_done:o._c.size,synthesis_done:o._s.size})).sort((a,b)=>b.date.localeCompare(a.date));
     const rows=allRows.slice(0,7);
@@ -1249,8 +1259,13 @@ async function loadProgressPage(){
     html+=`<div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.15);border-radius:12px;padding:16px;margin-bottom:16px;">
       <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Last 7 Days</div>`;
     rows.forEach(r=>{
-      const total=(r.cloze_done||0)+(r.synthesis_done||0);
-      const maxTotal=5+5;
+      // 配额从身份推，不写死。S&T 底层存的是题数，换算成套数再跟 Cloze 篇数相加。
+      const _pt=getDailyTargets();
+      const clozeTarget=_pt.cloze;
+      const stSetTarget=Math.round(_pt.synthesis/ST_PER_SESSION);
+      const stSetsDone=Math.round((r.synthesis_done||0)/ST_PER_SESSION*10)/10;
+      const total=Math.round(((r.cloze_done||0)+stSetsDone)*10)/10;
+      const maxTotal=clozeTarget+stSetTarget;
       const pct=Math.min(100,Math.round(total/maxTotal*100));
       const dayAttempted=(r.cloze_attempted||0)+(r.synthesis_attempted||0);
       const dayCorrect=(r.cloze_correct||0)+(r.synthesis_correct||0);
@@ -1263,7 +1278,7 @@ async function loadProgressPage(){
           <div style="width:${pct}%;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--blue),var(--gold));transition:width 0.5s;"></div>
         </div>
         <div style="display:flex;gap:10px;margin-top:4px;font-size:11px;color:var(--text-dim);">
-          <span>Cloze: ${r.cloze_done||0}/5</span><span>S&amp;T: ${r.synthesis_done||0}/5</span>
+          <span>Cloze: ${r.cloze_done||0}/${clozeTarget}</span><span>S&amp;T: ${stSetsDone}/${stSetTarget} sets</span>
         </div>
       </div>`;
     });
@@ -2860,10 +2875,17 @@ function continueToday(){
 // 「今天还没做」时给出显眼的警告 —— 连胜看不到就等于不存在
 // 做完当天的量之后，让服务器看一眼这周满七天没有，满了就发徽章。
 // 学生完全无感，只是背景多一次请求。
+// 做完一篇/一套后，首页那几块都重画一次 —— 不用学生自己刷新页面
+async function refreshHomeAfterSession(){
+  try{ await loadStreakWidget(); }catch(e){}
+  try{ await loadMistakesCount(); }catch(e){}
+}
+
 async function checkWeeklyBadge(){
   if(!currentUser)return;
   try{
     const t=getDailyTargets();
+    await refreshHomeAfterSession();
     if((todayProgress.cloze_done||0)<t.cloze)return;
     if((todayProgress.synthesis_done||0)<t.synthesis)return;
     const res=await api('streak',{action:'settle_week'});
@@ -2912,7 +2934,7 @@ async function loadStreakWidget(){
       }else if(isToday){
         cls+=' chain-today'; inner='🔥';
       }else if(isFuture){
-        cls+=' chain-future';
+        cls+=' chain-future'; inner='<span>\ud83d\udd25</span>';
       }else{
         cls+=(d.day_date===firstFixable)?' chain-fixable':' chain-missed';
         inner='✕';
