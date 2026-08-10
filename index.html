@@ -97,6 +97,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .module-card{position:relative;border:1.5px solid rgba(91,65,236,0.2);border-radius:14px;padding:16px;cursor:pointer;transition:all 0.2s;background:linear-gradient(160deg,#fdfefb 0%,var(--dark2) 100%);}
 .module-card:hover{border-color:rgba(91,65,236,0.4);transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,0.08);}
 .module-card.active{border-color:var(--gold);background:var(--dark4);box-shadow:0 0 0 3px rgba(91,65,236,0.15);}
+.module-card.locked{opacity:0.45;filter:grayscale(1);cursor:not-allowed;background:var(--dark4);border-color:rgba(0,0,0,0.08);}
+.module-card.locked:hover{transform:none;box-shadow:none;border-color:rgba(0,0,0,0.08);}
 .module-icon{font-size:22px;margin-bottom:6px;}
 .module-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;}
 .module-count{font-size:11px;color:var(--text-dim);}
@@ -218,7 +220,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .btn-change-pw{background:rgba(91,65,236,0.15);border:1px solid rgba(91,65,236,0.3);color:var(--gold);font-size:13px;font-weight:500;border-radius:8px;padding:8px 16px;cursor:pointer;align-self:flex-start;}
 
 /* TOAST */
-.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark3);border:1px solid rgba(91,65,236,0.3);color:var(--text);font-size:13px;padding:9px 18px;border-radius:10px;opacity:0;transition:all 0.3s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark3);border:1px solid rgba(91,65,236,0.3);color:var(--text);font-size:13px;line-height:1.5;padding:11px 18px;border-radius:10px;opacity:0;transition:all 0.3s;pointer-events:none;z-index:999;white-space:normal;max-width:min(92vw,460px);text-align:center;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
 /* ── MOBILE RESPONSIVE ── */
@@ -315,9 +317,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .chain-cell{height:52px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;background:#f1efe8;}
 .chain-done{background:#fff0d6;}
 .chain-repaired{position:relative;}
-.chain-repaired::after{content:'🛡';position:absolute;top:-4px;right:-2px;font-size:11px;}
+
 .chain-today{background:#fff7e8;border:2.5px solid #e24b4a;}
 .chain-future{background:#f7f6f2;}
+.chain-future span{opacity:.3;filter:grayscale(1);}
 .chain-missed{color:#b5b3ac;}
 .chain-fixable{background:#fff;border:2.5px dashed #ba7517;color:#854f0b;}
 .chain-badge{background:#ffe0a3;opacity:.45;}
@@ -557,7 +560,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
   <!-- MY MISTAKES TAB -->
   <div id="panel-mistakes" style="display:none;" class="app-body-stacked">
     <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:6px;">My Mistakes</h2>
-    <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;">Last 30 days · retype the answer to clear a mistake — get it right twice in a row to master it</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;">Last 30 days · retype the answer — get it right once and the card is cleared</div>
     <div class="wrong-bank-wrap">
       <div id="wrong-bank-content"><div class="wrong-bank-empty">Loading…</div></div>
     </div>
@@ -566,7 +569,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
   <!-- RANKS TAB -->
   <div id="panel-ranks" style="display:none;" class="app-body-stacked">
     <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:6px;">🏆 Rankings</h2>
-    <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;">Based on total questions attempted and accuracy — all-time</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;line-height:1.6;">Each correct Comprehension Cloze blank = 1 point<br>Each correct S&amp;T answer = 2 points</div>
     <div id="ranks-content">Loading…</div>
   </div>
 
@@ -850,10 +853,11 @@ async function changePassword(){
 let todayProgress={cloze_done:0,synthesis_done:0,weak_cloze:'',weak_synthesis:''};
 const DAILY_TARGETS={cloze:10,synthesis:10}; // overridden per-user in getDailyTargets()
 const STUDENT_DAILY_LIMIT=10;   // 正式学员：每天 10 篇 Cloze + 10 组 S&T
+const TRIAL_DAILY_LIMIT=2;      // 试用生：每天 2 篇 Cloze + 2 组 S&T（3 天共 6 篇）
 function getDailyTargets(){
   const isTrial=currentUser?.role==='tester'||currentUser?.role==='test';
-  // 试用生照旧用他自己的额度（每天 2 篇 + 2 组）；正式学员一律 10
-  const limit=isTrial?(currentUser?.daily_limit||2):STUDENT_DAILY_LIMIT;
+  // 两种身份都写死在这里，不读账号上的 daily_limit —— 服务端写什么都不影响
+  const limit=isTrial?TRIAL_DAILY_LIMIT:STUDENT_DAILY_LIMIT;
   // Cloze 一次一篇；S&T 一次 5 题。换算成「题数」后额度跟以前一样。
   return{cloze:limit, synthesis:limit*ST_PER_SESSION};
 }
@@ -882,6 +886,16 @@ async function loadDailyProgress(){
       if(r.is_correct)tp[t+'_correct']++;
       if(r.source_id!=null)seen[t].add(r.source_id);
     });
+    // 重做错题不占当天配额：今天做的题里，凡是更早的日子已经做过的，不计入今天的额度。
+    // 正确率、答题数照常统计，只是不吃掉当天的 10 篇 / 10 组。
+    for(const t of ['cloze','synthesis']){
+      const ids=[...seen[t]].filter(v=>v!=null);
+      if(!ids.length)continue;
+      try{
+        const prior=await sbFetch(`attempts?user_id=eq.${currentUser.id}&question_type=eq.${t}&attempt_date=lt.${TODAY}&source_id=in.(${ids.join(',')})&select=source_id`)||[];
+        prior.forEach(r=>{ if(r.source_id!=null) seen[t].delete(r.source_id); });
+      }catch(e){ console.warn('redo-quota filter failed for '+t, e); }
+    }
     tp.cloze_done=seen.cloze.size;
     tp.synthesis_done=seen.synthesis.size;
     todayProgress=Object.assign(tp,{weak_cloze:todayProgress.weak_cloze||'',weak_synthesis:todayProgress.weak_synthesis||''});
@@ -909,6 +923,12 @@ function updateProgressBars(){
     document.getElementById('dp-'+t+'-txt').textContent=done>=target?'✅ Done':done+'/'+target;
     const badge=document.getElementById('done-'+t);
     if(badge)badge.textContent=done>=target?'✅':'';
+    // 配额做满 → 模块卡片变灰，点不开新 session
+    const modCard=document.getElementById('sb-'+t);
+    if(modCard){
+      if(done>=target){modCard.classList.add('locked');modCard.classList.remove('active');}
+      else modCard.classList.remove('locked');
+    }
     const card=document.getElementById('task-'+t);
     if(card){
       card.style.borderColor=done>=target?'rgba(74,222,128,0.4)':'rgba(91,65,236,0.12)';
@@ -917,10 +937,10 @@ function updateProgressBars(){
   });
 }
 
-function incrementProgress(topic, attempted, correctCount){
+function incrementProgress(topic, attempted, correctCount, skipDone){
   const key=topic+'_done';
   const target=getDailyTargets()[topic]||4;
-  if((todayProgress[key]||0)<target*2){
+  if(!skipDone && (todayProgress[key]||0)<target*2){
     todayProgress[key]=(todayProgress[key]||0)+1;
   }
   if(attempted){
@@ -1064,7 +1084,7 @@ function renderWrongCard(q) {
       + '<div class="wrong-retry-row" style="flex-wrap:wrap;align-items:center;gap:8px;">' + line + '</div>'
       + '<div style="margin-top:8px;"><button class="wrong-retry-btn" onclick="trySTMistake(\'' + q.id + '\')">Check</button></div>'
       + '<div class="wrong-retry-feedback" id="wfeedback-' + q.id + '"></div>'
-      + '<div class="wrong-card-footer"><span class="wrong-streak">Streak: <b>' + streak + '/2</b> correct needed</span></div>'
+      + '<div class="wrong-card-footer"><span class="wrong-streak">Get it right once to clear this card</span></div>'
       + '</div>';
   }
   const opts = q.options ? JSON.parse(typeof q.options === 'string' ? q.options : JSON.stringify(q.options)) : null;
@@ -1103,27 +1123,23 @@ function renderWrongCard(q) {
     <div class="wrong-card-q">${questionHtml}</div>
     ${bodyHtml}
     <div class="wrong-card-footer">
-      <span class="wrong-streak">Streak: <b>${streak}/2</b> correct needed</span>
+      <span class="wrong-streak">Get it right once to clear this card</span>
     </div>
   </div>`;
 }
 
 async function updateMistakeStreak(id, isCorrect, card) {
   try {
-    const rows = await sbFetch(`mistakes?id=eq.${id}&select=correct_streak`);
-    const streak = (rows && rows[0] ? rows[0].correct_streak : 0) || 0;
-    const newStreak = isCorrect ? streak + 1 : 0;
-    if (newStreak >= 2) {
-      await sbFetch(`mistakes?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{status:'mastered', correct_streak:2}});
+    // 单空错题：答对一次就消失；答错则留着，继续练
+    if (isCorrect) {
+      await sbFetch(`mistakes?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{status:'mastered', correct_streak:1}});
       setTimeout(() => {
         card.style.transition = 'opacity 0.5s';
         card.style.opacity = '0';
         setTimeout(() => card.remove(), 500);
       }, 3000);
     } else {
-      await sbFetch(`mistakes?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{correct_streak:newStreak}});
-      const streakEl = card.querySelector('.wrong-streak b');
-      if (streakEl) streakEl.textContent = `${newStreak}/2`;
+      await sbFetch(`mistakes?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{correct_streak:0}});
     }
   } catch(e) { console.warn('updateMistakeStreak error', e); }
 }
@@ -1179,13 +1195,22 @@ async function loadProgressPage(){
   el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">Loading…</p>';
   try{
     const raw = await sbFetch(`attempts?user_id=eq.${currentUser.id}&select=attempt_date,question_type,source_id,is_correct&order=attempt_date.desc&limit=5000`)||[];
+    // 重做不重复计入“完成篇数”：一道题只算在第一次做它的那一天。
+    // 答题数和正确数照常统计，口径跟首页一致。
+    const firstSeen={};
+    raw.forEach(r=>{
+      if(r.source_id==null||!r.attempt_date)return;
+      const k=r.question_type+':'+r.source_id;
+      if(!firstSeen[k]||r.attempt_date<firstSeen[k])firstSeen[k]=r.attempt_date;
+    });
     const byDay={};
     raw.forEach(r=>{
       const d=r.attempt_date; if(!d)return;
       if(!byDay[d])byDay[d]={date:d,cloze_attempted:0,cloze_correct:0,synthesis_attempted:0,synthesis_correct:0,_c:new Set(),_s:new Set()};
       const o=byDay[d];
-      if(r.question_type==='cloze'){o.cloze_attempted++;if(r.is_correct)o.cloze_correct++;if(r.source_id!=null)o._c.add(r.source_id);}
-      if(r.question_type==='synthesis'){o.synthesis_attempted++;if(r.is_correct)o.synthesis_correct++;if(r.source_id!=null)o._s.add(r.source_id);}
+      const isFirst=r.source_id!=null&&firstSeen[r.question_type+':'+r.source_id]===d;
+      if(r.question_type==='cloze'){o.cloze_attempted++;if(r.is_correct)o.cloze_correct++;if(isFirst)o._c.add(r.source_id);}
+      if(r.question_type==='synthesis'){o.synthesis_attempted++;if(r.is_correct)o.synthesis_correct++;if(isFirst)o._s.add(r.source_id);}
     });
     const allRows=Object.values(byDay).map(o=>({date:o.date,cloze_attempted:o.cloze_attempted,cloze_correct:o.cloze_correct,synthesis_attempted:o.synthesis_attempted,synthesis_correct:o.synthesis_correct,cloze_done:o._c.size,synthesis_done:o._s.size})).sort((a,b)=>b.date.localeCompare(a.date));
     const rows=allRows.slice(0,7);
@@ -1234,8 +1259,13 @@ async function loadProgressPage(){
     html+=`<div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.15);border-radius:12px;padding:16px;margin-bottom:16px;">
       <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Last 7 Days</div>`;
     rows.forEach(r=>{
-      const total=(r.cloze_done||0)+(r.synthesis_done||0);
-      const maxTotal=5+5;
+      // 配额从身份推，不写死。S&T 底层存的是题数，换算成套数再跟 Cloze 篇数相加。
+      const _pt=getDailyTargets();
+      const clozeTarget=_pt.cloze;
+      const stSetTarget=Math.round(_pt.synthesis/ST_PER_SESSION);
+      const stSetsDone=Math.round((r.synthesis_done||0)/ST_PER_SESSION*10)/10;
+      const total=Math.round(((r.cloze_done||0)+stSetsDone)*10)/10;
+      const maxTotal=clozeTarget+stSetTarget;
       const pct=Math.min(100,Math.round(total/maxTotal*100));
       const dayAttempted=(r.cloze_attempted||0)+(r.synthesis_attempted||0);
       const dayCorrect=(r.cloze_correct||0)+(r.synthesis_correct||0);
@@ -1248,7 +1278,7 @@ async function loadProgressPage(){
           <div style="width:${pct}%;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--blue),var(--gold));transition:width 0.5s;"></div>
         </div>
         <div style="display:flex;gap:10px;margin-top:4px;font-size:11px;color:var(--text-dim);">
-          <span>Cloze: ${r.cloze_done||0}/5</span><span>S&amp;T: ${r.synthesis_done||0}/5</span>
+          <span>Cloze: ${r.cloze_done||0}/${clozeTarget}</span><span>S&amp;T: ${stSetsDone}/${stSetTarget} sets</span>
         </div>
       </div>`;
     });
@@ -1257,10 +1287,10 @@ async function loadProgressPage(){
   }catch(e){el.innerHTML='<p style="color:var(--red);font-size:13px;">Error loading progress.</p>';}
 }
 
-function calcScore(totalAttempted, totalCorrect) {
-  if (!totalAttempted) return 0;
-  const accuracy = totalCorrect / totalAttempted;
-  return Math.round(totalAttempted * (0.6 + accuracy * 0.4));
+// 计分：Cloze 答对一个空 1 分，S&T 答对一题 2 分。做错不加不扣。
+const ST_POINTS=2;
+function calcScore(clozeCorrect, stCorrect) {
+  return (Number(clozeCorrect)||0) + (Number(stCorrect)||0) * ST_POINTS;
 }
 
 async function loadRanksPage(){
@@ -1271,7 +1301,7 @@ async function loadRanksPage(){
     const displayMap={};
     lbRows.forEach(r=>{ displayMap[r.user_id]=r.display||'Student'; });
     const ranked = lbRows
-      .map(r=>({username:r.user_id, display:r.display||'Student', score:calcScore(Number(r.attempted)||0, Number(r.correct)||0)}))
+      .map(r=>({username:r.user_id, display:r.display||'Student', score:calcScore(r.cloze_correct, r.st_correct)}))
       .sort((a,b)=>b.score-a.score);
     if(ranked.length===0){el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">No rankings yet. Start practising!</p>';return;}
     const medals=['🥇','🥈','🥉'];
@@ -1455,7 +1485,8 @@ async function loadStudentList(){
       const roleBadge=isTester?'<span style="background:rgba(244,121,32,0.15);color:#c05a00;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;">TRIAL</span>':'';
       const upgradeBtn=isTester?`<button style="background:rgba(0,199,202,0.1);border:1px solid rgba(0,199,202,0.3);color:#086668;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;font-family:inherit;margin-right:6px;" onclick="upgradeToStudent('${u.id}')">Upgrade ✅</button>`:'';
       const planLabel=u.plan?` · ${u.plan}`:'';
-      return`<div class="user-row"><div><div class="user-name">${u.display||u.phone}${roleBadge}</div><div class="user-meta">${u.phone} · ${u.level||'P6'} · ${u.daily_limit||5}/day${planLabel} · Start: ${u.start_date||'—'} ${expHtml}</div></div><div style="display:flex;align-items:center;">${upgradeBtn}<button class="btn-delete" onclick="resetStudentPassword('${u.id}')" style="margin-right:6px;">Reset PW</button><button class="btn-delete" onclick="deleteStudent('${u.id}')">Remove</button></div></div>`;
+      const editBtn=`<button style="background:rgba(91,65,236,0.1);border:1px solid rgba(91,65,236,0.3);color:var(--gold);font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;font-family:inherit;margin-right:6px;" onclick="editStudent('${u.id}')">Edit</button>`;
+      return`<div class="user-row"><div><div class="user-name">${u.display||u.phone}${roleBadge}</div><div class="user-meta">${u.phone} · ${u.level||'P6'}${planLabel} · Start: ${u.start_date||'—'} ${expHtml}</div></div><div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 0;">${upgradeBtn}${editBtn}<button class="btn-delete" onclick="resetStudentPassword('${u.id}')" style="margin-right:6px;">Reset PW</button><button class="btn-delete" onclick="deleteStudent('${u.id}')">Remove</button></div></div>`;
     }).join('');
   }catch(e){list.innerHTML='<p style="font-size:13px;color:var(--red);">Error: '+e.message+'</p>';}
 }
@@ -1474,6 +1505,50 @@ async function upgradeToStudent(userId){
     showToast('✅ '+(res.message||'Upgraded'));
     loadStudentList();
   }catch(e){showToast('❌ '+e.message);}
+}
+
+// 修改学生资料：名字 / 开始日 / 到期日 / 年级。四个依序问，留空跳过不改。
+// 日期一律用新加坡日期（YYYY-MM-DD），资料库存的就是纯日期，不带时区。
+function _validDate(d){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+  try{ return new Date(d+'T00:00:00Z').toISOString().slice(0,10)===d; }catch(e){ return false; }
+}
+
+async function editStudent(userId){
+  const u=_adminStudents.find(x=>x.id===userId)||{};
+  const who=u.display||u.phone;
+  const patch={action:'edit_student', user_id:userId};
+
+  const name=prompt(`1 of 4 — Name\n\n${who}`, u.display||'');
+  if(name===null)return;
+  if(!name.trim()){showToast('\u26a0\ufe0f Name cannot be empty.');return;}
+  patch.display=name.trim();
+
+  const sd=prompt(`2 of 4 — Start date (Singapore time)\n\nYYYY-MM-DD, or leave blank to clear`, u.start_date||'');
+  if(sd===null)return;
+  const sdv=String(sd).trim();
+  if(sdv && !_validDate(sdv)){showToast('\u26a0\ufe0f Start date must be a real date like 2026-08-20.');return;}
+  patch.start_date=sdv||null;
+
+  const ex=prompt(`3 of 4 — Expiry date (Singapore time)\n\nYYYY-MM-DD, or leave blank to clear`, u.expiry||'');
+  if(ex===null)return;
+  const exv=String(ex).trim();
+  if(exv && !_validDate(exv)){showToast('\u26a0\ufe0f Expiry date must be a real date like 2026-08-20.');return;}
+  patch.expiry=exv||null;
+
+  if(sdv && exv && exv < sdv){showToast('\u26a0\ufe0f Expiry date is before the start date.');return;}
+
+  const lv=prompt(`4 of 4 — Level\n\nType P5 or P6`, u.level||'P6');
+  if(lv===null)return;
+  const lvv=String(lv).trim().toUpperCase();
+  if(lvv!=='P5' && lvv!=='P6'){showToast('\u26a0\ufe0f Level must be P5 or P6.');return;}
+  patch.level=lvv;
+
+  try{
+    await api('admin', patch);
+    showToast('\u2705 Saved.');
+    loadStudentList();
+  }catch(e){showToast('\u274c '+e.message);}
 }
 
 async function resetStudentPassword(userId){
@@ -2146,6 +2221,7 @@ async function markDBAnswers(studentAnswer, type) {
     } else if (wrongCount > 0) {
       wrongBlanks.forEach(w => saveWrongQuestion(extractSentenceForBlank(p.passage, w.k), w.correctDisplay, w.studentAns, 'cloze', { explanation: explanations[w.k], blank_num: w.k }));
     }
+    const _wasRedo = !!redoingWrongMistakeId;
     if (redoingWrongMistakeId) {
       if (wrongCount < 8) {
         try {
@@ -2160,7 +2236,8 @@ async function markDBAnswers(studentAnswer, type) {
       student_answer:studentMap[k]||'', is_correct:isAnswerCorrect(studentMap[k], answers[k])
     })));
     markDone('cloze', p.id);
-    incrementProgress(type, keys.length, correct);
+    // 重做错题不占当天配额 —— 只记答题数和正确数，不加「完成篇数」
+    incrementProgress(type, keys.length, correct, _wasRedo);
     await loadDailyProgress();
     checkWeeklyBadge();
     // 题库对学生只读，used_count 不再由前端更新
@@ -2187,6 +2264,17 @@ async function markDBAnswers(studentAnswer, type) {
 }
 
 function selectTopic(btn,topic){
+  // 今天这个模块的额度已经做满 → 不开新 session
+  const _tgt=getDailyTargets()[topic];
+  const _done=todayProgress[topic+'_done']||0;
+  if(_tgt && _done>=_tgt){
+    const isTrial=currentUser?.role==='tester'||currentUser?.role==='test';
+    const unit=topic==='cloze'?'10 passages a day':'10 sets a day';
+    showToast(isTrial
+      ? `Today's trial practice for ${TOPIC_LABELS[topic]} is done. Check your My Mistakes — or unlock the full question bank now to practise ${unit}.`
+      : `🎉 Today's ${TOPIC_LABELS[topic]} is complete. Come back tomorrow!`, 15000);
+    return;
+  }
   document.querySelectorAll('.module-card').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   currentTopic=topic;
@@ -2239,7 +2327,13 @@ async function startSession(){
     chatHistory=[];
     setChatInputVisible(false);
     if (poolEmpty[currentTopic]) {
-      addHTMLMessage('🎉 <b>Amazing — you have finished every question we have for now!</b><br>New questions are on the way. Check back soon.<br><button class="submit-answers-btn" style="margin-top:10px" onclick="replayAll(\'' + currentTopic + '\')">Practise them again</button>');
+      const trialEnd = currentUser?.role === 'tester' || currentUser?.role === 'test';
+      if (trialEnd) {
+        // 试用生做完那 6 篇 —— 引导升级，不给「再练一轮」
+        addHTMLMessage("🎉 <b>Congratulations! You've completed all the practice in your trial.</b><br>Contact us to unlock the full question bank.");
+      } else {
+        addHTMLMessage('🎉 <b>Amazing — you have finished every question we have for now!</b><br>New questions are on the way. Check back soon.<br><button class="submit-answers-btn" style="margin-top:10px" onclick="replayAll(\'' + currentTopic + '\')">Practise them again</button>');
+      }
     } else {
       addMessage('ai', `Hi ${currentUser?.display||'there'}! The questions could not be loaded right now. Please check your internet connection and try again, or let your teacher know.`);
     }
@@ -2826,10 +2920,17 @@ function continueToday(){
 // 「今天还没做」时给出显眼的警告 —— 连胜看不到就等于不存在
 // 做完当天的量之后，让服务器看一眼这周满七天没有，满了就发徽章。
 // 学生完全无感，只是背景多一次请求。
+// 做完一篇/一套后，首页那几块都重画一次 —— 不用学生自己刷新页面
+async function refreshHomeAfterSession(){
+  try{ await loadStreakWidget(); }catch(e){}
+  try{ await loadMistakesCount(); }catch(e){}
+}
+
 async function checkWeeklyBadge(){
   if(!currentUser)return;
   try{
     const t=getDailyTargets();
+    await refreshHomeAfterSession();
     if((todayProgress.cloze_done||0)<t.cloze)return;
     if((todayProgress.synthesis_done||0)<t.synthesis)return;
     const res=await api('streak',{action:'settle_week'});
@@ -2872,12 +2973,13 @@ async function loadStreakWidget(){
       const label=DOW[days.indexOf(d)];
       let cls='chain-cell', inner='';
       if(d.is_done){
+        // 补打卡补上的格子显示 ✓，正常完成的显示 🔥
         cls+=d.is_repaired?' chain-done chain-repaired':' chain-done';
-        inner='🔥';
+        inner=d.is_repaired?'✓':'🔥';
       }else if(isToday){
         cls+=' chain-today'; inner='🔥';
       }else if(isFuture){
-        cls+=' chain-future';
+        cls+=' chain-future'; inner='<span>\ud83d\udd25</span>';
       }else{
         cls+=(d.day_date===firstFixable)?' chain-fixable':' chain-missed';
         inner='✕';
@@ -2891,8 +2993,24 @@ async function loadStreakWidget(){
 
     let footer='';
     if(firstFixable&&todayDone){
-      footer=`<div class="chain-fix-note"><b>${firstFixable}</b> can still be fixed — tap to bring it back.</div>
+      // 补打卡：那天缺多少，今天就要在额度之外多做多少
+      const _t=getDailyTargets();
+      const fixRow=days.find(d=>d.day_date===firstFixable)||{};
+      const todayRow=days.find(d=>d.day_date===today)||{};
+      const needC=Math.max(0,_t.cloze-(fixRow.cloze_done||0));
+      const needS=Math.max(0,_t.synthesis-(fixRow.st_done||0));
+      const leftC=Math.max(0,needC-Math.max(0,(todayRow.cloze_done||0)-_t.cloze));
+      const leftS=Math.ceil(Math.max(0,needS-Math.max(0,(todayRow.st_done||0)-_t.synthesis))/5);
+      if(leftC===0&&leftS===0){
+        footer=`<div class="chain-fix-note">You've made up what <b>${firstFixable}</b> was missing — tap to bring it back.</div>
         <button class="chain-btn chain-btn-fix" onclick="repairDay('${firstFixable}')">Fix ${firstFixable}</button>`;
+      }else{
+        const bits=[];
+        if(leftC>0)bits.push(`${leftC} passage${leftC>1?'s':''}`);
+        if(leftS>0)bits.push(`${leftS} set${leftS>1?'s':''}`);
+        footer=`<div class="chain-fix-note">To bring back <b>${firstFixable}</b>, make up what was missed: <b>${bits.join(' and ')}</b> to go.</div>
+        <button class="chain-btn" onclick="showTab('practice')">Make up ${firstFixable}</button>`;
+      }
     }else if(firstFixable){
       footer=`<div class="chain-fix-note">Finish today's practice, then you can fix <b>${firstFixable}</b>.</div>
         <button class="chain-btn" onclick="showTab('practice')">Check in today</button>`;
@@ -2932,7 +3050,7 @@ async function renderMiniLeaderboard(){
     const lbRows = await sbFetch('rpc/leaderboard', {method:'POST', body:{}});
     if(!lbRows)return;
     const ranked = lbRows
-      .map(r=>({username:r.user_id, display:r.display||'Student', score:calcScore(Number(r.attempted)||0, Number(r.correct)||0)}))
+      .map(r=>({username:r.user_id, display:r.display||'Student', score:calcScore(r.cloze_correct, r.st_correct)}))
       .sort((a,b)=>b.score-a.score);
     if(!ranked.length)return;
     const myRank=ranked.findIndex(r=>r.username===currentUser.id)+1;
@@ -3000,7 +3118,7 @@ function shareInviteCode(code){
 // ══════════════════════════════════
 // TOAST
 // ══════════════════════════════════
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+function showToast(msg,ms){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');if(t._hideTimer)clearTimeout(t._hideTimer);t._hideTimer=setTimeout(()=>t.classList.remove('show'),ms||3000);}
 </script>
 <script>
 if ('serviceWorker' in navigator) {
