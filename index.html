@@ -569,7 +569,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
   <!-- RANKS TAB -->
   <div id="panel-ranks" style="display:none;" class="app-body-stacked">
     <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:6px;">🏆 Rankings</h2>
-    <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;">Based on total questions attempted and accuracy — all-time</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;line-height:1.6;">Each correct Comprehension Cloze blank = 1 point<br>Each correct S&amp;T answer = 2 points</div>
     <div id="ranks-content">Loading…</div>
   </div>
 
@@ -1485,7 +1485,8 @@ async function loadStudentList(){
       const roleBadge=isTester?'<span style="background:rgba(244,121,32,0.15);color:#c05a00;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;">TRIAL</span>':'';
       const upgradeBtn=isTester?`<button style="background:rgba(0,199,202,0.1);border:1px solid rgba(0,199,202,0.3);color:#086668;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;font-family:inherit;margin-right:6px;" onclick="upgradeToStudent('${u.id}')">Upgrade ✅</button>`:'';
       const planLabel=u.plan?` · ${u.plan}`:'';
-      return`<div class="user-row"><div><div class="user-name">${u.display||u.phone}${roleBadge}</div><div class="user-meta">${u.phone} · ${u.level||'P6'} · ${u.daily_limit||5}/day${planLabel} · Start: ${u.start_date||'—'} ${expHtml}</div></div><div style="display:flex;align-items:center;">${upgradeBtn}<button class="btn-delete" onclick="resetStudentPassword('${u.id}')" style="margin-right:6px;">Reset PW</button><button class="btn-delete" onclick="deleteStudent('${u.id}')">Remove</button></div></div>`;
+      const editBtn=`<button style="background:rgba(91,65,236,0.1);border:1px solid rgba(91,65,236,0.3);color:var(--gold);font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;font-family:inherit;margin-right:6px;" onclick="editStudent('${u.id}')">Edit</button>`;
+      return`<div class="user-row"><div><div class="user-name">${u.display||u.phone}${roleBadge}</div><div class="user-meta">${u.phone} · ${u.level||'P6'}${planLabel} · Start: ${u.start_date||'—'} ${expHtml}</div></div><div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 0;">${upgradeBtn}${editBtn}<button class="btn-delete" onclick="resetStudentPassword('${u.id}')" style="margin-right:6px;">Reset PW</button><button class="btn-delete" onclick="deleteStudent('${u.id}')">Remove</button></div></div>`;
     }).join('');
   }catch(e){list.innerHTML='<p style="font-size:13px;color:var(--red);">Error: '+e.message+'</p>';}
 }
@@ -1504,6 +1505,50 @@ async function upgradeToStudent(userId){
     showToast('✅ '+(res.message||'Upgraded'));
     loadStudentList();
   }catch(e){showToast('❌ '+e.message);}
+}
+
+// 修改学生资料：名字 / 开始日 / 到期日 / 年级。四个依序问，留空跳过不改。
+// 日期一律用新加坡日期（YYYY-MM-DD），资料库存的就是纯日期，不带时区。
+function _validDate(d){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+  try{ return new Date(d+'T00:00:00Z').toISOString().slice(0,10)===d; }catch(e){ return false; }
+}
+
+async function editStudent(userId){
+  const u=_adminStudents.find(x=>x.id===userId)||{};
+  const who=u.display||u.phone;
+  const patch={action:'edit_student', user_id:userId};
+
+  const name=prompt(`1 of 4 — Name\n\n${who}`, u.display||'');
+  if(name===null)return;
+  if(!name.trim()){showToast('\u26a0\ufe0f Name cannot be empty.');return;}
+  patch.display=name.trim();
+
+  const sd=prompt(`2 of 4 — Start date (Singapore time)\n\nYYYY-MM-DD, or leave blank to clear`, u.start_date||'');
+  if(sd===null)return;
+  const sdv=String(sd).trim();
+  if(sdv && !_validDate(sdv)){showToast('\u26a0\ufe0f Start date must be a real date like 2026-08-20.');return;}
+  patch.start_date=sdv||null;
+
+  const ex=prompt(`3 of 4 — Expiry date (Singapore time)\n\nYYYY-MM-DD, or leave blank to clear`, u.expiry||'');
+  if(ex===null)return;
+  const exv=String(ex).trim();
+  if(exv && !_validDate(exv)){showToast('\u26a0\ufe0f Expiry date must be a real date like 2026-08-20.');return;}
+  patch.expiry=exv||null;
+
+  if(sdv && exv && exv < sdv){showToast('\u26a0\ufe0f Expiry date is before the start date.');return;}
+
+  const lv=prompt(`4 of 4 — Level\n\nType P5 or P6`, u.level||'P6');
+  if(lv===null)return;
+  const lvv=String(lv).trim().toUpperCase();
+  if(lvv!=='P5' && lvv!=='P6'){showToast('\u26a0\ufe0f Level must be P5 or P6.');return;}
+  patch.level=lvv;
+
+  try{
+    await api('admin', patch);
+    showToast('\u2705 Saved.');
+    loadStudentList();
+  }catch(e){showToast('\u274c '+e.message);}
 }
 
 async function resetStudentPassword(userId){
