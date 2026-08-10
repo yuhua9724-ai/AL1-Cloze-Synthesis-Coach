@@ -1287,10 +1287,10 @@ async function loadProgressPage(){
   }catch(e){el.innerHTML='<p style="color:var(--red);font-size:13px;">Error loading progress.</p>';}
 }
 
-function calcScore(totalAttempted, totalCorrect) {
-  if (!totalAttempted) return 0;
-  const accuracy = totalCorrect / totalAttempted;
-  return Math.round(totalAttempted * (0.6 + accuracy * 0.4));
+// 计分：Cloze 答对一个空 1 分，S&T 答对一题 2 分。做错不加不扣。
+const ST_POINTS=2;
+function calcScore(clozeCorrect, stCorrect) {
+  return (Number(clozeCorrect)||0) + (Number(stCorrect)||0) * ST_POINTS;
 }
 
 async function loadRanksPage(){
@@ -1301,7 +1301,7 @@ async function loadRanksPage(){
     const displayMap={};
     lbRows.forEach(r=>{ displayMap[r.user_id]=r.display||'Student'; });
     const ranked = lbRows
-      .map(r=>({username:r.user_id, display:r.display||'Student', score:calcScore(Number(r.attempted)||0, Number(r.correct)||0)}))
+      .map(r=>({username:r.user_id, display:r.display||'Student', score:calcScore(r.cloze_correct, r.st_correct)}))
       .sort((a,b)=>b.score-a.score);
     if(ranked.length===0){el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">No rankings yet. Start practising!</p>';return;}
     const medals=['🥇','🥈','🥉'];
@@ -3005,7 +3005,7 @@ async function renderMiniLeaderboard(){
     const lbRows = await sbFetch('rpc/leaderboard', {method:'POST', body:{}});
     if(!lbRows)return;
     const ranked = lbRows
-      .map(r=>({username:r.user_id, display:r.display||'Student', score:calcScore(Number(r.attempted)||0, Number(r.correct)||0)}))
+      .map(r=>({username:r.user_id, display:r.display||'Student', score:calcScore(r.cloze_correct, r.st_correct)}))
       .sort((a,b)=>b.score-a.score);
     if(!ranked.length)return;
     const myRank=ranked.findIndex(r=>r.username===currentUser.id)+1;
