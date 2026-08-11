@@ -310,25 +310,28 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 /* Streak */
 .streak-widget{display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#fff7e6,#ffedd5);border:1.5px solid #fbbf24;border-radius:var(--radius);padding:11px 16px;margin-bottom:12px;font-size:14px;font-weight:700;color:#92400e;}
 .streak-widget .streak-num{font-size:20px;font-weight:800;color:#d97706;}
-.chain-card{background:#fff;border:1px solid #f0ede4;border-radius:14px;padding:14px;margin-bottom:12px;}
-.chain-head{text-align:center;font-size:16px;font-weight:700;color:#e24b4a;margin-bottom:12px;}
-.chain-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;}
+.chain-card{background:#fff;border:1px solid #f0ede4;border-radius:16px;padding:16px;margin-bottom:12px;}
+.chain-head{margin-bottom:12px;}
+.chain-head span{display:inline-block;font-size:12px;font-weight:700;color:#4023c9;background:#eeebfd;padding:5px 16px;border-radius:99px;}
+.chain-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
 .chain-col{text-align:center;}
-.chain-cell{height:52px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;background:#f1efe8;}
-.chain-done{background:#fff0d6;}
+.chain-cell{width:34px;height:34px;margin:0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;background:#f4f3f8;}
+.chain-done{background:linear-gradient(160deg,#7c66f0,#5b41ec);box-shadow:0 2px 6px rgba(91,65,236,.3);color:#fff;}
 .chain-repaired{position:relative;}
 
-.chain-today{background:#fff;border:2.5px dashed #e24b4a;}
-.chain-today span{opacity:.45;filter:grayscale(.5);}
-.chain-future{background:#f7f6f2;}
-.chain-future span{opacity:.3;filter:grayscale(1);}
+.chain-today{background:#fff;border:2.5px dashed #5b41ec;}
+.chain-today span{opacity:.85;}
+.chain-future{background:#f3f0fe;}
+.chain-future span{opacity:.65;}
 .chain-missed{color:#b5b3ac;}
-.chain-fixable{background:#fff;border:2.5px dashed #ba7517;color:#854f0b;}
-.chain-badge{background:#ffe0a3;opacity:.45;}
-.chain-badge-won{opacity:1;}
-.chain-label{font-size:10px;color:#888780;margin-top:4px;}
-.chain-label-today{color:#e24b4a;font-weight:700;}
-.chain-fix-note{background:#fff0d6;border-radius:10px;padding:9px 12px;margin-top:12px;font-size:12px;color:#854f0b;line-height:1.5;}
+.chain-fixable{background:#fff;border:2.5px dashed #ba7517;color:#854f0b;font-size:15px;}
+.chain-badge{background:#ffeec2;}
+.chain-badge span{opacity:.9;}
+.chain-badge-won{background:#ffd873;}
+.chain-badge-won span{opacity:1;}
+.chain-label{font-size:11px;font-weight:600;color:#8b89a0;margin-bottom:5px;}
+.chain-label-today{color:#5b41ec;font-weight:700;}
+.chain-fix-note{background:#f4f2fe;border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13px;color:#4023c9;line-height:1.5;}
 .chain-btn{width:100%;background:#5b41ec;color:#fff;border:none;border-radius:22px;padding:12px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;margin-top:10px;}
 .chain-btn-fix{background:#ba7517;}
 .chain-tier{text-align:center;font-size:11px;color:#888780;margin-top:9px;}
@@ -3222,7 +3225,7 @@ async function checkWeeklyBadge(){
 
 // 七天打卡链条：完成的格子亮起来，漏掉的打叉但随时能补
 const TIER_LABEL={start:'',bronze:'Bronze',silver:'Silver',gold:'Gold',platinum:'Platinum',legend:'Legend'};
-const DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const DOW=['M','T','W','T','F','S','S'];
 let weekState=null;
 
 async function loadStreakWidget(){
@@ -3259,7 +3262,9 @@ async function loadStreakWidget(){
       }else if(isToday){
         cls+=' chain-today'; inner='<span>\ud83d\udd25</span>';
       }else if(isFuture){
-        cls+=' chain-future'; inner='<span>\ud83d\udd25</span>';
+        // 周日那格直接放奖杯 —— 它就是这周的终点
+        cls+=(days.indexOf(d)===6)?' chain-badge':' chain-future';
+        inner=(days.indexOf(d)===6)?'<span>\ud83c\udfc6</span>':'<span>\ud83d\udd25</span>';
       }else if(d.in_range===false){
         // 还没注册的那几天：空格子，不画 ✕也不能补
         cls+=' chain-future';
@@ -3269,10 +3274,9 @@ async function loadStreakWidget(){
       }
       const isSun=days.indexOf(d)===6;
       if(isSun&&!d.is_done&&!isToday&&!isFuture){} // 周日格子照常
-      return `<div class="chain-col"><div class="${cls}">${inner}</div><div class="chain-label${isToday?' chain-label-today':''}">${isToday?'Today':label}</div></div>`;
+      return `<div class="chain-col"><div class="chain-label${isToday?' chain-label-today':''}">${label}</div><div class="${cls}">${inner}</div></div>`;
     }).join('');
 
-    const badgeCell=`<div class="chain-col"><div class="chain-cell chain-badge${doneCount>=7?' chain-badge-won':''}">🏆</div><div class="chain-label">Badge</div></div>`;
 
     let footer='';
     if(firstFixable&&todayDone){
@@ -3315,8 +3319,8 @@ async function loadStreakWidget(){
       : `${TIER_LABEL[r.tier]} · ${r.badges} badges${r.next_tier?` · ${r.next_at-r.badges} more to ${TIER_LABEL[r.next_tier]}`:''}`;
 
     el.innerHTML=`<div class="chain-card">
-      <div class="chain-head">Daily check-in</div>
-      <div class="chain-grid">${cells}${badgeCell}</div>
+      <div class="chain-head"><span>Daily check-in</span></div>
+      <div class="chain-grid">${cells}</div>
       ${footer}
       <div class="chain-tier">${tierTxt}</div>
     </div>`;
