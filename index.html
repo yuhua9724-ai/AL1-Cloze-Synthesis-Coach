@@ -318,7 +318,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .chain-done{background:#fff0d6;}
 .chain-repaired{position:relative;}
 
-.chain-today{background:#fff7e8;border:2.5px solid #e24b4a;}
+.chain-today{background:#fff;border:2.5px dashed #e24b4a;}
+.chain-today span{opacity:.45;filter:grayscale(.5);}
 .chain-future{background:#f7f6f2;}
 .chain-future span{opacity:.3;filter:grayscale(1);}
 .chain-missed{color:#b5b3ac;}
@@ -856,7 +857,7 @@ let todayProgress={cloze_done:0,synthesis_done:0,weak_cloze:'',weak_synthesis:''
 //   上限  DAILY_CAP  = 10 → 防滥用的天花板，到了模块卡片变灰
 // 试用生两者都是 2（试用题库共 6 篇分 3 天，没有多练的余地）
 const DAILY_GOAL=2;
-const STUDENT_DAILY_CAP=10;
+const STUDENT_DAILY_CAP=6;
 const TRIAL_DAILY_CAP=2;
 function isTrialUser(){ return currentUser?.role==='tester'||currentUser?.role==='test'; }
 function getDailyGoals(){ return{cloze:DAILY_GOAL, synthesis:DAILY_GOAL*ST_PER_SESSION}; }
@@ -925,8 +926,11 @@ function updateProgressBars(){
     const done=todayProgress[t+'_done']||0;
     const target=tp[t];
     const pct=Math.min(100,Math.round(done/target*100));
+    // S&T 底层存题数，显示时换成套数 —— 跟 Cloze 的篇数同一个单位感
+    const unit=t==='synthesis'?ST_PER_SESSION:1;
+    const showDone=Math.floor(done/unit), showTarget=Math.round(target/unit);
     document.getElementById('dp-'+t+'-bar').style.width=pct+'%';
-    document.getElementById('dp-'+t+'-txt').textContent=done>=target?'✅ Done':done+'/'+target;
+    document.getElementById('dp-'+t+'-txt').textContent=done>=target?'✅ Done':showDone+'/'+showTarget;
     const badge=document.getElementById('done-'+t);
     if(badge)badge.textContent=done>=target?'✅':'';
     // 到了上限（不是任务量）才变灰 —— 做完 2 篇还能继续练到 10 篇
@@ -3146,7 +3150,7 @@ function renderDailyTask(){
       <div class="daily-task-item" onclick="selectTopicById('synthesis')">
         <div class="task-check ${synthDone?'done':''}"><span>${synthDone?'✓':''}</span></div>
         <span class="task-label ${synthDone?'done':''}">Synthesis &amp; Trans.</span>
-        <span class="task-progress-text">${Math.min(todayProgress.synthesis_done||0,_dt.synthesis)}/${_dt.synthesis}</span>
+        <span class="task-progress-text">${Math.min(Math.floor((todayProgress.synthesis_done||0)/ST_PER_SESSION),_dt.synthesis/ST_PER_SESSION)}/${_dt.synthesis/ST_PER_SESSION}</span>
       </div>
       <div class="daily-task-item" onclick="showTab('mistakes')">
         <div class="task-check ${mistakesDone?'done':''}"><span>${mistakesDone?'✓':''}</span></div>
@@ -3238,6 +3242,8 @@ async function loadStreakWidget(){
     days.forEach(d=>{
       if(d.is_done)doneCount++;
       if(d.day_date===today&&d.is_done)todayDone=true;
+      // 注册之前的日子不算漏打卡 —— 那时候还没有这个账号
+      if(d.in_range===false)return;
       if(!d.is_done&&d.day_date<today&&!firstFixable)firstFixable=d.day_date;
     });
 
@@ -3251,9 +3257,12 @@ async function loadStreakWidget(){
         cls+=d.is_repaired?' chain-done chain-repaired':' chain-done';
         inner=d.is_repaired?'✓':'🔥';
       }else if(isToday){
-        cls+=' chain-today'; inner='🔥';
+        cls+=' chain-today'; inner='<span>\ud83d\udd25</span>';
       }else if(isFuture){
         cls+=' chain-future'; inner='<span>\ud83d\udd25</span>';
+      }else if(d.in_range===false){
+        // 还没注册的那几天：空格子，不画 ✕也不能补
+        cls+=' chain-future';
       }else{
         cls+=(d.day_date===firstFixable)?' chain-fixable':' chain-missed';
         inner='✕';
