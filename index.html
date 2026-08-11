@@ -74,7 +74,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 .topnav>*{position:relative;z-index:1;}
 .topnav-brand{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600;color:#fff;letter-spacing:-0.3px;}
-.header-logo{font-family:'Black Han Sans','Arial Black',sans-serif;font-size:20px;font-weight:900;letter-spacing:-0.5px;display:inline-flex;align-items:center;gap:2px;}
+.header-logo{font-family:'Black Han Sans','Arial Black',sans-serif;font-size:20px;font-weight:900;letter-spacing:-0.5px;display:flex;width:fit-content;align-items:center;gap:2px;}
 .header-logo .al-text{color:transparent;-webkit-text-stroke:1px rgba(255,255,255,0.75);filter:drop-shadow(0 0 3px rgba(91,65,236,0.5));}
 .header-logo .one-text{color:transparent;-webkit-text-stroke:1.2px rgba(255,255,255,0.9);filter:drop-shadow(0 0 2px rgba(255,255,255,0.5)) drop-shadow(0 0 5px rgba(0,199,202,0.4));}
 .header-brand-sub{display:inline-block;font-size:10px;font-weight:600;color:#fff;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.35);letter-spacing:0.3px;margin-top:3px;margin-left:-9px;padding:3px 10px;border-radius:99px;}
@@ -513,7 +513,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
       <div class="stat-card"><div class="stat-num" id="stat-today">0</div><div class="stat-label">Today's Qs</div></div>
       <div class="stat-card"><div class="stat-num" id="stat-sessions">0</div><div class="stat-label">Sessions</div></div>
       <div class="stat-card"><div class="stat-num" id="stat-accuracy">—</div><div class="stat-label">Accuracy</div></div>
-      <div class="stat-card"><div class="stat-num" id="stat-quota">0/10</div><div class="stat-label">Daily Quota</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-quota">0/4</div><div class="stat-label">Daily Task</div></div>
     </div>
     <div id="mini-leaderboard" style="margin-bottom:14px"></div>
 
@@ -1264,26 +1264,26 @@ async function loadProgressPage(){
     html+=`<div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.15);border-radius:12px;padding:16px;margin-bottom:16px;">
       <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Last 7 Days</div>`;
     rows.forEach(r=>{
-      // 配额从身份推，不写死。S&T 底层存的是题数，换算成套数再跟 Cloze 篇数相加。
-      const _pt=getDailyTargets();
+      // 任务量作分母。S&T 底层存题数，换算成整套数，不显示小数。
+      const _pt=getDailyGoals();
       const clozeTarget=_pt.cloze;
       const stSetTarget=Math.round(_pt.synthesis/ST_PER_SESSION);
-      const stSetsDone=Math.round((r.synthesis_done||0)/ST_PER_SESSION*10)/10;
-      const total=Math.round(((r.cloze_done||0)+stSetsDone)*10)/10;
+      const stSetsDone=Math.floor((r.synthesis_done||0)/ST_PER_SESSION);
+      const total=(r.cloze_done||0)+stSetsDone;
       const maxTotal=clozeTarget+stSetTarget;
       const pct=Math.min(100,Math.round(total/maxTotal*100));
-      const dayAttempted=(r.cloze_attempted||0)+(r.synthesis_attempted||0);
-      const dayCorrect=(r.cloze_correct||0)+(r.synthesis_correct||0);
-      const dayAcc=dayAttempted>0?Math.round(dayCorrect/dayAttempted*100):null;
+      // 两个模块的正确率分开算 —— 合在一起看不出是哪一项弱
+      const cAcc=(r.cloze_attempted||0)>0?Math.round((r.cloze_correct||0)/r.cloze_attempted*100):null;
+      const sAcc=(r.synthesis_attempted||0)>0?Math.round((r.synthesis_correct||0)/r.synthesis_attempted*100):null;
       html+=`<div style="margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:4px;">
-          <span>${r.date}</span><span>${total}/${maxTotal} sessions${dayAcc!==null?` · ${dayAcc}% accuracy`:''}</span>
+          <span>${r.date}</span><span>${total}/${maxTotal} sessions</span>
         </div>
         <div style="background:var(--dark4);border-radius:4px;height:8px;overflow:hidden;">
           <div style="width:${pct}%;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--blue),var(--gold));transition:width 0.5s;"></div>
         </div>
-        <div style="display:flex;gap:10px;margin-top:4px;font-size:11px;color:var(--text-dim);">
-          <span>Cloze: ${r.cloze_done||0}/${clozeTarget}</span><span>S&amp;T: ${stSetsDone}/${stSetTarget} sets</span>
+        <div style="display:flex;gap:14px;margin-top:4px;font-size:11px;color:var(--text-dim);flex-wrap:wrap;">
+          <span>Cloze: ${r.cloze_done||0}/${clozeTarget}${cAcc!==null?` · ${cAcc}%`:''}</span><span>S&amp;T: ${stSetsDone}/${stSetTarget} sets${sAcc!==null?` · ${sAcc}%`:''}</span>
         </div>
       </div>`;
     });
@@ -2839,9 +2839,15 @@ function updateStatsBar(){
   const t=todayProgress;
   const totalAttempted=(t.cloze_attempted||0)+(t.synthesis_attempted||0);
   const totalCorrect=(t.cloze_correct||0)+(t.synthesis_correct||0);
-  const totalSessions=(t.cloze_done||0)+(t.synthesis_done||0);
+  // Cloze 存的是篇数，S&T 存的是题数 —— 先把 S&T 换算成套数再相加，不混单位
+  const stSetsDone=Math.floor((t.synthesis_done||0)/ST_PER_SESSION);
+  const totalSessions=(t.cloze_done||0)+stSetsDone;
   const acc=totalAttempted>0?Math.round(totalCorrect/totalAttempted*100)+'%':'—';
-  const tp2=getDailyLimits();const QUOTA=tp2.cloze+tp2.synthesis;
+  // 这一格看的是今日任务（2 篇 + 2 套），不是防滥用的上限
+  const _g=getDailyGoals();
+  const goalCloze=_g.cloze, goalSt=Math.round(_g.synthesis/ST_PER_SESSION);
+  const TASK_TOTAL=goalCloze+goalSt;
+  const taskDone=Math.min(t.cloze_done||0,goalCloze)+Math.min(stSetsDone,goalSt);
 
   const elToday=document.getElementById('stat-today');
   const elSess=document.getElementById('stat-sessions');
@@ -2851,8 +2857,8 @@ function updateStatsBar(){
   if(elSess)elSess.textContent=totalSessions;
   if(elAcc)elAcc.textContent=acc;
   if(elQuota){
-    elQuota.textContent=`${Math.min(totalSessions,QUOTA)}/${QUOTA}`;
-    elQuota.style.color=totalSessions>=QUOTA?'var(--green)':'';
+    elQuota.textContent=`${taskDone}/${TASK_TOTAL}`;
+    elQuota.style.color=taskDone>=TASK_TOTAL?'var(--green)':'';
   }
   renderDailyTask();
   renderContinueCta();
