@@ -77,7 +77,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .header-logo{font-family:'Black Han Sans','Arial Black',sans-serif;font-size:20px;font-weight:900;letter-spacing:-0.5px;display:inline-flex;align-items:center;gap:2px;}
 .header-logo .al-text{color:transparent;-webkit-text-stroke:1px rgba(255,255,255,0.75);filter:drop-shadow(0 0 3px rgba(91,65,236,0.5));}
 .header-logo .one-text{color:transparent;-webkit-text-stroke:1.2px rgba(255,255,255,0.9);filter:drop-shadow(0 0 2px rgba(255,255,255,0.5)) drop-shadow(0 0 5px rgba(0,199,202,0.4));}
-.header-brand-sub{font-size:10px;color:rgba(255,255,255,0.55);letter-spacing:0.3px;margin-top:1px;}
+.header-brand-sub{display:inline-block;font-size:10px;font-weight:600;color:#fff;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.35);letter-spacing:0.3px;margin-top:3px;margin-left:-9px;padding:3px 10px;border-radius:99px;}
 .topnav-right{display:flex;align-items:center;gap:10px;}
 .topnav-user{font-size:13px;color:rgba(255,255,255,0.7);}
 .btn-logout{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;transition:all 0.2s;}
@@ -417,6 +417,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
       <div class="al1-logo"><span class="al-text">AL</span><span class="one-text">1</span></div>
       <div class="al1-sub">Cloze &amp; S&amp;T Hunter · for PSLE</div>
     </div>
+    <div id="login-credentials">
     <div class="login-field">
       <label>Phone / Username</label>
       <input type="text" id="login-user" placeholder="e.g. 91234567" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"/>
@@ -427,6 +428,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
         <input type="password" id="login-pass" placeholder="Your password" autocomplete="current-password" style="padding-right:44px" onkeydown="if(event.key==='Enter')doLogin()"/>
         <span onclick="togglePwVisibility()" id="pw-toggle-icon" style="position:absolute;right:14px;top:12px;cursor:pointer;font-size:18px;user-select:none">👁</span>
       </div>
+    </div>
     </div>
     <div id="login-form-inner">
     <button class="btn-login" id="btn-login" onclick="doLogin()">Sign In</button>
@@ -451,14 +453,10 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
       <div class="login-field">
         <label>Password</label>
         <input type="password" id="signup-pass" placeholder="Create a password" autocomplete="new-password" oninput="updateSignupBtn()"/>
-        <div style="font-size:11px;color:#6b7280;line-height:1.5;margin-top:8px;">
-          <strong>Parents, please help your child complete this step.</strong><br>
-          家长请协助孩子完成这一步。
-        </div>
       </div>
       <div class="login-field">
         <label>Referral Code</label>
-        <input type="text" id="signup-code-field" placeholder="e.g. REF-ABC1" autocomplete="off" style="text-transform:uppercase" oninput="updateSignupBtn()"/>
+        <input type="text" id="signup-code-field" placeholder="REF-ABC1" autocomplete="off" style="text-transform:uppercase" oninput="updateSignupBtn()"/>
       </div>
       <button id="btn-signup" class="btn-signup" onclick="doSignup()">Create Account</button>
       <div class="signup-err" id="signup-err"></div>
@@ -737,12 +735,14 @@ async function doLogin(){
 
 function showSignup(e){
   if(e)e.preventDefault();
+  document.getElementById('login-credentials').style.display='none';
   document.getElementById('login-form-inner').style.display='none';
   document.getElementById('signup-form-inner').style.display='block';
   document.getElementById('signup-err').style.display='none';
 }
 function showLogin(e){
   if(e)e.preventDefault();
+  document.getElementById('login-credentials').style.display='block';
   document.getElementById('signup-form-inner').style.display='none';
   document.getElementById('login-form-inner').style.display='block';
   document.getElementById('login-error').style.display='none';
@@ -851,16 +851,20 @@ async function changePassword(){
 // DAILY PROGRESS
 // ══════════════════════════════════
 let todayProgress={cloze_done:0,synthesis_done:0,weak_cloze:'',weak_synthesis:''};
-const DAILY_TARGETS={cloze:10,synthesis:10}; // overridden per-user in getDailyTargets()
-const STUDENT_DAILY_LIMIT=10;   // 正式学员：每天 10 篇 Cloze + 10 组 S&T
-const TRIAL_DAILY_LIMIT=2;      // 试用生：每天 2 篇 Cloze + 2 组 S&T（3 天共 6 篇）
-function getDailyTargets(){
-  const isTrial=currentUser?.role==='tester'||currentUser?.role==='test';
-  // 两种身份都写死在这里，不读账号上的 daily_limit —— 服务端写什么都不影响
-  const limit=isTrial?TRIAL_DAILY_LIMIT:STUDENT_DAILY_LIMIT;
-  // Cloze 一次一篇；S&T 一次 5 题。换算成「题数」后额度跟以前一样。
-  return{cloze:limit, synthesis:limit*ST_PER_SESSION};
+// 每天两个数字，用途不同：
+//   任务量 DAILY_GOAL = 2  → 做到就算今天完成（打卡、徽章、今日任务、进度页）
+//   上限  DAILY_CAP  = 10 → 防滥用的天花板，到了模块卡片变灰
+// 试用生两者都是 2（试用题库共 6 篇分 3 天，没有多练的余地）
+const DAILY_GOAL=2;
+const STUDENT_DAILY_CAP=10;
+const TRIAL_DAILY_CAP=2;
+function isTrialUser(){ return currentUser?.role==='tester'||currentUser?.role==='test'; }
+function getDailyGoals(){ return{cloze:DAILY_GOAL, synthesis:DAILY_GOAL*ST_PER_SESSION}; }
+function getDailyLimits(){
+  const cap=isTrialUser()?TRIAL_DAILY_CAP:STUDENT_DAILY_CAP;
+  return{cloze:cap, synthesis:cap*ST_PER_SESSION};
 }
+function getDailyTargets(){ return getDailyGoals(); }
 const ST_PER_SESSION=5;
 
 // 每做一题记一行，只能新增。今天做了多少 = 数有多少行。
@@ -914,7 +918,8 @@ async function saveDailyProgress(){
 }
 
 function updateProgressBars(){
-  const tp=getDailyTargets();
+  const tp=getDailyGoals();
+  const cap=getDailyLimits();
   ['cloze','synthesis'].forEach(t=>{
     const done=todayProgress[t+'_done']||0;
     const target=tp[t];
@@ -923,10 +928,10 @@ function updateProgressBars(){
     document.getElementById('dp-'+t+'-txt').textContent=done>=target?'✅ Done':done+'/'+target;
     const badge=document.getElementById('done-'+t);
     if(badge)badge.textContent=done>=target?'✅':'';
-    // 配额做满 → 模块卡片变灰，点不开新 session
+    // 到了上限（不是任务量）才变灰 —— 做完 2 篇还能继续练到 10 篇
     const modCard=document.getElementById('sb-'+t);
     if(modCard){
-      if(done>=target){modCard.classList.add('locked');modCard.classList.remove('active');}
+      if(done>=cap[t]){modCard.classList.add('locked');modCard.classList.remove('active');}
       else modCard.classList.remove('locked');
     }
     const card=document.getElementById('task-'+t);
@@ -939,8 +944,8 @@ function updateProgressBars(){
 
 function incrementProgress(topic, attempted, correctCount, skipDone){
   const key=topic+'_done';
-  const target=getDailyTargets()[topic]||4;
-  if(!skipDone && (todayProgress[key]||0)<target*2){
+  const cap=getDailyLimits()[topic]||10;
+  if(!skipDone && (todayProgress[key]||0)<cap*2){
     todayProgress[key]=(todayProgress[key]||0)+1;
   }
   if(attempted){
@@ -1305,14 +1310,23 @@ async function loadRanksPage(){
       .sort((a,b)=>b.score-a.score);
     if(ranked.length===0){el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">No rankings yet. Start practising!</p>';return;}
     const medals=['🥇','🥈','🥉'];
-    el.innerHTML=ranked.map((r,i)=>{
+    // 只列前 20 名。排在 20 名外的学生，在下面单独给一行看自己的名次。
+    const TOP_N=20;
+    const myRank=ranked.findIndex(r=>r.username===currentUser.id)+1;
+    const rowHtml=(r,i)=>{
       const isMe=r.username===currentUser.id;
       return `<div class="rank-row${isMe?' me':''}">
         <span class="rank-medal">${medals[i]||(i+1)}</span>
         <span class="rank-name">${displayMap[r.username]||r.username}${isMe?' (you)':''}</span>
         <span class="rank-score">${r.score}<span> pts</span></span>
       </div>`;
-    }).join('');
+    };
+    let html=ranked.slice(0,TOP_N).map((r,i)=>rowHtml(r,i)).join('');
+    if(myRank>TOP_N){
+      const me=ranked[myRank-1];
+      html+=`<div style="text-align:center;font-size:12px;color:var(--text-dim);margin:10px 0 6px;">⋯</div>`+rowHtml(me,myRank-1);
+    }
+    el.innerHTML=html;
   }catch(e){el.innerHTML='<p style="color:var(--red);font-size:13px;">Error loading rankings.</p>';}
 }
 
@@ -2265,14 +2279,12 @@ async function markDBAnswers(studentAnswer, type) {
 
 function selectTopic(btn,topic){
   // 今天这个模块的额度已经做满 → 不开新 session
-  const _tgt=getDailyTargets()[topic];
+  const _cap=getDailyLimits()[topic];
   const _done=todayProgress[topic+'_done']||0;
-  if(_tgt && _done>=_tgt){
-    const isTrial=currentUser?.role==='tester'||currentUser?.role==='test';
-    const unit=topic==='cloze'?'10 passages a day':'10 sets a day';
-    showToast(isTrial
-      ? `Today's trial practice for ${TOPIC_LABELS[topic]} is done. Check your My Mistakes — or unlock the full question bank now to practise ${unit}.`
-      : `🎉 Today's ${TOPIC_LABELS[topic]} is complete. Come back tomorrow!`, 15000);
+  if(_cap && _done>=_cap){
+    showToast(isTrialUser()
+      ? `Today's trial practice for ${TOPIC_LABELS[topic]} is done. Check your My Mistakes — or unlock the full question bank now to practise more each day.`
+      : `You've hit today's limit for ${TOPIC_LABELS[topic]}. Come back tomorrow!`, 15000);
     return;
   }
   document.querySelectorAll('.module-card').forEach(b=>b.classList.remove('active'));
@@ -2300,7 +2312,7 @@ async function startSession(){
   if (window._sessionRunning) return;
   window._sessionRunning = true;
 
-  const target = getDailyTargets()[currentTopic];
+  const target = getDailyLimits()[currentTopic];
   const doneToday = todayProgress[currentTopic+'_done'] || 0;
   if (target && doneToday >= target) {
     document.getElementById('chat-messages').innerHTML='';
@@ -2829,7 +2841,7 @@ function updateStatsBar(){
   const totalCorrect=(t.cloze_correct||0)+(t.synthesis_correct||0);
   const totalSessions=(t.cloze_done||0)+(t.synthesis_done||0);
   const acc=totalAttempted>0?Math.round(totalCorrect/totalAttempted*100)+'%':'—';
-  const tp2=getDailyTargets();const QUOTA=tp2.cloze+tp2.synthesis;
+  const tp2=getDailyLimits();const QUOTA=tp2.cloze+tp2.synthesis;
 
   const elToday=document.getElementById('stat-today');
   const elSess=document.getElementById('stat-sessions');
