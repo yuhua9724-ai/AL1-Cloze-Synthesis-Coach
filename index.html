@@ -3292,16 +3292,22 @@ async function loadStreakWidget(){
         if(leftC>0)bits.push(`${leftC} passage${leftC>1?'s':''}`);
         if(leftS>0)bits.push(`${leftS} set${leftS>1?'s':''}`);
         footer=`<div class="chain-fix-note">To bring back <b>${firstFixable}</b>, make up what was missed: <b>${bits.join(' and ')}</b> to go.</div>
-        <button class="chain-btn" onclick="showTab('practice')">Make up ${firstFixable}</button>`;
+        <button class="chain-btn" onclick="continueToday()">Make up ${firstFixable}</button>`;
       }
     }else if(firstFixable){
-      footer=`<div class="chain-fix-note">Finish today's practice, then you can fix <b>${firstFixable}</b>.</div>
-        <button class="chain-btn" onclick="showTab('practice')">Check in today</button>`;
+      footer=`<div class="chain-fix-note" style="text-align:center;">Finish today's practice, then you can fix <b>${firstFixable}</b>.</div>`;
     }else if(!todayDone){
-      const t=getDailyTargets();
-      footer=`<button class="chain-btn" onclick="showTab('practice')">Check in today · ${t.cloze} passages, ${t.synthesis/5} sets</button>`;
+      // 不再给按钮（下面 Continue 已经是同一个入口），只告诉学生还差多少
+      const t=getDailyGoals();
+      const todayRow=days.find(d=>d.day_date===today)||{};
+      const leftC=Math.max(0,t.cloze-(todayRow.cloze_done||0));
+      const leftS=Math.max(0,Math.ceil((t.synthesis-(todayRow.st_done||0))/ST_PER_SESSION));
+      const bits=[];
+      if(leftC>0)bits.push(`<b>${leftC} more passage${leftC>1?'s':''}</b>`);
+      if(leftS>0)bits.push(`<b>${leftS} more S&T set${leftS>1?'s':''}</b>`);
+      footer=`<div class="chain-fix-note" style="text-align:center;">${bits.join(' and ')} to light up today.</div>`;
     }else{
-      footer=`<div class="chain-fix-note" style="text-align:center;">Today complete. Come back tomorrow to keep the chain going.</div>`;
+      footer=`<div class="chain-fix-note" style="text-align:center;">Today is done. Come back tomorrow to keep the chain going.</div>`;
     }
 
     const tierTxt=r.tier==='start'
