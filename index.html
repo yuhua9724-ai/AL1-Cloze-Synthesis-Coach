@@ -880,7 +880,8 @@ const TODAY=new Date().toISOString().split('T')[0];
 async function loadDailyProgress(){
   if(!currentUser)return;
   try{
-    const rows=await sbFetch(`attempts?user_id=eq.${currentUser.id}&attempt_date=eq.${TODAY}&select=question_type,source_id,is_correct`)||[];
+    // Deep Practice 不占当天配额 —— 它是订正的延伸，不消耗今天的练习额度
+    const rows=await sbFetch(`attempts?user_id=eq.${currentUser.id}&attempt_date=eq.${TODAY}&is_deep=is.false&select=question_type,source_id,is_correct`)||[];
     const tp={cloze_done:0,synthesis_done:0,cloze_attempted:0,cloze_correct:0,synthesis_attempted:0,synthesis_correct:0,weak_cloze:'',weak_synthesis:''};
     const seen={cloze:new Set(),synthesis:new Set()};
     rows.forEach(r=>{
@@ -1058,12 +1059,13 @@ function renderWrongCard(q) {
     stMistakeData[q.id] = { question_line: o.question_line || '', starter: o.starter || '', keyword: o.keyword || '', keyword_position: o.keyword_position || 'end', ending: o.ending || '', model_answer: q.correct_answer || '', explanation: o.explanation || null, source_id: q.source_id || null };
     // 讲解以题库最新版为准，做错当下存的快照可能已经过时
     if (q.source_id) {
-      sbFetch(`synthesis_questions?id=eq.${q.source_id}&select=explanation,question_line,model_answer`).then(rows=>{
+      sbFetch(`synthesis_questions?id=eq.${q.source_id}&select=explanation,question_line,model_answer,sub_type`).then(rows=>{
         if (rows && rows.length) {
           const fresh = rows[0];
           if (fresh.explanation) stMistakeData[q.id].explanation = fresh.explanation;
           if (fresh.question_line) stMistakeData[q.id].question_line = fresh.question_line;
           if (fresh.model_answer) stMistakeData[q.id].model_answer = fresh.model_answer;
+          if (fresh.sub_type) stMistakeData[q.id].sub_type = fresh.sub_type;
         }
       }).catch(()=>{});
     }
@@ -1089,6 +1091,7 @@ function renderWrongCard(q) {
       + '<div class="wrong-retry-row" style="flex-wrap:wrap;align-items:center;gap:8px;">' + line + '</div>'
       + '<div style="margin-top:8px;"><button class="wrong-retry-btn" onclick="trySTMistake(\'' + q.id + '\')">Check</button></div>'
       + '<div class="wrong-retry-feedback" id="wfeedback-' + q.id + '"></div>'
+      + '<div id="wdp-slot-' + q.id + '"></div>'
       + '<div class="wrong-card-footer"><span class="wrong-streak">Get it right once to clear this card</span></div>'
       + '</div>';
   }
@@ -1195,11 +1198,130 @@ async function tryWrongAnswer(btn) {
   updateMistakeStreak(id, isCorrect, card);
 }
 
+// ══════════════════════════════════
+// 每周正确率曲线 —— 只看首次作答，两个模块分开画
+// 没练的那一周线断开，不补点、不画成 0%
+// ══════════════════════════════════
+function weekStartOf(dateStr){
+  const d = new Date(dateStr + 'T00:00:00Z');
+  const dow = (d.getUTCDay() + 6) % 7;          // 周一 = 0
+  d.setUTCDate(d.getUTCDate() - dow);
+  return d.toISOString().slice(0, 10);
+}
+
+function buildWeeklyBuckets(raw, weeksBack){
+  // 一道题只算它第一次被做的那一次
+  const firstAt = {};
+  raw.forEach(r => {
+    if (r.source_id == null || !r.attempt_date) return;
+    const k = r.question_type + ':' + r.source_id + ':' + (r.blank_no == null ? '-' : r.blank_no);
+    if (!firstAt[k] || r.attempt_date < firstAt[k]) firstAt[k] = r.attempt_date;
+  });
+  const seen = {};
+  const wk = {};
+  raw.forEach(r => {
+    if (r.source_id == null || !r.attempt_date) return;
+    const k = r.question_type + ':' + r.source_id + ':' + (r.blank_no == null ? '-' : r.blank_no);
+    if (firstAt[k] !== r.attempt_date || seen[k]) return;   // 只取首次，且只取一条
+    seen[k] = 1;
+    const w = weekStartOf(r.attempt_date);
+    if (!wk[w]) wk[w] = { week: w, cA:0, cC:0, sA:0, sC:0 };
+    const b = wk[w];
+    if (r.question_type === 'cloze'){ b.cA++; if (r.is_correct) b.cC++; }
+    if (r.question_type === 'synthesis'){ b.sA++; if (r.is_correct) b.sC++; }
+  });
+  // 从本周往回数，缺的那几周照样留位子（线会断开）
+  const today = new Date(Date.now() + 8*3600*1000).toISOString().slice(0,10);
+  const thisWeek = weekStartOf(today);
+  const out = [];
+  for (let i = weeksBack - 1; i >= 0; i--){
+    const d = new Date(thisWeek + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - i*7);
+    const w = d.toISOString().slice(0,10);
+    out.push(wk[w] || { week: w, cA:0, cC:0, sA:0, sC:0 });
+  }
+  return out;
+}
+
+function weekLabel(w){
+  const d = new Date(w + 'T00:00:00Z');
+  const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return d.getUTCDate() + ' ' + M[d.getUTCMonth()];
+}
+
+function renderWeeklyChart(raw){
+  const B = buildWeeklyBuckets(raw, 4);
+  if (!B.some(b => b.cA > 0 || b.sA > 0)) return '';
+
+  const IND = '#5b41ec', TEAL = '#00c7ca';
+  const W = 520, X0 = 106, X1 = 458, Y0 = 24, Y1 = 210;
+  const xs = B.map((_, i) => B.length === 1 ? (X0+X1)/2 : X0 + i*(X1-X0)/(B.length-1));
+  const yOf = pct => Y1 - (pct/100)*(Y1-Y0);
+  const pts = key => B.map((b, i) => {
+    const att = key === 'c' ? b.cA : b.sA, cor = key === 'c' ? b.cC : b.sC;
+    if (!att) return null;
+    const pct = Math.round(cor/att*100);
+    return { x: xs[i], y: yOf(pct), pct: pct };
+  });
+  const C = pts('c'), S = pts('s');
+
+  // \u76f8\u90bb\u4e24\u70b9\u90fd\u6709\u6570\u636e \u2192 \u5b9e\u7ebf\uff1b\u4e2d\u95f4\u9694\u4e86\u6ca1\u7ec3\u7684\u5468 \u2192 \u865a\u7ebf\uff0c\u770b\u5f97\u51fa\u65ad\u8fc7
+  const lines = (arr, colour) => {
+    let out = '', prev = -1;
+    arr.forEach((p, i) => {
+      if (!p) return;
+      if (prev >= 0){
+        const q = arr[prev];
+        out += (i - prev === 1)
+          ? '<line x1="'+q.x.toFixed(1)+'" y1="'+q.y.toFixed(1)+'" x2="'+p.x.toFixed(1)+'" y2="'+p.y.toFixed(1)+'" stroke="'+colour+'" stroke-width="2.5" stroke-linecap="round"/>'
+          : '<line x1="'+q.x.toFixed(1)+'" y1="'+q.y.toFixed(1)+'" x2="'+p.x.toFixed(1)+'" y2="'+p.y.toFixed(1)+'" stroke="'+colour+'" stroke-width="1.5" stroke-dasharray="3 4" opacity="0.45"/>';
+      }
+      prev = i;
+    });
+    return out;
+  };
+
+  let svg = '';
+  [Y0, 70.5, 117, 163.5].forEach(y => { svg += '<line x1="60" y1="'+y+'" x2="504" y2="'+y+'" stroke="#f2f0fa" stroke-width="1"/>'; });
+  svg += '<line x1="60" y1="'+Y1+'" x2="504" y2="'+Y1+'" stroke="#ddd9ee" stroke-width="1"/>';
+  ['100%','75%','50%','25%','0%'].forEach((t, i) => { svg += '<text x="52" y="'+([Y0,70.5,117,163.5,Y1][i]+4)+'" fill="#b4b2c6" font-size="10" text-anchor="end">'+t+'</text>'; });
+
+  svg += lines(C, IND) + lines(S, TEAL);
+  C.forEach(p => { if (p) svg += '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="4.5" fill="#fff" stroke="'+IND+'" stroke-width="2.5"/><text x="'+p.x.toFixed(1)+'" y="'+(p.y-11).toFixed(1)+'" fill="'+IND+'" font-size="10" font-weight="600" text-anchor="middle">'+p.pct+'%</text>'; });
+  S.forEach(p => { if (p) svg += '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="4.5" fill="#fff" stroke="'+TEAL+'" stroke-width="2.5"/><text x="'+p.x.toFixed(1)+'" y="'+(p.y+17).toFixed(1)+'" fill="'+TEAL+'" font-size="10" font-weight="600" text-anchor="middle">'+p.pct+'%</text>'; });
+
+  // \u5e95\u90e8\uff1a\u5468\u6b21\u5305\u6210\u836f\u4e38\uff0c\u672c\u5468\u586b\u5b9e\u8272\uff1b\u9898\u91cf\u5217\u5728\u4e0b\u9762
+  const cols = B.map((b, i) => {
+    const isNow = i === B.length - 1;
+    const none  = !b.cA && !b.sA;
+    const pill = none
+      ? '<div style="display:inline-block;font-size:11px;font-weight:600;color:#a8a6bd;background:#f4f3f8;padding:3px 11px;border-radius:99px;margin-bottom:5px;">'+weekLabel(b.week)+'</div>'
+      : (isNow
+        ? '<div style="display:inline-block;font-size:11px;font-weight:700;color:#fff;background:'+IND+';padding:3px 11px;border-radius:99px;margin-bottom:5px;">'+weekLabel(b.week)+'</div>'
+        : '<div style="display:inline-block;font-size:11px;font-weight:600;color:#4023c9;background:#eeebfd;padding:3px 11px;border-radius:99px;margin-bottom:5px;">'+weekLabel(b.week)+'</div>');
+    const body = none
+      ? '<div style="font-size:9px;color:#b4b2c6;">no practice</div>'
+      : '<div style="font-size:9px;color:'+IND+';opacity:.8;">'+(b.cA ? b.cA+' blanks' : '\u2014')+'</div><div style="font-size:9px;color:'+TEAL+';opacity:.8;">'+(b.sA ? b.sA+' qns' : '\u2014')+'</div>';
+    return '<div style="text-align:center;">'+pill+body+'</div>';
+  }).join('');
+
+  return '<div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.15);border-radius:12px;padding:16px;margin-bottom:16px;">'
+    + '<div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Accuracy by week</div>'
+    + '<div style="font-size:11px;color:var(--text-dim);opacity:.8;margin-bottom:12px;">First attempts only \u00b7 last 4 weeks</div>'
+    + '<div style="display:flex;gap:14px;margin-bottom:6px;font-size:11px;">'
+    +   '<span style="display:flex;align-items:center;gap:5px;color:var(--text)"><span style="width:14px;height:3px;background:'+IND+';border-radius:2px"></span>Cloze</span>'
+    +   '<span style="display:flex;align-items:center;gap:5px;color:var(--text)"><span style="width:14px;height:3px;background:'+TEAL+';border-radius:2px"></span>S&amp;T</span>'
+    + '</div>'
+    + '<svg viewBox="0 0 '+W+' 220" style="width:100%;height:auto;display:block;font-family:Outfit,sans-serif">' + svg + '</svg>'
+    + '<div style="display:grid;grid-template-columns:repeat('+B.length+',1fr);margin-top:8px;">' + cols + '</div>'
+    + '</div>';
+}
+
 async function loadProgressPage(){
   const el=document.getElementById('progress-content');
   el.innerHTML='<p style="color:var(--text-dim);font-size:13px;">Loading…</p>';
   try{
-    const raw = await sbFetch(`attempts?user_id=eq.${currentUser.id}&select=attempt_date,question_type,source_id,is_correct&order=attempt_date.desc&limit=5000`)||[];
+    const raw = await sbFetch(`attempts?user_id=eq.${currentUser.id}&is_deep=is.false&select=attempt_date,question_type,source_id,blank_no,is_correct&order=attempt_date.desc&limit=5000`)||[];
     // 重做不重复计入“完成篇数”：一道题只算在第一次做它的那一天。
     // 答题数和正确数照常统计，口径跟首页一致。
     const firstSeen={};
@@ -1260,6 +1382,8 @@ async function loadProgressPage(){
       <span style="background:#16a34a;color:#fff;font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;">Synthesis ${allSynth}</span>
       ${streak>0?`<span style="background:var(--red);color:#fff;font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;">🔥 ${streak} day streak</span>`:''}
     </div>`;
+
+    html+=renderWeeklyChart(raw);
 
     html+=`<div style="background:var(--dark2);border:1px solid rgba(91,65,236,0.15);border-radius:12px;padding:16px;margin-bottom:16px;">
       <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Last 7 Days</div>`;
@@ -2736,12 +2860,144 @@ function trySTMistake(id){
   if (isCorrect) {
     feedback.innerHTML = '\u2705 Correct!';
     feedback.className = 'wrong-retry-feedback correct';
+    offerDeepPractice(id);
   } else {
     feedback.innerHTML = buildSTFeedback(d, studentAns);
     feedback.className = 'wrong-retry-feedback wrong';
     setTimeout(function(){ boxes.forEach(function(b){ b.disabled = false; b.value = ''; }); boxes[0].focus(); if (btn) btn.disabled = false; }, 3000);
   }
   updateMistakeStreak(id, isCorrect, card);
+}
+
+// ══════════════════════════════════
+// DEEP PRACTICE —— 错题订正对了之后，再推一道同类型的题
+// 每次一题，题库里没有同类型的新题就不显示按钮
+// ══════════════════════════════════
+var dpState = {};   // slotKey -> 那道题的资料
+
+// 答对之后，看看同类型还有没有没做过的题；有才把按钮亮出来
+async function offerDeepPractice(mistakeId){
+  var d = stMistakeData[mistakeId] || {};
+  // 题型标签可能还没拉回来（学生答得快），补拉一次
+  if (!d.sub_type && d.source_id) {
+    try{
+      var r = await sbFetch('synthesis_questions?id=eq.' + d.source_id + '&select=sub_type');
+      if (r && r.length && r[0].sub_type) d.sub_type = r[0].sub_type;
+    }catch(e){}
+  }
+  if (!d.sub_type) return;
+  var slot = document.getElementById('wdp-slot-' + mistakeId);
+  if (!slot || slot.getAttribute('data-ready')) return;
+  var q = await pickDeepQuestion(d.sub_type);
+  if (!q) return;
+  slot.setAttribute('data-ready','1');
+  slot.innerHTML = '<button class="wrong-retry-btn" style="background:var(--green-btn);margin-top:8px;" onclick="startDeepPractice(\'' + mistakeId + '\')">Deep Practice \u2192</button>';
+}
+
+// 挑一道同 sub_type、还没做过的题。都做过了就回 null。
+async function pickDeepQuestion(subType){
+  try{
+    var done = await loadDoneIds('synthesis');
+    var rows = await sbFetch('synthesis_questions?approved=eq.true&sub_type=eq.' + encodeURIComponent(subType) + '&select=id') || [];
+    var pool = shuffle(rows.map(function(r){ return r.id; }).filter(function(id){ return !done.has(Number(id)) && !dpUsed[id]; }));
+    if (!pool.length) return null;
+    var full = await sbFetch('synthesis_questions?id=eq.' + pool[0] + '&select=*');
+    return (full && full.length) ? full[0] : null;
+  }catch(e){ console.warn('pickDeepQuestion failed', e); return null; }
+}
+var dpUsed = {};   // 同一次浏览里不重复推同一题
+
+async function startDeepPractice(mistakeId){
+  var d = stMistakeData[mistakeId] || {};
+  var slot = document.getElementById('wdp-slot-' + mistakeId);
+  if (!slot) return;
+  slot.innerHTML = '<div style="font-size:12px;color:var(--text-dim);margin-top:8px;">Finding another one\u2026</div>';
+  var q = await pickDeepQuestion(d.sub_type);
+  if (!q){ slot.innerHTML = '<div style="font-size:12px;color:var(--text-dim);margin-top:8px;">No more questions of this type for now.</div>'; return; }
+  dpUsed[q.id] = true;
+  var key = mistakeId + '-dp' + (Date.now() % 100000);
+  dpState[key] = q;
+  slot.innerHTML = renderDeepQuestion(key, q);
+}
+
+function renderDeepQuestion(key, q){
+  var _t = function(x){ return '<span style="font-size:15px;color:var(--text);">' + stEscapeHtml(x) + '</span>'; };
+  var _n = 0;
+  var _in = function(){
+    var sfx = _n === 0 ? '' : ('-' + _n); _n++;
+    return '<input type="text" class="wrong-retry-input" style="flex:1 1 130px;min-width:110px;" id="dp-' + key + sfx + '" placeholder="Your answer\u2026" onkeydown="if(event.key===\'Enter\')submitDeepPractice(\'' + key + '\')"/>';
+  };
+  var line = '';
+  if (stHasLine(q)) {
+    var segs = stParseLine(q.question_line);
+    for (var i = 0; i < segs.length; i++) line += (segs[i].type === 'text') ? _t(segs[i].value) : _in();
+  } else {
+    var pos = q.keyword_position || 'end';
+    if (pos === 'middle') { line = _in() + _t(q.keyword || '') + _in(); }
+    else if (pos === 'both') { line = _t(q.starter || '') + _in() + _t(q.keyword || '') + _in(); }
+    else { line = (q.starter ? _t(q.starter) : '') + _in(); }
+    if (q.ending) line += _t(q.ending);
+  }
+  return '<div style="margin-top:12px;padding:12px;background:rgba(0,199,202,0.06);border:1px solid rgba(0,199,202,0.25);border-radius:10px;">'
+    + '<div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#067b7d;margin-bottom:8px;">Deep Practice</div>'
+    + '<div class="wrong-card-q" style="margin-bottom:8px;">' + stEscapeHtml(q.original_sentence || '') + '</div>'
+    + '<div class="wrong-retry-row" style="flex-wrap:wrap;align-items:center;gap:8px;">' + line + '</div>'
+    + '<div style="margin-top:8px;"><button class="wrong-retry-btn" id="dpbtn-' + key + '" onclick="submitDeepPractice(\'' + key + '\')">Check</button></div>'
+    + '<div class="wrong-retry-feedback" id="dpfb-' + key + '"></div>'
+    + '<div id="dpnext-' + key + '"></div>'
+    + '</div>';
+}
+
+async function submitDeepPractice(key){
+  var q = dpState[key]; if (!q) return;
+  var boxes = [];
+  var first = document.getElementById('dp-' + key);
+  if (!first || first.disabled) return;
+  boxes.push(first);
+  for (var i = 1; i < 6; i++){
+    var extra = document.getElementById('dp-' + key + '-' + i);
+    if (!extra) break;
+    boxes.push(extra);
+  }
+  var studentAns = '';
+  if (stHasLine(q)) {
+    studentAns = stAssembleFromLine(stParseLine(q.question_line), boxes.map(function(b){ return b.value || ''; }));
+  } else {
+    var pos = q.keyword_position || 'end';
+    var p1 = (boxes[0].value || '').trim();
+    var p2 = boxes[1] ? (boxes[1].value || '').trim() : '';
+    if (pos === 'middle') studentAns = (p1 + ' ' + (q.keyword || '') + ' ' + p2).trim();
+    else if (pos === 'both') studentAns = ((q.starter ? q.starter + ' ' : '') + p1 + ' ' + (q.keyword || '') + ' ' + p2).trim();
+    else studentAns = p1;
+  }
+  var ok = isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
+  boxes.forEach(function(b){ b.disabled = true; });
+  var btn = document.getElementById('dpbtn-' + key);
+  if (btn) btn.disabled = true;
+
+  await logAttempts([{ question_type:'synthesis', source_id:q.id||null,
+    question_text:q.question_line||q.original_sentence||'', correct_answer:q.model_answer||'',
+    student_answer:studentAns, is_correct:ok, is_deep:true }]);
+  markDone('synthesis', q.id);
+
+  var fb = document.getElementById('dpfb-' + key);
+  if (ok) {
+    fb.innerHTML = '\u2705 Correct!';
+    fb.className = 'wrong-retry-feedback correct';
+  } else {
+    saveWrongQuestion(q.original_sentence, q.model_answer, studentAns, 'synthesis', { question_line: q.question_line || '', starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null });
+    fb.innerHTML = buildSTFeedback(q, studentAns);
+    fb.className = 'wrong-retry-feedback wrong';
+  }
+  await loadDailyProgress();
+
+  // 一张卡只给一道 Deep Practice：对了就算掌握，错了自动进错题本
+  var nextSlot = document.getElementById('dpnext-' + key);
+  if (nextSlot){
+    nextSlot.innerHTML = ok
+      ? '<div style="font-size:12px;color:#067b7d;margin-top:10px;">You\'ve got this one \u2014 back to your other mistakes.</div>'
+      : '<div style="font-size:12px;color:var(--text-dim);margin-top:10px;">Saved to My Mistakes so you can try it again.</div>';
+  }
 }
 
 function autoExpandBlank(input){input.style.width=Math.max(75,input.value.length*10+20)+'px';}
