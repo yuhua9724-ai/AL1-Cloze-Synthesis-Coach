@@ -360,7 +360,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .chain-future{background:#f3f0fe;}
 .chain-future span{opacity:.65;}
 .chain-missed{color:#b5b3ac;}
-.chain-fixable{background:#fff;border:2.5px dashed #ba7517;color:#854f0b;font-size:15px;}
+.chain-fixable-ready{background:#f0fdf4;border:2.5px dashed #16a34a;color:#16a34a;font-size:15px;cursor:pointer;}
+.chain-fixable-ready:hover{background:#dcfce7;}
 .chain-badge{background:#ffeec2;}
 .chain-badge span{opacity:.9;}
 .chain-badge-won{background:#ffd873;}
@@ -3504,7 +3505,7 @@ async function loadStreakWidget(){
       const isToday=d.day_date===today;
       const isFuture=d.day_date>today;
       const label=DOW[days.indexOf(d)];
-      let cls='chain-cell', inner='';
+      let cls='chain-cell', inner='', onclickAttr='';
       if(d.is_done){
         // 补打卡补上的格子显示 ✓，正常完成的显示 🔥
         cls+=d.is_repaired?' chain-done chain-repaired':' chain-done';
@@ -3518,51 +3519,33 @@ async function loadStreakWidget(){
       }else if(d.in_range===false){
         // 还没注册的那几天：空格子，不画 ✕也不能补
         cls+=' chain-future';
+      }else if(d.day_date===firstFixable){
+        // 唯一可以补卡的一天 —— 绿色虚线圆圈，直接可以点
+        cls+=' chain-fixable-ready';
+        inner='<span>\u21ba</span>';
+        onclickAttr=' onclick="onFixableCellClick(\''+d.day_date+'\')"';
       }else{
-        cls+=(d.day_date===firstFixable)?' chain-fixable':' chain-missed';
+        cls+=' chain-missed';
         inner='✕';
       }
-      const isSun=days.indexOf(d)===6;
-      if(isSun&&!d.is_done&&!isToday&&!isFuture){} // 周日格子照常
-      return `<div class="chain-col"><div class="chain-label${isToday?' chain-label-today':''}">${label}</div><div class="${cls}">${inner}</div></div>`;
+      return `<div class="chain-col"><div class="chain-label${isToday?' chain-label-today':''}">${label}</div><div class="${cls}"${onclickAttr}>${inner}</div></div>`;
     }).join('');
 
-
     let footer='';
-    if(firstFixable&&todayDone){
-      // 补打卡：那天缺多少，今天就要在额度之外多做多少
-      const _t=getDailyTargets();
-      const fixRow=days.find(d=>d.day_date===firstFixable)||{};
-      const todayRow=days.find(d=>d.day_date===today)||{};
-      const needC=Math.max(0,_t.cloze-(fixRow.cloze_done||0));
-      const needS=Math.max(0,_t.synthesis-(fixRow.st_done||0));
-      const leftC=Math.max(0,needC-Math.max(0,(todayRow.cloze_done||0)-_t.cloze));
-      const leftS=Math.ceil(Math.max(0,needS-Math.max(0,(todayRow.st_done||0)-_t.synthesis))/5);
-      if(leftC===0&&leftS===0){
-        footer=`<div class="chain-fix-note">You've made up what <b>${firstFixable}</b> was missing — tap to bring it back.</div>
-        <button class="chain-btn chain-btn-fix" onclick="repairDay('${firstFixable}')">Fix ${firstFixable}</button>`;
-      }else{
+    if(!firstFixable){
+      if(!todayDone){
+        // 不再给按钮（下面 Continue 已经是同一个入口，绿色圆圈是打卡卡片自己的入口），只告诉学生还差多少
+        const t=getDailyGoals();
+        const todayRow=days.find(d=>d.day_date===today)||{};
+        const leftC=Math.max(0,t.cloze-(todayRow.cloze_done||0));
+        const leftS=Math.max(0,Math.ceil((t.synthesis-(todayRow.st_done||0))/ST_PER_SESSION));
         const bits=[];
-        if(leftC>0)bits.push(`${leftC} passage${leftC>1?'s':''}`);
-        if(leftS>0)bits.push(`${leftS} set${leftS>1?'s':''}`);
-        footer=`<div class="chain-fix-note">To bring back <b>${firstFixable}</b>, make up what was missed: <b>${bits.join(' and ')}</b> to go.</div>
-        <button class="chain-btn" onclick="continueToday()">Make up ${firstFixable}</button>`;
+        if(leftC>0)bits.push(`<b>${leftC} more passage${leftC>1?'s':''}</b>`);
+        if(leftS>0)bits.push(`<b>${leftS} more S&T set${leftS>1?'s':''}</b>`);
+        footer=`<div class="chain-fix-note" style="text-align:center;">${bits.join(' and ')} to light up today.</div>`;
+      }else{
+        footer=`<div class="chain-fix-note" style="text-align:center;">Today is done. Come back tomorrow to keep the chain going.</div>`;
       }
-    }else if(firstFixable){
-      footer=`<div class="chain-fix-note" style="text-align:center;">Finish today's practice to unlock fixing <b>${firstFixable}</b>.</div>
-      <button class="chain-btn" onclick="continueToday()">Finish today's practice</button>`;
-    }else if(!todayDone){
-      // 不再给按钮（下面 Continue 已经是同一个入口），只告诉学生还差多少
-      const t=getDailyGoals();
-      const todayRow=days.find(d=>d.day_date===today)||{};
-      const leftC=Math.max(0,t.cloze-(todayRow.cloze_done||0));
-      const leftS=Math.max(0,Math.ceil((t.synthesis-(todayRow.st_done||0))/ST_PER_SESSION));
-      const bits=[];
-      if(leftC>0)bits.push(`<b>${leftC} more passage${leftC>1?'s':''}</b>`);
-      if(leftS>0)bits.push(`<b>${leftS} more S&T set${leftS>1?'s':''}</b>`);
-      footer=`<div class="chain-fix-note" style="text-align:center;">${bits.join(' and ')} to light up today.</div>`;
-    }else{
-      footer=`<div class="chain-fix-note" style="text-align:center;">Today is done. Come back tomorrow to keep the chain going.</div>`;
     }
 
     const tierTxt=r.tier==='start'
@@ -3576,6 +3559,29 @@ async function loadStreakWidget(){
       <div class="chain-tier">${tierTxt}</div>
     </div>`;
   }catch(e){console.warn('streak failed',e);el.innerHTML='';}
+}
+
+// 打卡卡片里那个绿色圆圈的点击逻辑：今天没做完就去做练习；做完且补够了就直接补卡；做完但没补够就提示还差多少，同时带去练习
+function onFixableCellClick(date){
+  const _t=getDailyTargets();
+  const rows=weekState||[];
+  const todayRow=rows.find(d=>d.day_date===TODAY)||{};
+  const todayDone=(todayRow.cloze_done||0)>=_t.cloze && (todayRow.st_done||0)>=_t.synthesis;
+  if(!todayDone){ continueToday(); return; }
+  const fixRow=rows.find(d=>d.day_date===date)||{};
+  const needC=Math.max(0,_t.cloze-(fixRow.cloze_done||0));
+  const needS=Math.max(0,_t.synthesis-(fixRow.st_done||0));
+  const leftC=Math.max(0,needC-Math.max(0,(todayRow.cloze_done||0)-_t.cloze));
+  const leftS=Math.ceil(Math.max(0,needS-Math.max(0,(todayRow.st_done||0)-_t.synthesis))/5);
+  if(leftC===0&&leftS===0){
+    repairDay(date);
+  }else{
+    const bits=[];
+    if(leftC>0)bits.push(`${leftC} more passage${leftC>1?'s':''}`);
+    if(leftS>0)bits.push(`${leftS} more S&T set${leftS>1?'s':''}`);
+    showToast(`Do ${bits.join(' and ')} today to unlock fixing ${date}.`, 6000);
+    continueToday();
+  }
 }
 
 // 补签：服务器判定能不能补、补了还拿不拿得到徽章
