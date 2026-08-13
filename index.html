@@ -862,7 +862,24 @@ async function doSignup(){
   }
 }
 
+// 换账号时，「做过哪些题」这类缓存必须清空——否则新账号会错误继承上一个账号的记录
+function resetUserSessionCaches(){
+  doneIds = {synthesis:null, cloze:null};
+  usedIds = {synthesis:new Set(), cloze:new Set()};
+  dbQuestions = {synthesis:[], cloze:[]};
+  dbLoaded = {synthesis:false, cloze:false};
+  poolEmpty = {synthesis:false, cloze:false};
+  replayMode = {synthesis:false, cloze:false};
+  currentDBQuestions = null;
+  currentDBType = null;
+  weekState = null;
+  todayProgress = {cloze_done:0, synthesis_done:0, weak_cloze:'', weak_synthesis:''};
+  _adminStudents = [];
+  _pendingMistakesCount = -1;
+}
+
 async function enterApp(){
+  resetUserSessionCaches();
   setChatInputVisible(false);   // 还没开始做题，不要留一个空框在那边
   document.getElementById('login-screen').classList.remove('active');
   document.getElementById('app-screen').classList.add('active');
@@ -882,6 +899,7 @@ async function enterApp(){
 async function doLogout(){
   try{ await sb.auth.signOut(); }catch(e){}
   currentUser=null; chatHistory=[];
+  resetUserSessionCaches();
   document.getElementById('app-screen').classList.remove('active');
   document.getElementById('login-screen').classList.add('active');
   document.getElementById('login-user').value='';
