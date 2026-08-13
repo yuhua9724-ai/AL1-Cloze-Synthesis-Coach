@@ -3549,7 +3549,8 @@ async function loadStreakWidget(){
         <button class="chain-btn" onclick="continueToday()">Make up ${firstFixable}</button>`;
       }
     }else if(firstFixable){
-      footer=`<div class="chain-fix-note" style="text-align:center;">Finish today's practice, then you can fix <b>${firstFixable}</b>.</div>`;
+      footer=`<div class="chain-fix-note" style="text-align:center;">Finish today's practice to unlock fixing <b>${firstFixable}</b>.</div>
+      <button class="chain-btn" onclick="continueToday()">Finish today's practice</button>`;
     }else if(!todayDone){
       // 不再给按钮（下面 Continue 已经是同一个入口），只告诉学生还差多少
       const t=getDailyGoals();
