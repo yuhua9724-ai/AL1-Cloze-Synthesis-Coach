@@ -220,9 +220,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .btn-change-pw{background:rgba(91,65,236,0.15);border:1px solid rgba(91,65,236,0.3);color:var(--gold);font-size:13px;font-weight:500;border-radius:8px;padding:8px 16px;cursor:pointer;align-self:flex-start;}
 
 /* TOAST */
-.btn-report{background:rgba(224,36,94,0.08);border:1px solid rgba(224,36,94,0.25);color:var(--red);font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;margin-left:6px;}
-.btn-report:hover{background:rgba(224,36,94,0.14);}
-.st-report-btn{float:right;background:none;border:none;color:var(--red);font-size:11px;font-weight:500;cursor:pointer;padding:2px 0;}
+.btn-report{display:inline-flex;align-items:center;gap:4px;background:rgba(16,163,74,0.08);border:1px solid rgba(16,163,74,0.3);color:#0f8a3f;font-size:12px;font-weight:600;padding:4px 11px;border-radius:999px;cursor:pointer;margin-left:6px;}
+.btn-report:hover{background:rgba(16,163,74,0.15);}
+.st-report-btn{float:right;display:inline-flex;align-items:center;gap:4px;background:rgba(16,163,74,0.08);border:1px solid rgba(16,163,74,0.3);color:#0f8a3f;font-size:11px;font-weight:600;cursor:pointer;padding:3px 10px;border-radius:999px;}
+.st-report-btn:hover{background:rgba(16,163,74,0.15);}
+.report-flag-icon{flex-shrink:0;}
 .report-modal-overlay{display:none;position:fixed;inset:0;background:rgba(20,10,40,0.45);z-index:500;align-items:center;justify-content:center;padding:16px;}
 .report-modal-overlay.active{display:flex;}
 .report-modal{background:var(--dark2);border-radius:16px;padding:22px 22px 18px;width:100%;max-width:360px;max-height:88vh;overflow-y:auto;}
@@ -239,6 +241,19 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .rm-cancel{background:var(--dark3);color:var(--text-dim);}
 .rm-submit{background:var(--gold);color:#fff;}
 .rm-submit:disabled{opacity:0.5;cursor:not-allowed;}
+.reports-filter{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);margin-bottom:12px;}
+.report-card{background:var(--dark2);border:1px solid rgba(91,65,236,0.15);border-radius:12px;padding:14px 16px;margin-bottom:10px;}
+.report-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.report-badge{font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:var(--gold);background:rgba(91,65,236,0.1);padding:3px 8px;border-radius:4px;}
+.report-status{font-size:11px;font-weight:600;text-transform:capitalize;}
+.report-card-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px;}
+.report-card-issue{font-size:13px;color:var(--text-dim);margin-bottom:6px;}
+.report-card-detail{font-size:13px;color:var(--text);background:var(--dark3);border-radius:6px;padding:6px 10px;margin-bottom:4px;}
+.report-card-meta{font-size:11px;color:var(--text-dim);margin-top:6px;}
+.report-card-actions{display:flex;gap:8px;margin-top:10px;}
+.report-card-actions button{font-size:12px;font-weight:600;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;}
+.rc-btn-fixed{background:rgba(16,163,74,0.1);color:#0f8a3f;}
+.rc-btn-dismiss{background:rgba(107,107,138,0.1);color:var(--text-dim);}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark3);border:1px solid rgba(91,65,236,0.3);color:var(--text);font-size:13px;line-height:1.5;padding:11px 18px;border-radius:10px;opacity:0;transition:all 0.3s;pointer-events:none;z-index:999;white-space:normal;max-width:min(92vw,460px);text-align:center;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
@@ -563,7 +578,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
           <h2 id="chat-title">Comprehension Cloze</h2>
           <span>
             <button class="btn-new-session" onclick="newSession()">New Session</button>
-            <button class="btn-report" id="btn-report-cloze" onclick="openReportModal('cloze')">🚩 Report</button>
+            <button class="btn-report" id="btn-report-cloze" onclick="openReportModal('cloze')"><svg class="report-flag-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 3v18M5 4h13l-3 4 3 4H5"/></svg>Report</button>
           </span>
         </div>
         <div class="chat-messages" id="chat-messages"></div>
@@ -632,6 +647,11 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
       <div class="admin-section">
         <h3>👥 Current Students</h3>
         <div id="users-list"><p style="font-size:13px;color:var(--text-dim);">Loading…</p></div>
+      </div>
+      <div class="admin-section">
+        <h3>🚩 Bug Reports</h3>
+        <label class="reports-filter"><input type="checkbox" id="reports-show-all" onchange="loadReports()"/>Show fixed/dismissed too</label>
+        <div id="reports-list"><p style="font-size:13px;color:var(--text-dim);">Loading…</p></div>
       </div>
   </div>
 
@@ -1665,6 +1685,68 @@ async function loadAccountPage(){
 // ══════════════════════════════════
 let _adminStudents=[];
 
+const REPORT_ISSUE_LABELS={
+  answer_wrong:'Answer is wrong',
+  multiple_answers:'More than one answer possible',
+  question_text_wrong:'Passage/question text is wrong',
+  other:'Something else'
+};
+
+async function loadReports(){
+  const el=document.getElementById('reports-list');
+  if(!el)return;
+  el.innerHTML='<p style="font-size:13px;color:var(--text-dim);">Loading…</p>';
+  try{
+    const showAll=document.getElementById('reports-show-all')?.checked;
+    const filter=showAll?'':'&status=eq.pending';
+    const rows=await sbFetch('reports?select=*&order=created_at.desc&limit=100'+filter)||[];
+    if(!rows.length){el.innerHTML='<p style="font-size:13px;color:var(--text-dim);">No reports'+(showAll?'':' pending')+'.</p>';return;}
+
+    const clozeIds=[...new Set(rows.filter(r=>r.source_table==='cloze_passages').map(r=>r.source_id))];
+    const synIds=[...new Set(rows.filter(r=>r.source_table==='synthesis_questions').map(r=>r.source_id))];
+    const [clozeRows,synRows]=await Promise.all([
+      clozeIds.length?sbFetch('cloze_passages?id=in.('+clozeIds.join(',')+')&select=id,title'):[],
+      synIds.length?sbFetch('synthesis_questions?id=in.('+synIds.join(',')+')&select=id,original_sentence'):[]
+    ]);
+    const clozeMap={}; (clozeRows||[]).forEach(c=>clozeMap[c.id]=c.title);
+    const synMap={}; (synRows||[]).forEach(s=>synMap[s.id]=s.original_sentence);
+    const studentMap={}; (_adminStudents||[]).forEach(u=>studentMap[u.id]=u.display||u.phone);
+
+    el.innerHTML=rows.map(r=>{
+      const student=stEscapeHtml(studentMap[r.user_id]||'—');
+      const rawTitle=r.source_table==='cloze_passages'?(clozeMap[r.source_id]||('#'+r.source_id)):(synMap[r.source_id]||('#'+r.source_id));
+      const title=stEscapeHtml(rawTitle);
+      const typeLabel=r.source_table==='cloze_passages'?'Cloze':'S&T';
+      const issueLabel=stEscapeHtml(REPORT_ISSUE_LABELS[r.issue_type]||r.issue_type);
+      const dateStr=new Date(r.created_at).toLocaleString();
+      const statusColor=r.status==='pending'?'#f47920':(r.status==='fixed'?'#0f8a3f':'#6b6b8a');
+      const answerHtml=r.student_answer?('<div class="report-card-detail">Student\'s answer: <strong>'+stEscapeHtml(r.student_answer)+'</strong></div>'):'';
+      const noteHtml=r.note?('<div class="report-card-detail">Note: '+stEscapeHtml(r.note)+'</div>'):'';
+      const actionsHtml=r.status==='pending'?('<div class="report-card-actions"><button class="rc-btn-fixed" onclick="updateReportStatus('+r.id+',\'fixed\')">Mark fixed</button><button class="rc-btn-dismiss" onclick="updateReportStatus('+r.id+',\'dismissed\')">Dismiss</button></div>'):'';
+      return '<div class="report-card">'
+        +'<div class="report-card-top"><span class="report-badge">'+typeLabel+'</span><span class="report-status" style="color:'+statusColor+'">'+r.status+'</span></div>'
+        +'<div class="report-card-title">'+title+(r.blank_no?(' · blank '+r.blank_no):'')+'</div>'
+        +'<div class="report-card-issue">'+issueLabel+'</div>'
+        +answerHtml+noteHtml
+        +'<div class="report-card-meta">'+student+' · '+dateStr+'</div>'
+        +actionsHtml
+        +'</div>';
+    }).join('');
+  }catch(e){
+    el.innerHTML='<p style="font-size:13px;color:var(--red);">Error loading reports: '+e.message+'</p>';
+  }
+}
+
+async function updateReportStatus(id,status){
+  try{
+    await sbFetch('reports?id=eq.'+id,{method:'PATCH',prefer:'return=minimal',body:{status}});
+    showToast(status==='fixed'?'✅ Marked as fixed':'Dismissed');
+    loadReports();
+  }catch(e){
+    showToast('❌ Could not update: '+e.message);
+  }
+}
+
 async function loadStudentList(){
   const list=document.getElementById('users-list');
   list.innerHTML='<p style="font-size:13px;color:var(--text-dim);">Loading…</p>';
@@ -1804,7 +1886,7 @@ function showTab(tab){
   document.getElementById('panel-ranks').style.display=tab==='ranks'?'block':'none';
   document.getElementById('panel-account').style.display=tab==='account'?'block':'none';
   document.getElementById('panel-admin').style.display=tab==='admin'?'block':'none';
-  if(tab==='admin')loadStudentList();
+  if(tab==='admin'){loadStudentList().then(loadReports);}
   if(tab==='progress')loadProgressPage();
   if(tab==='mistakes')loadWrongBank();
   if(tab==='ranks')loadRanksPage();
@@ -2600,7 +2682,7 @@ function formatMessage(text){
     const isOrigLine = line.startsWith('§ORIG§');
     if(isOrigLine) line = line.slice(6);
     const qm=line.match(/^\*\*Question\s*(\d+)\*\*(.*)/);
-    if(qm){currentQ=parseInt(qm[1]);return '<div class="q-header">Question '+qm[1]+(qm[2]||'')+'<button class="st-report-btn" onclick="openReportModal(\'synthesis\','+(currentQ-1)+')">🚩 Report problem</button></div>';}
+    if(qm){currentQ=parseInt(qm[1]);return '<div class="q-header">Question '+qm[1]+(qm[2]||'')+'<button class="st-report-btn" onclick="openReportModal(\'synthesis\','+(currentQ-1)+')"><svg class="report-flag-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 3v18M5 4h13l-3 4 3 4H5"/></svg>Report problem</button></div>';}
     const om=line.match(/^\[([ABCD])\]\s*(.+)/) || line.match(/^([ABCD])\.\s+(.+)/);
     if(om){
       hasMCQ=true;
@@ -2755,7 +2837,8 @@ async function submitReport(){
     closeReportModal();
     showToast('✅ Report sent — thanks for helping us find bugs!');
   }catch(e){
-    showToast('❌ Could not send report. Try again.');
+    showToast('❌ ' + (e && e.message ? e.message : 'Could not send report. Try again.'), 8000);
+    console.error('submitReport error', e);
   }finally{
     btn.disabled = false; btn.textContent = 'Submit report';
   }
