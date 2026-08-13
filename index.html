@@ -6,7 +6,7 @@
 <title>AL1 Cloze & Synthesis Coach — PSLE English AL1</title>
 
 <!-- PWA manifest (inline) -->
-<link rel="manifest" href='data:application/json,{"name":"Cloze Hunter","short_name":"Cloze Hunter","start_url":"./","display":"standalone","background_color":"%23392289","theme_color":"%235b41ec","orientation":"portrait","icons":[{"src":"/icon.png","sizes":"512x512","type":"image/png"}]}'/>
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22English%20Ace%22%2C%22short_name%22%3A%22English%20Ace%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%237c3aed%22%2C%22theme_color%22%3A%22%237c3aed%22%2C%22orientation%22%3A%22portrait%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%2527..%2527%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D"/>
 
 <!-- iOS PWA -->
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -220,6 +220,40 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .btn-change-pw{background:rgba(91,65,236,0.15);border:1px solid rgba(91,65,236,0.3);color:var(--gold);font-size:13px;font-weight:500;border-radius:8px;padding:8px 16px;cursor:pointer;align-self:flex-start;}
 
 /* TOAST */
+.btn-report{display:inline-flex;align-items:center;gap:4px;background:rgba(16,163,74,0.08);border:1px solid rgba(16,163,74,0.3);color:#0f8a3f;font-size:12px;font-weight:600;padding:4px 11px;border-radius:999px;cursor:pointer;margin-left:6px;}
+.btn-report:hover{background:rgba(16,163,74,0.15);}
+.st-report-btn{float:right;display:inline-flex;align-items:center;gap:4px;background:rgba(16,163,74,0.08);border:1px solid rgba(16,163,74,0.3);color:#0f8a3f;font-size:11px;font-weight:600;cursor:pointer;padding:3px 10px;border-radius:999px;}
+.st-report-btn:hover{background:rgba(16,163,74,0.15);}
+.report-flag-icon{flex-shrink:0;}
+.report-modal-overlay{display:none;position:fixed;inset:0;background:rgba(20,10,40,0.45);z-index:500;align-items:center;justify-content:center;padding:16px;}
+.report-modal-overlay.active{display:flex;}
+.report-modal{background:var(--dark2);border-radius:16px;padding:22px 22px 18px;width:100%;max-width:360px;max-height:88vh;overflow-y:auto;}
+.report-modal h3{font-size:16px;font-weight:600;color:var(--text);margin-bottom:2px;}
+.report-modal .rm-context{font-size:12px;color:var(--text-dim);margin-bottom:14px;}
+.report-modal .rm-label{font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.rm-option{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);padding:9px 10px;border:1.5px solid rgba(91,65,236,0.15);border-radius:8px;cursor:pointer;margin-bottom:6px;}
+.rm-option.selected{border-color:var(--gold);background:rgba(91,65,236,0.06);}
+.rm-option input{accent-color:var(--gold);}
+.report-modal input[type="number"],.report-modal input[type="text"],.report-modal textarea{width:100%;background:var(--dark3);border:1px solid rgba(91,65,236,0.2);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text);font-family:'Outfit',sans-serif;box-sizing:border-box;margin-bottom:14px;}
+.report-modal textarea{resize:none;}
+.rm-btn-row{display:flex;gap:8px;margin-top:2px;}
+.rm-btn-row button{flex:1;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+.rm-cancel{background:var(--dark3);color:var(--text-dim);}
+.rm-submit{background:var(--gold);color:#fff;}
+.rm-submit:disabled{opacity:0.5;cursor:not-allowed;}
+.reports-filter{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);margin-bottom:12px;}
+.report-card{background:var(--dark2);border:1px solid rgba(91,65,236,0.15);border-radius:12px;padding:14px 16px;margin-bottom:10px;}
+.report-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.report-badge{font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:var(--gold);background:rgba(91,65,236,0.1);padding:3px 8px;border-radius:4px;}
+.report-status{font-size:11px;font-weight:600;text-transform:capitalize;}
+.report-card-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px;}
+.report-card-issue{font-size:13px;color:var(--text-dim);margin-bottom:6px;}
+.report-card-detail{font-size:13px;color:var(--text);background:var(--dark3);border-radius:6px;padding:6px 10px;margin-bottom:4px;}
+.report-card-meta{font-size:11px;color:var(--text-dim);margin-top:6px;}
+.report-card-actions{display:flex;gap:8px;margin-top:10px;}
+.report-card-actions button{font-size:12px;font-weight:600;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;}
+.rc-btn-fixed{background:rgba(16,163,74,0.1);color:#0f8a3f;}
+.rc-btn-dismiss{background:rgba(107,107,138,0.1);color:var(--text-dim);}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark3);border:1px solid rgba(91,65,236,0.3);color:var(--text);font-size:13px;line-height:1.5;padding:11px 18px;border-radius:10px;opacity:0;transition:all 0.3s;pointer-events:none;z-index:999;white-space:normal;max-width:min(92vw,460px);text-align:center;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
@@ -243,6 +277,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   .dp-track-label{font-size:11px;}
   .chat-header{padding:10px 14px;}
   .chat-header h2{font-size:15px;}
+  .btn-report{font-size:11px;padding:4px 7px;margin-left:4px;}
+  .report-modal{padding:18px 16px 14px;}
   .chat-messages{padding:12px;}
   .msg{max-width:100%;}
   .msg-bubble{font-size:15px;padding:11px 14px;}
@@ -324,7 +360,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .chain-future{background:#f3f0fe;}
 .chain-future span{opacity:.65;}
 .chain-missed{color:#b5b3ac;}
-.chain-fixable{background:#fff;border:2.5px dashed #ba7517;color:#854f0b;font-size:15px;}
+.chain-fixable-ready{background:#f0fdf4;border:2.5px dashed #16a34a;color:#16a34a;font-size:15px;cursor:pointer;}
+.chain-fixable-ready:hover{background:#dcfce7;}
 .chain-badge{background:#ffeec2;}
 .chain-badge span{opacity:.9;}
 .chain-badge-won{background:#ffd873;}
@@ -540,7 +577,10 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
       <div class="chat-wrap">
         <div class="chat-header">
           <h2 id="chat-title">Comprehension Cloze</h2>
-          <button class="btn-new-session" onclick="newSession()">New Session</button>
+          <span>
+            <button class="btn-new-session" onclick="newSession()">New Session</button>
+            <button class="btn-report" id="btn-report-cloze" onclick="openReportModal('cloze')"><svg class="report-flag-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 3v18M5 4h13l-3 4 3 4H5"/></svg>Report</button>
+          </span>
         </div>
         <div class="chat-messages" id="chat-messages"></div>
         <div class="thinking" id="thinking">AL1 Coach is thinking…</div>
@@ -609,9 +649,44 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
         <h3>👥 Current Students</h3>
         <div id="users-list"><p style="font-size:13px;color:var(--text-dim);">Loading…</p></div>
       </div>
+      <div class="admin-section">
+        <h3>🚩 Bug Reports</h3>
+        <label class="reports-filter"><input type="checkbox" id="reports-show-all" onchange="loadReports()"/>Show fixed/dismissed too</label>
+        <div id="reports-list"><p style="font-size:13px;color:var(--text-dim);">Loading…</p></div>
+      </div>
   </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="report-modal-overlay" id="report-modal-overlay" onclick="if(event.target===this)closeReportModal()">
+  <div class="report-modal">
+    <h3>Report a problem</h3>
+    <div class="rm-context" id="rm-context"></div>
+
+    <div class="rm-label">What's wrong?</div>
+    <div id="rm-options"></div>
+
+    <div id="rm-answer-wrap" style="display:none;">
+      <div class="rm-label">Your answer</div>
+      <input type="text" id="rm-student-answer" placeholder="Type what you wrote…"/>
+    </div>
+
+    <div id="rm-blank-wrap" style="display:none;">
+      <div class="rm-label">Which blank number?</div>
+      <input type="number" id="rm-blank-no" placeholder="e.g. 7"/>
+    </div>
+
+    <div id="rm-note-wrap" style="display:none;">
+      <div class="rm-label">Details (optional)</div>
+      <textarea id="rm-note" rows="2" placeholder="Tell us more…"></textarea>
+    </div>
+
+    <div class="rm-btn-row">
+      <button class="rm-cancel" onclick="closeReportModal()">Cancel</button>
+      <button class="rm-submit" id="rm-submit-btn" onclick="submitReport()">Submit report</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
@@ -787,7 +862,24 @@ async function doSignup(){
   }
 }
 
+// 换账号时，「做过哪些题」这类缓存必须清空——否则新账号会错误继承上一个账号的记录
+function resetUserSessionCaches(){
+  doneIds = {synthesis:null, cloze:null};
+  usedIds = {synthesis:new Set(), cloze:new Set()};
+  dbQuestions = {synthesis:[], cloze:[]};
+  dbLoaded = {synthesis:false, cloze:false};
+  poolEmpty = {synthesis:false, cloze:false};
+  replayMode = {synthesis:false, cloze:false};
+  currentDBQuestions = null;
+  currentDBType = null;
+  weekState = null;
+  todayProgress = {cloze_done:0, synthesis_done:0, weak_cloze:'', weak_synthesis:''};
+  _adminStudents = [];
+  _pendingMistakesCount = -1;
+}
+
 async function enterApp(){
+  resetUserSessionCaches();
   setChatInputVisible(false);   // 还没开始做题，不要留一个空框在那边
   document.getElementById('login-screen').classList.remove('active');
   document.getElementById('app-screen').classList.add('active');
@@ -807,6 +899,7 @@ async function enterApp(){
 async function doLogout(){
   try{ await sb.auth.signOut(); }catch(e){}
   currentUser=null; chatHistory=[];
+  resetUserSessionCaches();
   document.getElementById('app-screen').classList.remove('active');
   document.getElementById('login-screen').classList.add('active');
   document.getElementById('login-user').value='';
@@ -1403,18 +1496,23 @@ async function loadProgressPage(){
       const total=(r.cloze_done||0)+stSetsDone;
       const maxTotal=clozeTarget+stSetTarget;
       const pct=Math.min(100,Math.round(total/maxTotal*100));
-      // 两个模块的正确率分开算 —— 合在一起看不出是哪一项弱
       const cAcc=(r.cloze_attempted||0)>0?Math.round((r.cloze_correct||0)/r.cloze_attempted*100):null;
       const sAcc=(r.synthesis_attempted||0)>0?Math.round((r.synthesis_correct||0)/r.synthesis_attempted*100):null;
-      html+=`<div style="margin-bottom:10px;">
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:4px;">
-          <span>${r.date}</span><span>${total}/${maxTotal} sessions</span>
+      html+=`<div style="margin-bottom:14px;">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">${r.date}</div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+          <span style="color:var(--gold);font-weight:700;">Cloze</span>
+          <span style="color:var(--text-dim);">${r.cloze_done||0}/${clozeTarget}${cAcc!==null?` · ${cAcc}% correct`:''}</span>
         </div>
-        <div style="background:var(--dark4);border-radius:4px;height:8px;overflow:hidden;">
-          <div style="width:${pct}%;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--blue),var(--gold));transition:width 0.5s;"></div>
+        <div style="background:var(--dark4);border-radius:4px;height:7px;overflow:hidden;margin-bottom:8px;">
+          <div style="width:${cAcc||0}%;height:7px;border-radius:4px;background:var(--gold);transition:width 0.5s;"></div>
         </div>
-        <div style="display:flex;gap:14px;margin-top:4px;font-size:11px;color:var(--text-dim);flex-wrap:wrap;">
-          <span>Cloze: ${r.cloze_done||0}/${clozeTarget}${cAcc!==null?` · ${cAcc}%`:''}</span><span>S&amp;T: ${stSetsDone}/${stSetTarget} sets${sAcc!==null?` · ${sAcc}%`:''}</span>
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+          <span style="color:#16a34a;font-weight:700;">S&amp;T</span>
+          <span style="color:var(--text-dim);">${stSetsDone}/${stSetTarget} sets${sAcc!==null?` · ${sAcc}% correct`:''}</span>
+        </div>
+        <div style="background:var(--dark4);border-radius:4px;height:7px;overflow:hidden;">
+          <div style="width:${sAcc||0}%;height:7px;border-radius:4px;background:#16a34a;transition:width 0.5s;"></div>
         </div>
       </div>`;
     });
@@ -1611,6 +1709,68 @@ async function loadAccountPage(){
 // ══════════════════════════════════
 let _adminStudents=[];
 
+const REPORT_ISSUE_LABELS={
+  answer_wrong:'Answer is wrong',
+  multiple_answers:'More than one answer possible',
+  question_text_wrong:'Passage/question text is wrong',
+  other:'Something else'
+};
+
+async function loadReports(){
+  const el=document.getElementById('reports-list');
+  if(!el)return;
+  el.innerHTML='<p style="font-size:13px;color:var(--text-dim);">Loading…</p>';
+  try{
+    const showAll=document.getElementById('reports-show-all')?.checked;
+    const filter=showAll?'':'&status=eq.pending';
+    const rows=await sbFetch('reports?select=*&order=created_at.desc&limit=100'+filter)||[];
+    if(!rows.length){el.innerHTML='<p style="font-size:13px;color:var(--text-dim);">No reports'+(showAll?'':' pending')+'.</p>';return;}
+
+    const clozeIds=[...new Set(rows.filter(r=>r.source_table==='cloze_passages').map(r=>r.source_id))];
+    const synIds=[...new Set(rows.filter(r=>r.source_table==='synthesis_questions').map(r=>r.source_id))];
+    const [clozeRows,synRows]=await Promise.all([
+      clozeIds.length?sbFetch('cloze_passages?id=in.('+clozeIds.join(',')+')&select=id,title'):[],
+      synIds.length?sbFetch('synthesis_questions?id=in.('+synIds.join(',')+')&select=id,original_sentence'):[]
+    ]);
+    const clozeMap={}; (clozeRows||[]).forEach(c=>clozeMap[c.id]=c.title);
+    const synMap={}; (synRows||[]).forEach(s=>synMap[s.id]=s.original_sentence);
+    const studentMap={}; (_adminStudents||[]).forEach(u=>studentMap[u.id]=u.display||u.phone);
+
+    el.innerHTML=rows.map(r=>{
+      const student=stEscapeHtml(studentMap[r.user_id]||'—');
+      const rawTitle=r.source_table==='cloze_passages'?(clozeMap[r.source_id]||('#'+r.source_id)):(synMap[r.source_id]||('#'+r.source_id));
+      const title=stEscapeHtml(rawTitle);
+      const typeLabel=r.source_table==='cloze_passages'?'Cloze':'S&T';
+      const issueLabel=stEscapeHtml(REPORT_ISSUE_LABELS[r.issue_type]||r.issue_type);
+      const dateStr=new Date(r.created_at).toLocaleString();
+      const statusColor=r.status==='pending'?'#f47920':(r.status==='fixed'?'#0f8a3f':'#6b6b8a');
+      const answerHtml=r.student_answer?('<div class="report-card-detail">Student\'s answer: <strong>'+stEscapeHtml(r.student_answer)+'</strong></div>'):'';
+      const noteHtml=r.note?('<div class="report-card-detail">Note: '+stEscapeHtml(r.note)+'</div>'):'';
+      const actionsHtml=r.status==='pending'?('<div class="report-card-actions"><button class="rc-btn-fixed" onclick="updateReportStatus('+r.id+',\'fixed\')">Mark fixed</button><button class="rc-btn-dismiss" onclick="updateReportStatus('+r.id+',\'dismissed\')">Dismiss</button></div>'):'';
+      return '<div class="report-card">'
+        +'<div class="report-card-top"><span class="report-badge">'+typeLabel+'</span><span class="report-status" style="color:'+statusColor+'">'+r.status+'</span></div>'
+        +'<div class="report-card-title">'+title+(r.blank_no?(' · blank '+r.blank_no):'')+'</div>'
+        +'<div class="report-card-issue">'+issueLabel+'</div>'
+        +answerHtml+noteHtml
+        +'<div class="report-card-meta">'+student+' · '+dateStr+'</div>'
+        +actionsHtml
+        +'</div>';
+    }).join('');
+  }catch(e){
+    el.innerHTML='<p style="font-size:13px;color:var(--red);">Error loading reports: '+e.message+'</p>';
+  }
+}
+
+async function updateReportStatus(id,status){
+  try{
+    await sbFetch('reports?id=eq.'+id,{method:'PATCH',prefer:'return=minimal',body:{status}});
+    showToast(status==='fixed'?'✅ Marked as fixed':'Dismissed');
+    loadReports();
+  }catch(e){
+    showToast('❌ Could not update: '+e.message);
+  }
+}
+
 async function loadStudentList(){
   const list=document.getElementById('users-list');
   list.innerHTML='<p style="font-size:13px;color:var(--text-dim);">Loading…</p>';
@@ -1750,7 +1910,7 @@ function showTab(tab){
   document.getElementById('panel-ranks').style.display=tab==='ranks'?'block':'none';
   document.getElementById('panel-account').style.display=tab==='account'?'block':'none';
   document.getElementById('panel-admin').style.display=tab==='admin'?'block':'none';
-  if(tab==='admin')loadStudentList();
+  if(tab==='admin'){loadStudentList().then(loadReports);}
   if(tab==='progress')loadProgressPage();
   if(tab==='mistakes')loadWrongBank();
   if(tab==='ranks')loadRanksPage();
@@ -2422,6 +2582,7 @@ function selectTopic(btn,topic){
   btn.classList.add('active');
   currentTopic=topic;
   document.getElementById('chat-title').textContent=TOPIC_LABELS[topic];
+  const _rb=document.getElementById('btn-report-cloze'); if(_rb) _rb.style.display=(topic==='cloze')?'inline-block':'none';
   newSession();
   // Scroll to chat area
   setTimeout(()=>{const chat=document.getElementById('chat-messages');if(chat)chat.scrollIntoView({behavior:'smooth',block:'start'});},400);
@@ -2429,7 +2590,7 @@ function selectTopic(btn,topic){
 function selectTopicById(topic){
   const btn=document.getElementById('sb-'+topic);
   if(btn)selectTopic(btn,topic);
-  else{currentTopic=topic;document.getElementById('chat-title').textContent=TOPIC_LABELS[topic];newSession();}
+  else{currentTopic=topic;document.getElementById('chat-title').textContent=TOPIC_LABELS[topic];const _rb=document.getElementById('btn-report-cloze'); if(_rb) _rb.style.display=(topic==='cloze')?'inline-block':'none';newSession();}
 }
 function newSession(){
   window._sessionRunning = false;
@@ -2545,7 +2706,7 @@ function formatMessage(text){
     const isOrigLine = line.startsWith('§ORIG§');
     if(isOrigLine) line = line.slice(6);
     const qm=line.match(/^\*\*Question\s*(\d+)\*\*(.*)/);
-    if(qm){currentQ=parseInt(qm[1]);return '<div class="q-header">Question '+qm[1]+(qm[2]||'')+'</div>';}
+    if(qm){currentQ=parseInt(qm[1]);return '<div class="q-header">Question '+qm[1]+(qm[2]||'')+'<button class="st-report-btn" onclick="openReportModal(\'synthesis\','+(currentQ-1)+')"><svg class="report-flag-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 3v18M5 4h13l-3 4 3 4H5"/></svg>Report problem</button></div>';}
     const om=line.match(/^\[([ABCD])\]\s*(.+)/) || line.match(/^([ABCD])\.\s+(.+)/);
     if(om){
       hasMCQ=true;
@@ -2592,6 +2753,119 @@ l=l.replace(/§EXAM§(.+?)§\/EXAM§/g,'<div class="exp-example">e.g. $1</div>')
     result+='<br><button class="submit-answers-btn" data-msgid="'+msgId+'" data-blanks="'+blankIdx+'" onclick="submitBlanks(this)">Submit Answers</button>';
   }
   return result;
+}
+
+// ══════════════════════════════════
+// REPORT A PROBLEM
+// ══════════════════════════════════
+let reportState = { type:null, qIdx:null, issue:null };
+
+const REPORT_OPTIONS = {
+  cloze: [
+    { value:'answer_wrong', label:'Answer is wrong' },
+    { value:'multiple_answers', label:'More than one answer possible' },
+    { value:'question_text_wrong', label:'Passage or question text is wrong' },
+    { value:'other', label:'Something else' }
+  ],
+  synthesis: [
+    { value:'answer_wrong', label:'The marked answer is wrong' },
+    { value:'multiple_answers', label:'My answer should also be accepted' }
+  ]
+};
+
+function openReportModal(type, qIdx){
+  if(!currentUser){ showToast('Please sign in first.'); return; }
+  reportState = { type, qIdx:(qIdx===undefined?null:qIdx), issue:null };
+
+  let contextLabel = '';
+  if(type==='cloze'){
+    contextLabel = (currentDBQuestions && currentDBQuestions.title) ? currentDBQuestions.title : '';
+  } else {
+    const q = currentDBQuestions && currentDBQuestions[qIdx];
+    contextLabel = q ? ('Question ' + (qIdx+1)) : '';
+  }
+  document.getElementById('rm-context').textContent = contextLabel;
+
+  const opts = REPORT_OPTIONS[type] || [];
+  document.getElementById('rm-options').innerHTML = opts.map((o,i)=>
+    '<label class="rm-option'+(i===0?' selected':'')+'" data-value="'+o.value+'">'+
+    '<input type="radio" name="rm-issue" value="'+o.value+'"'+(i===0?' checked':'')+' onchange="onReportIssueChange(this)"/>'+o.label+
+    '</label>'
+  ).join('');
+  reportState.issue = opts[0] ? opts[0].value : null;
+
+  document.getElementById('rm-blank-wrap').style.display = (type==='cloze') ? 'block' : 'none';
+  document.getElementById('rm-note-wrap').style.display = (type==='cloze') ? 'block' : 'none';
+  document.getElementById('rm-answer-wrap').style.display = (type==='synthesis' && reportState.issue==='multiple_answers') ? 'block' : 'none';
+
+  document.getElementById('rm-blank-no').value = '';
+  document.getElementById('rm-note').value = '';
+  document.getElementById('rm-student-answer').value = '';
+
+  document.getElementById('report-modal-overlay').classList.add('active');
+}
+
+function onReportIssueChange(input){
+  reportState.issue = input.value;
+  document.querySelectorAll('#rm-options .rm-option').forEach(el=>{
+    el.classList.toggle('selected', el.getAttribute('data-value')===input.value);
+  });
+  document.getElementById('rm-answer-wrap').style.display =
+    (reportState.type==='synthesis' && input.value==='multiple_answers') ? 'block' : 'none';
+}
+
+function closeReportModal(){
+  document.getElementById('report-modal-overlay').classList.remove('active');
+}
+
+async function submitReport(){
+  if(!currentUser){ showToast('Please sign in first.'); return; }
+  const { type, qIdx, issue } = reportState;
+  if(!issue){ showToast('Please choose an option.'); return; }
+
+  let sourceTable, sourceId;
+  if(type==='cloze'){
+    if(!currentDBQuestions || !currentDBQuestions.id){ showToast('❌ No passage loaded.'); return; }
+    sourceTable = 'cloze_passages';
+    sourceId = currentDBQuestions.id;
+  } else {
+    const q = currentDBQuestions && currentDBQuestions[qIdx];
+    if(!q || !q.id){ showToast('❌ Could not find this question.'); return; }
+    sourceTable = 'synthesis_questions';
+    sourceId = q.id;
+  }
+
+  const studentAnswer = (type==='synthesis' && issue==='multiple_answers')
+    ? document.getElementById('rm-student-answer').value.trim() : null;
+  if(type==='synthesis' && issue==='multiple_answers' && !studentAnswer){
+    showToast('Please write your answer first.');
+    return;
+  }
+
+  const blankNoRaw = (type==='cloze') ? document.getElementById('rm-blank-no').value.trim() : '';
+  const blankNo = blankNoRaw ? parseInt(blankNoRaw, 10) : null;
+  const note = (type==='cloze') ? document.getElementById('rm-note').value.trim() : '';
+
+  const btn = document.getElementById('rm-submit-btn');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  try{
+    await sbFetch('reports', { method:'POST', prefer:'return=minimal', body:{
+      user_id: currentUser.id,
+      source_table: sourceTable,
+      source_id: sourceId,
+      blank_no: blankNo,
+      issue_type: issue,
+      student_answer: studentAnswer,
+      note: note || null
+    }});
+    closeReportModal();
+    showToast('✅ Report sent — thanks for helping us find bugs!');
+  }catch(e){
+    showToast('❌ ' + (e && e.message ? e.message : 'Could not send report. Try again.'), 8000);
+    console.error('submitReport error', e);
+  }finally{
+    btn.disabled = false; btn.textContent = 'Submit report';
+  }
 }
 
 document.addEventListener('click', function(e){
@@ -3254,7 +3528,7 @@ async function loadStreakWidget(){
       const isToday=d.day_date===today;
       const isFuture=d.day_date>today;
       const label=DOW[days.indexOf(d)];
-      let cls='chain-cell', inner='';
+      let cls='chain-cell', inner='', onclickAttr='';
       if(d.is_done){
         // 补打卡补上的格子显示 ✓，正常完成的显示 🔥
         cls+=d.is_repaired?' chain-done chain-repaired':' chain-done';
@@ -3268,50 +3542,33 @@ async function loadStreakWidget(){
       }else if(d.in_range===false){
         // 还没注册的那几天：空格子，不画 ✕也不能补
         cls+=' chain-future';
+      }else if(d.day_date===firstFixable){
+        // 唯一可以补卡的一天 —— 绿色虚线圆圈，直接可以点
+        cls+=' chain-fixable-ready';
+        inner='<span>\u21ba</span>';
+        onclickAttr=' onclick="onFixableCellClick(\''+d.day_date+'\')"';
       }else{
-        cls+=(d.day_date===firstFixable)?' chain-fixable':' chain-missed';
+        cls+=' chain-missed';
         inner='✕';
       }
-      const isSun=days.indexOf(d)===6;
-      if(isSun&&!d.is_done&&!isToday&&!isFuture){} // 周日格子照常
-      return `<div class="chain-col"><div class="chain-label${isToday?' chain-label-today':''}">${label}</div><div class="${cls}">${inner}</div></div>`;
+      return `<div class="chain-col"><div class="chain-label${isToday?' chain-label-today':''}">${label}</div><div class="${cls}"${onclickAttr}>${inner}</div></div>`;
     }).join('');
 
-
     let footer='';
-    if(firstFixable&&todayDone){
-      // 补打卡：那天缺多少，今天就要在额度之外多做多少
-      const _t=getDailyTargets();
-      const fixRow=days.find(d=>d.day_date===firstFixable)||{};
-      const todayRow=days.find(d=>d.day_date===today)||{};
-      const needC=Math.max(0,_t.cloze-(fixRow.cloze_done||0));
-      const needS=Math.max(0,_t.synthesis-(fixRow.st_done||0));
-      const leftC=Math.max(0,needC-Math.max(0,(todayRow.cloze_done||0)-_t.cloze));
-      const leftS=Math.ceil(Math.max(0,needS-Math.max(0,(todayRow.st_done||0)-_t.synthesis))/5);
-      if(leftC===0&&leftS===0){
-        footer=`<div class="chain-fix-note">You've made up what <b>${firstFixable}</b> was missing — tap to bring it back.</div>
-        <button class="chain-btn chain-btn-fix" onclick="repairDay('${firstFixable}')">Fix ${firstFixable}</button>`;
-      }else{
+    if(!firstFixable){
+      if(!todayDone){
+        // 不再给按钮（下面 Continue 已经是同一个入口，绿色圆圈是打卡卡片自己的入口），只告诉学生还差多少
+        const t=getDailyGoals();
+        const todayRow=days.find(d=>d.day_date===today)||{};
+        const leftC=Math.max(0,t.cloze-(todayRow.cloze_done||0));
+        const leftS=Math.max(0,Math.ceil((t.synthesis-(todayRow.st_done||0))/ST_PER_SESSION));
         const bits=[];
-        if(leftC>0)bits.push(`${leftC} passage${leftC>1?'s':''}`);
-        if(leftS>0)bits.push(`${leftS} set${leftS>1?'s':''}`);
-        footer=`<div class="chain-fix-note">To bring back <b>${firstFixable}</b>, make up what was missed: <b>${bits.join(' and ')}</b> to go.</div>
-        <button class="chain-btn" onclick="continueToday()">Make up ${firstFixable}</button>`;
+        if(leftC>0)bits.push(`<b>${leftC} more passage${leftC>1?'s':''}</b>`);
+        if(leftS>0)bits.push(`<b>${leftS} more S&T set${leftS>1?'s':''}</b>`);
+        footer=`<div class="chain-fix-note" style="text-align:center;">${bits.join(' and ')} to light up today.</div>`;
+      }else{
+        footer=`<div class="chain-fix-note" style="text-align:center;">Today is done. Come back tomorrow to keep the chain going.</div>`;
       }
-    }else if(firstFixable){
-      footer=`<div class="chain-fix-note" style="text-align:center;">Finish today's practice, then you can fix <b>${firstFixable}</b>.</div>`;
-    }else if(!todayDone){
-      // 不再给按钮（下面 Continue 已经是同一个入口），只告诉学生还差多少
-      const t=getDailyGoals();
-      const todayRow=days.find(d=>d.day_date===today)||{};
-      const leftC=Math.max(0,t.cloze-(todayRow.cloze_done||0));
-      const leftS=Math.max(0,Math.ceil((t.synthesis-(todayRow.st_done||0))/ST_PER_SESSION));
-      const bits=[];
-      if(leftC>0)bits.push(`<b>${leftC} more passage${leftC>1?'s':''}</b>`);
-      if(leftS>0)bits.push(`<b>${leftS} more S&T set${leftS>1?'s':''}</b>`);
-      footer=`<div class="chain-fix-note" style="text-align:center;">${bits.join(' and ')} to light up today.</div>`;
-    }else{
-      footer=`<div class="chain-fix-note" style="text-align:center;">Today is done. Come back tomorrow to keep the chain going.</div>`;
     }
 
     const tierTxt=r.tier==='start'
@@ -3325,6 +3582,29 @@ async function loadStreakWidget(){
       <div class="chain-tier">${tierTxt}</div>
     </div>`;
   }catch(e){console.warn('streak failed',e);el.innerHTML='';}
+}
+
+// 打卡卡片里那个绿色圆圈的点击逻辑：今天没做完就去做练习；做完且补够了就直接补卡；做完但没补够就提示还差多少，同时带去练习
+function onFixableCellClick(date){
+  const _t=getDailyTargets();
+  const rows=weekState||[];
+  const todayRow=rows.find(d=>d.day_date===TODAY)||{};
+  const todayDone=(todayRow.cloze_done||0)>=_t.cloze && (todayRow.st_done||0)>=_t.synthesis;
+  if(!todayDone){ continueToday(); return; }
+  const fixRow=rows.find(d=>d.day_date===date)||{};
+  const needC=Math.max(0,_t.cloze-(fixRow.cloze_done||0));
+  const needS=Math.max(0,_t.synthesis-(fixRow.st_done||0));
+  const leftC=Math.max(0,needC-Math.max(0,(todayRow.cloze_done||0)-_t.cloze));
+  const leftS=Math.ceil(Math.max(0,needS-Math.max(0,(todayRow.st_done||0)-_t.synthesis))/5);
+  if(leftC===0&&leftS===0){
+    repairDay(date);
+  }else{
+    const bits=[];
+    if(leftC>0)bits.push(`${leftC} more passage${leftC>1?'s':''}`);
+    if(leftS>0)bits.push(`${leftS} more S&T set${leftS>1?'s':''}`);
+    showToast(`Do ${bits.join(' and ')} today to unlock fixing ${date}.`, 6000);
+    continueToday();
+  }
 }
 
 // 补签：服务器判定能不能补、补了还拿不拿得到徽章
