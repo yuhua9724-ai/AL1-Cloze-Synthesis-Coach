@@ -6,7 +6,7 @@
 <title>AL1 Cloze & Synthesis Coach — PSLE English AL1</title>
 
 <!-- PWA manifest (inline) -->
-<link rel="manifest" href='data:application/json,{"name":"Cloze Hunter","short_name":"Cloze Hunter","start_url":"./","display":"standalone","background_color":"%23392289","theme_color":"%235b41ec","orientation":"portrait","icons":[{"src":"/icon.png","sizes":"512x512","type":"image/png"}]}'/>
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22English%20Ace%22%2C%22short_name%22%3A%22English%20Ace%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%237c3aed%22%2C%22theme_color%22%3A%22%237c3aed%22%2C%22orientation%22%3A%22portrait%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%2527..%2527%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D"/>
 
 <!-- iOS PWA -->
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -220,6 +220,25 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .btn-change-pw{background:rgba(91,65,236,0.15);border:1px solid rgba(91,65,236,0.3);color:var(--gold);font-size:13px;font-weight:500;border-radius:8px;padding:8px 16px;cursor:pointer;align-self:flex-start;}
 
 /* TOAST */
+.btn-report{background:rgba(224,36,94,0.08);border:1px solid rgba(224,36,94,0.25);color:var(--red);font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;margin-left:6px;}
+.btn-report:hover{background:rgba(224,36,94,0.14);}
+.st-report-btn{float:right;background:none;border:none;color:var(--red);font-size:11px;font-weight:500;cursor:pointer;padding:2px 0;}
+.report-modal-overlay{display:none;position:fixed;inset:0;background:rgba(20,10,40,0.45);z-index:500;align-items:center;justify-content:center;padding:16px;}
+.report-modal-overlay.active{display:flex;}
+.report-modal{background:var(--dark2);border-radius:16px;padding:22px 22px 18px;width:100%;max-width:360px;max-height:88vh;overflow-y:auto;}
+.report-modal h3{font-size:16px;font-weight:600;color:var(--text);margin-bottom:2px;}
+.report-modal .rm-context{font-size:12px;color:var(--text-dim);margin-bottom:14px;}
+.report-modal .rm-label{font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.rm-option{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);padding:9px 10px;border:1.5px solid rgba(91,65,236,0.15);border-radius:8px;cursor:pointer;margin-bottom:6px;}
+.rm-option.selected{border-color:var(--gold);background:rgba(91,65,236,0.06);}
+.rm-option input{accent-color:var(--gold);}
+.report-modal input[type="number"],.report-modal input[type="text"],.report-modal textarea{width:100%;background:var(--dark3);border:1px solid rgba(91,65,236,0.2);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text);font-family:'Outfit',sans-serif;box-sizing:border-box;margin-bottom:14px;}
+.report-modal textarea{resize:none;}
+.rm-btn-row{display:flex;gap:8px;margin-top:2px;}
+.rm-btn-row button{flex:1;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+.rm-cancel{background:var(--dark3);color:var(--text-dim);}
+.rm-submit{background:var(--gold);color:#fff;}
+.rm-submit:disabled{opacity:0.5;cursor:not-allowed;}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark3);border:1px solid rgba(91,65,236,0.3);color:var(--text);font-size:13px;line-height:1.5;padding:11px 18px;border-radius:10px;opacity:0;transition:all 0.3s;pointer-events:none;z-index:999;white-space:normal;max-width:min(92vw,460px);text-align:center;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
@@ -243,6 +262,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   .dp-track-label{font-size:11px;}
   .chat-header{padding:10px 14px;}
   .chat-header h2{font-size:15px;}
+  .btn-report{font-size:11px;padding:4px 7px;margin-left:4px;}
+  .report-modal{padding:18px 16px 14px;}
   .chat-messages{padding:12px;}
   .msg{max-width:100%;}
   .msg-bubble{font-size:15px;padding:11px 14px;}
@@ -540,7 +561,10 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
       <div class="chat-wrap">
         <div class="chat-header">
           <h2 id="chat-title">Comprehension Cloze</h2>
-          <button class="btn-new-session" onclick="newSession()">New Session</button>
+          <span>
+            <button class="btn-new-session" onclick="newSession()">New Session</button>
+            <button class="btn-report" id="btn-report-cloze" onclick="openReportModal('cloze')">🚩 Report</button>
+          </span>
         </div>
         <div class="chat-messages" id="chat-messages"></div>
         <div class="thinking" id="thinking">AL1 Coach is thinking…</div>
@@ -612,6 +636,36 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
   </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="report-modal-overlay" id="report-modal-overlay" onclick="if(event.target===this)closeReportModal()">
+  <div class="report-modal">
+    <h3>Report a problem</h3>
+    <div class="rm-context" id="rm-context"></div>
+
+    <div class="rm-label">What's wrong?</div>
+    <div id="rm-options"></div>
+
+    <div id="rm-answer-wrap" style="display:none;">
+      <div class="rm-label">Your answer</div>
+      <input type="text" id="rm-student-answer" placeholder="Type what you wrote…"/>
+    </div>
+
+    <div id="rm-blank-wrap" style="display:none;">
+      <div class="rm-label">Which blank number?</div>
+      <input type="number" id="rm-blank-no" placeholder="e.g. 7"/>
+    </div>
+
+    <div id="rm-note-wrap" style="display:none;">
+      <div class="rm-label">Details (optional)</div>
+      <textarea id="rm-note" rows="2" placeholder="Tell us more…"></textarea>
+    </div>
+
+    <div class="rm-btn-row">
+      <button class="rm-cancel" onclick="closeReportModal()">Cancel</button>
+      <button class="rm-submit" id="rm-submit-btn" onclick="submitReport()">Submit report</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
@@ -2422,6 +2476,7 @@ function selectTopic(btn,topic){
   btn.classList.add('active');
   currentTopic=topic;
   document.getElementById('chat-title').textContent=TOPIC_LABELS[topic];
+  const _rb=document.getElementById('btn-report-cloze'); if(_rb) _rb.style.display=(topic==='cloze')?'inline-block':'none';
   newSession();
   // Scroll to chat area
   setTimeout(()=>{const chat=document.getElementById('chat-messages');if(chat)chat.scrollIntoView({behavior:'smooth',block:'start'});},400);
@@ -2429,7 +2484,7 @@ function selectTopic(btn,topic){
 function selectTopicById(topic){
   const btn=document.getElementById('sb-'+topic);
   if(btn)selectTopic(btn,topic);
-  else{currentTopic=topic;document.getElementById('chat-title').textContent=TOPIC_LABELS[topic];newSession();}
+  else{currentTopic=topic;document.getElementById('chat-title').textContent=TOPIC_LABELS[topic];const _rb=document.getElementById('btn-report-cloze'); if(_rb) _rb.style.display=(topic==='cloze')?'inline-block':'none';newSession();}
 }
 function newSession(){
   window._sessionRunning = false;
@@ -2545,7 +2600,7 @@ function formatMessage(text){
     const isOrigLine = line.startsWith('§ORIG§');
     if(isOrigLine) line = line.slice(6);
     const qm=line.match(/^\*\*Question\s*(\d+)\*\*(.*)/);
-    if(qm){currentQ=parseInt(qm[1]);return '<div class="q-header">Question '+qm[1]+(qm[2]||'')+'</div>';}
+    if(qm){currentQ=parseInt(qm[1]);return '<div class="q-header">Question '+qm[1]+(qm[2]||'')+'<button class="st-report-btn" onclick="openReportModal(\'synthesis\','+(currentQ-1)+')">🚩 Report problem</button></div>';}
     const om=line.match(/^\[([ABCD])\]\s*(.+)/) || line.match(/^([ABCD])\.\s+(.+)/);
     if(om){
       hasMCQ=true;
@@ -2592,6 +2647,118 @@ l=l.replace(/§EXAM§(.+?)§\/EXAM§/g,'<div class="exp-example">e.g. $1</div>')
     result+='<br><button class="submit-answers-btn" data-msgid="'+msgId+'" data-blanks="'+blankIdx+'" onclick="submitBlanks(this)">Submit Answers</button>';
   }
   return result;
+}
+
+// ══════════════════════════════════
+// REPORT A PROBLEM
+// ══════════════════════════════════
+let reportState = { type:null, qIdx:null, issue:null };
+
+const REPORT_OPTIONS = {
+  cloze: [
+    { value:'answer_wrong', label:'Answer is wrong' },
+    { value:'multiple_answers', label:'More than one answer possible' },
+    { value:'question_text_wrong', label:'Passage or question text is wrong' },
+    { value:'other', label:'Something else' }
+  ],
+  synthesis: [
+    { value:'answer_wrong', label:'The marked answer is wrong' },
+    { value:'multiple_answers', label:'My answer should also be accepted' }
+  ]
+};
+
+function openReportModal(type, qIdx){
+  if(!currentUser){ showToast('Please sign in first.'); return; }
+  reportState = { type, qIdx:(qIdx===undefined?null:qIdx), issue:null };
+
+  let contextLabel = '';
+  if(type==='cloze'){
+    contextLabel = (currentDBQuestions && currentDBQuestions.title) ? currentDBQuestions.title : '';
+  } else {
+    const q = currentDBQuestions && currentDBQuestions[qIdx];
+    contextLabel = q ? ('Question ' + (qIdx+1)) : '';
+  }
+  document.getElementById('rm-context').textContent = contextLabel;
+
+  const opts = REPORT_OPTIONS[type] || [];
+  document.getElementById('rm-options').innerHTML = opts.map((o,i)=>
+    '<label class="rm-option'+(i===0?' selected':'')+'" data-value="'+o.value+'">'+
+    '<input type="radio" name="rm-issue" value="'+o.value+'"'+(i===0?' checked':'')+' onchange="onReportIssueChange(this)"/>'+o.label+
+    '</label>'
+  ).join('');
+  reportState.issue = opts[0] ? opts[0].value : null;
+
+  document.getElementById('rm-blank-wrap').style.display = (type==='cloze') ? 'block' : 'none';
+  document.getElementById('rm-note-wrap').style.display = (type==='cloze') ? 'block' : 'none';
+  document.getElementById('rm-answer-wrap').style.display = (type==='synthesis' && reportState.issue==='multiple_answers') ? 'block' : 'none';
+
+  document.getElementById('rm-blank-no').value = '';
+  document.getElementById('rm-note').value = '';
+  document.getElementById('rm-student-answer').value = '';
+
+  document.getElementById('report-modal-overlay').classList.add('active');
+}
+
+function onReportIssueChange(input){
+  reportState.issue = input.value;
+  document.querySelectorAll('#rm-options .rm-option').forEach(el=>{
+    el.classList.toggle('selected', el.getAttribute('data-value')===input.value);
+  });
+  document.getElementById('rm-answer-wrap').style.display =
+    (reportState.type==='synthesis' && input.value==='multiple_answers') ? 'block' : 'none';
+}
+
+function closeReportModal(){
+  document.getElementById('report-modal-overlay').classList.remove('active');
+}
+
+async function submitReport(){
+  if(!currentUser){ showToast('Please sign in first.'); return; }
+  const { type, qIdx, issue } = reportState;
+  if(!issue){ showToast('Please choose an option.'); return; }
+
+  let sourceTable, sourceId;
+  if(type==='cloze'){
+    if(!currentDBQuestions || !currentDBQuestions.id){ showToast('❌ No passage loaded.'); return; }
+    sourceTable = 'cloze_passages';
+    sourceId = currentDBQuestions.id;
+  } else {
+    const q = currentDBQuestions && currentDBQuestions[qIdx];
+    if(!q || !q.id){ showToast('❌ Could not find this question.'); return; }
+    sourceTable = 'synthesis_questions';
+    sourceId = q.id;
+  }
+
+  const studentAnswer = (type==='synthesis' && issue==='multiple_answers')
+    ? document.getElementById('rm-student-answer').value.trim() : null;
+  if(type==='synthesis' && issue==='multiple_answers' && !studentAnswer){
+    showToast('Please write your answer first.');
+    return;
+  }
+
+  const blankNoRaw = (type==='cloze') ? document.getElementById('rm-blank-no').value.trim() : '';
+  const blankNo = blankNoRaw ? parseInt(blankNoRaw, 10) : null;
+  const note = (type==='cloze') ? document.getElementById('rm-note').value.trim() : '';
+
+  const btn = document.getElementById('rm-submit-btn');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  try{
+    await sbFetch('reports', { method:'POST', prefer:'return=minimal', body:{
+      user_id: currentUser.id,
+      source_table: sourceTable,
+      source_id: sourceId,
+      blank_no: blankNo,
+      issue_type: issue,
+      student_answer: studentAnswer,
+      note: note || null
+    }});
+    closeReportModal();
+    showToast('✅ Report sent — thanks for helping us find bugs!');
+  }catch(e){
+    showToast('❌ Could not send report. Try again.');
+  }finally{
+    btn.disabled = false; btn.textContent = 'Submit report';
+  }
 }
 
 document.addEventListener('click', function(e){
