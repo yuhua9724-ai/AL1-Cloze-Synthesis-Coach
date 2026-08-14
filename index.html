@@ -1239,20 +1239,34 @@ function renderWrongCard(q) {
   </div>`;
 }
 
-async function updateMistakeStreak(id, isCorrect, card) {
+async function updateMistakeStreak(id, isCorrect, card, skipAutoRemove) {
   try {
     // 单空错题：答对一次就消失；答错则留着，继续练
+    // Synthesis 会先看看有没有 Deep Practice 可推，删卡的时机交给那边处理，这里不抢先删
     if (isCorrect) {
       await sbFetch(`mistakes?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{status:'mastered', correct_streak:1}});
-      setTimeout(() => {
-        card.style.transition = 'opacity 0.5s';
-        card.style.opacity = '0';
-        setTimeout(() => card.remove(), 500);
-      }, 3000);
+      if (!skipAutoRemove) {
+        setTimeout(() => {
+          card.style.transition = 'opacity 0.5s';
+          card.style.opacity = '0';
+          setTimeout(() => card.remove(), 500);
+        }, 3000);
+      }
     } else {
       await sbFetch(`mistakes?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:{correct_streak:0}});
     }
   } catch(e) { console.warn('updateMistakeStreak error', e); }
+}
+
+// 淡出并移除一张错题卡 —— Deep Practice 流程结束后（不管有没有新题可推）统一走这里
+function fadeAndRemoveWrongCard(id, delayMs){
+  const card = document.getElementById('wcard-' + id);
+  if (!card) return;
+  setTimeout(() => {
+    card.style.transition = 'opacity 0.5s';
+    card.style.opacity = '0';
+    setTimeout(() => card.remove(), 500);
+  }, delayMs == null ? 1500 : delayMs);
 }
 
 function tryWrongFillIn(id, correctAnswer) {
@@ -3168,7 +3182,7 @@ function trySTMistake(id){
     feedback.className = 'wrong-retry-feedback wrong';
     setTimeout(function(){ boxes.forEach(function(b){ b.disabled = false; b.value = ''; }); boxes[0].focus(); if (btn) btn.disabled = false; }, 3000);
   }
-  updateMistakeStreak(id, isCorrect, card);
+  updateMistakeStreak(id, isCorrect, card, isCorrect);
 }
 
 // ══════════════════════════════════
@@ -3187,11 +3201,11 @@ async function offerDeepPractice(mistakeId){
       if (r && r.length && r[0].sub_type) d.sub_type = r[0].sub_type;
     }catch(e){}
   }
-  if (!d.sub_type) return;
+  if (!d.sub_type) { fadeAndRemoveWrongCard(mistakeId); return; }
   var slot = document.getElementById('wdp-slot-' + mistakeId);
   if (!slot || slot.getAttribute('data-ready')) return;
   var q = await pickDeepQuestion(d.sub_type);
-  if (!q) return;
+  if (!q) { fadeAndRemoveWrongCard(mistakeId); return; }
   slot.setAttribute('data-ready','1');
   slot.innerHTML = '<button class="wrong-retry-btn" style="background:var(--green-btn);margin-top:8px;" onclick="startDeepPractice(\'' + mistakeId + '\')">Deep Practice \u2192</button>';
 }
@@ -3300,6 +3314,9 @@ async function submitDeepPractice(key){
       ? '<div style="font-size:12px;color:#067b7d;margin-top:10px;">You\'ve got this one \u2014 back to your other mistakes.</div>'
       : '<div style="font-size:12px;color:var(--text-dim);margin-top:10px;">Saved to My Mistakes so you can try it again.</div>';
   }
+  // 原来那张错题卡的使命到此结束（Deep Practice 做完了），淡出让位给下一张
+  var mistakeId = key.split('-dp')[0];
+  fadeAndRemoveWrongCard(mistakeId, 2500);
 }
 
 function autoExpandBlank(input){input.style.width=Math.max(75,input.value.length*10+20)+'px';}
