@@ -3308,15 +3308,16 @@ async function submitDeepPractice(key){
   await loadDailyProgress();
 
   // 一张卡只给一道 Deep Practice：对了就算掌握，错了自动进错题本
+  // 不自动倒计时消失——让学生自己看完讲解，想清楚了再手动关掉
+  var mistakeId = key.split('-dp')[0];
   var nextSlot = document.getElementById('dpnext-' + key);
   if (nextSlot){
-    nextSlot.innerHTML = ok
-      ? '<div style="font-size:12px;color:#067b7d;margin-top:10px;">You\'ve got this one \u2014 back to your other mistakes.</div>'
-      : '<div style="font-size:12px;color:var(--text-dim);margin-top:10px;">Saved to My Mistakes so you can try it again.</div>';
+    var msg = ok
+      ? 'You\'ve got this one \u2014 nice work!'
+      : 'Saved to My Mistakes so you can try it again.';
+    nextSlot.innerHTML = '<div style="font-size:12px;color:' + (ok ? '#067b7d' : 'var(--text-dim)') + ';margin-top:10px;">' + msg + '</div>'
+      + '<button class="wrong-retry-btn" style="margin-top:8px;" onclick="fadeAndRemoveWrongCard(\'' + mistakeId + '\', 0)">Got it, back to my mistakes</button>';
   }
-  // 原来那张错题卡的使命到此结束（Deep Practice 做完了），淡出让位给下一张
-  var mistakeId = key.split('-dp')[0];
-  fadeAndRemoveWrongCard(mistakeId, 2500);
 }
 
 function autoExpandBlank(input){input.style.width=Math.max(75,input.value.length*10+20)+'px';}
