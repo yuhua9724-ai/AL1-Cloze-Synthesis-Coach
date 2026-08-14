@@ -1140,6 +1140,43 @@ async function loadWrongBank() {
   }
 }
 
+// 题干模板刚拉到最新版时，卡片可能已经画出来了（用的是做错当下存的旧快照）。
+// 这个函数把印在卡片上的文字换成最新版，学生已经打进去的字不会被清空。
+function stRefreshMistakeLine(mistakeId, freshQuestionLine){
+  var row = document.getElementById('wrow-' + mistakeId);
+  if (!row) return;
+  // 先把学生已经打进去的内容记下来
+  var oldValues = [];
+  var firstInput = document.getElementById('wretry-' + mistakeId);
+  if (!firstInput) return;   // 已经提交锁住了，不要在学生答题过程中打断他
+  oldValues.push(firstInput.value || '');
+  for (var k = 1; k < 6; k++) {
+    var extra = document.getElementById('wretry-' + mistakeId + '-' + k);
+    if (!extra) break;
+    oldValues.push(extra.value || '');
+  }
+  var _t = function(x){ return '<span style="font-size:15px;color:var(--text);">' + stEscapeHtml(x) + '</span>'; };
+  var _n = 0;
+  var _in = function(){ var sfx = _n === 0 ? '' : ('-' + _n); _n++; return '<input type="text" class="wrong-retry-input" style="flex:1 1 130px;min-width:110px;" id="wretry-' + mistakeId + sfx + '" placeholder="Your answer…" onkeydown="if(event.key===\'Enter\')trySTMistake(\'' + mistakeId + '\')"/>'; };
+  var segs = stParseLine(freshQuestionLine);
+  var line = '';
+  for (var si = 0; si < segs.length; si++) {
+    line += (segs[si].type === 'text') ? _t(segs[si].value) : _in();
+  }
+  row.innerHTML = line;
+  // 把原来打的字填回去（空数量不变的话，一一对应；万一模板改了空的数量，就不勉强填回去，让学生重打）
+  var newFirst = document.getElementById('wretry-' + mistakeId);
+  var newBoxes = newFirst ? [newFirst] : [];
+  for (var k2 = 1; k2 < 6; k2++) {
+    var nb = document.getElementById('wretry-' + mistakeId + '-' + k2);
+    if (!nb) break;
+    newBoxes.push(nb);
+  }
+  if (newBoxes.length === oldValues.length) {
+    newBoxes.forEach(function(b, i){ b.value = oldValues[i]; });
+  }
+}
+
 function renderWrongCard(q) {
   const streak = q.correct_streak || 0;
   if (q.question_type === 'cloze_full') {
@@ -1166,10 +1203,15 @@ function renderWrongCard(q) {
         if (rows && rows.length) {
           const fresh = rows[0];
           if (fresh.explanation) stMistakeData[q.id].explanation = fresh.explanation;
-          if (fresh.question_line) stMistakeData[q.id].question_line = fresh.question_line;
           if (fresh.model_answer) stMistakeData[q.id].model_answer = fresh.model_answer;
           if (fresh.acceptable_answers) stMistakeData[q.id].acceptable_answers = fresh.acceptable_answers;
           if (fresh.sub_type) stMistakeData[q.id].sub_type = fresh.sub_type;
+          // question_line 如果跟做错当下存的快照不一样（比如题干后来加了逗号），
+          // 光在幕后判分时换掉不够 —— 卡片上印的字也要跟着换，不然学生会照着旧的、少逗号的样子去填
+          if (fresh.question_line && fresh.question_line !== stMistakeData[q.id].question_line) {
+            stMistakeData[q.id].question_line = fresh.question_line;
+            stRefreshMistakeLine(q.id, fresh.question_line);
+          }
         }
       }).catch(()=>{});
     }
@@ -1192,7 +1234,7 @@ function renderWrongCard(q) {
     return '<div class="wrong-card is-synthesis" id="wcard-' + q.id + '">'
       + '<div class="wrong-card-meta"><span class="wrong-card-type">synthesis</span><span class="wrong-card-date">' + q.wrong_date + '</span></div>'
       + '<div class="wrong-card-q">' + stEscapeHtml(q.question_text || '') + '</div>'
-      + '<div class="wrong-retry-row" style="flex-wrap:wrap;align-items:center;gap:8px;">' + line + '</div>'
+      + '<div class="wrong-retry-row" id="wrow-' + q.id + '" style="flex-wrap:wrap;align-items:center;gap:8px;">' + line + '</div>'
       + '<div style="margin-top:8px;"><button class="wrong-retry-btn" onclick="trySTMistake(\'' + q.id + '\')">Check</button></div>'
       + '<div class="wrong-retry-feedback" id="wfeedback-' + q.id + '"></div>'
       + '<div id="wdp-slot-' + q.id + '"></div>'
@@ -3038,7 +3080,11 @@ function stAssembleFromLine(segs, values){
     if (segs[i].type === 'text') out.push(segs[i].value);
     else out.push((values[vi++] || '').trim());
   }
-  return out.join(' ').replace(/\s+/g, ' ').replace(/\s+([,.!?;:])/g, '$1').trim();
+  var joined = out.join(' ').replace(/\s+/g, ' ').replace(/\s+([,.!?;:])/g, '$1').trim();
+  // 学生看不到印好的标点时，容易自己在空格里也打一个，导致标点连在一起重复了（比如 "Tom,, as well as"）——
+  // 这不是学生的错，判分时应该把这种重复标点当成一个来看，不该判错
+  joined = joined.replace(/([,.!?;:])\1+/g, '$1');
+  return joined;
 }
 
 // The full model answer for a question_line question
