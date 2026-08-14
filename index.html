@@ -1072,7 +1072,7 @@ function updateWeakness(){}
 // ══════════════════════════════════
 // PROGRESS PAGE
 // ══════════════════════════════════
-async function saveWrongQuestion(questionText, correctAnswer, userAnswer, type, options) {
+async function saveWrongQuestion(questionText, correctAnswer, userAnswer, type, options, sourceId) {
   if (!currentUser) return;
   try {
     const existing = await sbFetch(`mistakes?user_id=eq.${currentUser.id}&question_text=eq.${encodeURIComponent(questionText)}&status=eq.active&select=id`);
@@ -1086,6 +1086,7 @@ async function saveWrongQuestion(questionText, correctAnswer, userAnswer, type, 
         correct_answer: correctAnswer,
         student_answer: userAnswer || '',
         payload: options || null,
+        source_id: sourceId != null ? sourceId : null,
         wrong_date: new Date().toISOString().split('T')[0],
         next_review: new Date().toISOString().split('T')[0],
         correct_streak: 0,
@@ -1157,15 +1158,16 @@ function renderWrongCard(q) {
   if (q.question_type === 'synthesis') {
     var o = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : {};
     o = o || {};
-    stMistakeData[q.id] = { question_line: o.question_line || '', starter: o.starter || '', keyword: o.keyword || '', keyword_position: o.keyword_position || 'end', ending: o.ending || '', model_answer: q.correct_answer || '', explanation: o.explanation || null, source_id: q.source_id || null };
+    stMistakeData[q.id] = { question_line: o.question_line || '', starter: o.starter || '', keyword: o.keyword || '', keyword_position: o.keyword_position || 'end', ending: o.ending || '', model_answer: q.correct_answer || '', acceptable_answers: null, explanation: o.explanation || null, source_id: q.source_id || null };
     // 讲解以题库最新版为准，做错当下存的快照可能已经过时
     if (q.source_id) {
-      sbFetch(`synthesis_questions?id=eq.${q.source_id}&select=explanation,question_line,model_answer,sub_type`).then(rows=>{
+      sbFetch(`synthesis_questions?id=eq.${q.source_id}&select=explanation,question_line,model_answer,acceptable_answers,sub_type`).then(rows=>{
         if (rows && rows.length) {
           const fresh = rows[0];
           if (fresh.explanation) stMistakeData[q.id].explanation = fresh.explanation;
           if (fresh.question_line) stMistakeData[q.id].question_line = fresh.question_line;
           if (fresh.model_answer) stMistakeData[q.id].model_answer = fresh.model_answer;
+          if (fresh.acceptable_answers) stMistakeData[q.id].acceptable_answers = fresh.acceptable_answers;
           if (fresh.sub_type) stMistakeData[q.id].sub_type = fresh.sub_type;
         }
       }).catch(()=>{});
@@ -2507,7 +2509,7 @@ async function markDBAnswers(studentAnswer, type) {
       const studentAns = studentMap[qNum] || '';
       const ok = isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
       if (ok) { correct++; return `Q${qNum}: ✅ ${studentAns}`; }
-      saveWrongQuestion(q.original_sentence || `Synthesis Q${qNum}`, q.model_answer, studentAns, 'synthesis', { question_line: q.question_line || '', starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null });
+      saveWrongQuestion(q.original_sentence || `Synthesis Q${qNum}`, q.model_answer, studentAns, 'synthesis', { question_line: q.question_line || '', starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null }, q.id);
       return `Q${qNum}: ❌ Your answer: ${studentAns || '(blank)'}\nModel answer: ${q.model_answer}${q.explanation ? '\n' + q.explanation : ''}`;
     });
     reply = `**Score: ${correct}/${qs.length}**\n\n${lines.join('\n\n')}`;
@@ -2543,7 +2545,7 @@ async function markDBAnswers(studentAnswer, type) {
     if (wrongCount >= 8) {
       saveWrongPassage(p);
     } else if (wrongCount > 0) {
-      wrongBlanks.forEach(w => saveWrongQuestion(extractSentenceForBlank(p.passage, w.k), w.correctDisplay, w.studentAns, 'cloze', { explanation: explanations[w.k], blank_num: w.k }));
+      wrongBlanks.forEach(w => saveWrongQuestion(extractSentenceForBlank(p.passage, w.k), w.correctDisplay, w.studentAns, 'cloze', { explanation: explanations[w.k], blank_num: w.k }, p.id));
     }
     const _wasRedo = !!redoingWrongMistakeId;
     if (redoingWrongMistakeId) {
@@ -2964,7 +2966,7 @@ async function submitOneST(btn) {
     fb.innerHTML = '✅ Correct!';
     fb.className = 'st-feedback correct';
   } else {
-    saveWrongQuestion(q.original_sentence, q.model_answer, studentAns, 'synthesis', { question_line: q.question_line || '', starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null });
+    saveWrongQuestion(q.original_sentence, q.model_answer, studentAns, 'synthesis', { question_line: q.question_line || '', starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null }, q.id);
     fb.innerHTML = buildSTFeedback(q, studentAns);
     fb.className = 'st-feedback wrong';
   }
@@ -3153,7 +3155,7 @@ function trySTMistake(id){
     else if (pos === 'both') { studentAns = ((d.starter ? d.starter + ' ' : '') + p1 + ' ' + (d.keyword || '') + ' ' + p2).trim(); }
     else { studentAns = p1; }
   }
-  var isCorrect = isAnswerCorrect(studentAns, d.model_answer);
+  var isCorrect = isAnswerCorrect(studentAns, d.model_answer, d.acceptable_answers);
   boxes.forEach(function(b){ b.disabled = true; });
   var btn = card ? card.querySelector('.wrong-retry-btn') : null;
   if (btn) btn.disabled = true;
@@ -3285,7 +3287,7 @@ async function submitDeepPractice(key){
     fb.innerHTML = '\u2705 Correct!';
     fb.className = 'wrong-retry-feedback correct';
   } else {
-    saveWrongQuestion(q.original_sentence, q.model_answer, studentAns, 'synthesis', { question_line: q.question_line || '', starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null });
+    saveWrongQuestion(q.original_sentence, q.model_answer, studentAns, 'synthesis', { question_line: q.question_line || '', starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null }, q.id);
     fb.innerHTML = buildSTFeedback(q, studentAns);
     fb.className = 'wrong-retry-feedback wrong';
   }
