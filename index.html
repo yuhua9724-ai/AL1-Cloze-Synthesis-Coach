@@ -1160,8 +1160,9 @@ function renderWrongCard(q) {
     o = o || {};
     stMistakeData[q.id] = { question_line: o.question_line || '', starter: o.starter || '', keyword: o.keyword || '', keyword_position: o.keyword_position || 'end', ending: o.ending || '', model_answer: q.correct_answer || '', acceptable_answers: null, explanation: o.explanation || null, source_id: q.source_id || null };
     // 讲解以题库最新版为准，做错当下存的快照可能已经过时
+    // 这个 fetch 存进 stFreshPromise，判分前必须等它完成，不能用旧模板抢跑判分
     if (q.source_id) {
-      sbFetch(`synthesis_questions?id=eq.${q.source_id}&select=explanation,question_line,model_answer,acceptable_answers,sub_type`).then(rows=>{
+      stFreshPromise[q.id] = sbFetch(`synthesis_questions?id=eq.${q.source_id}&select=explanation,question_line,model_answer,acceptable_answers,sub_type`).then(rows=>{
         if (rows && rows.length) {
           const fresh = rows[0];
           if (fresh.explanation) stMistakeData[q.id].explanation = fresh.explanation;
@@ -2997,6 +2998,7 @@ async function submitOneST(btn) {
 }
 
 var stMistakeData = {};
+var stFreshPromise = {};   // id -> 那道题"拉最新数据"的 Promise，判分前必须先等它完成
 
 // ── question_line parser ────────────────────────────────
 // Reads the exam line exactly as printed, e.g.
@@ -3145,7 +3147,7 @@ function buildSTFeedback(q, studentAns){
   return html;
 }
 
-function trySTMistake(id){
+async function trySTMistake(id){
   var d = stMistakeData[id] || {};
   var a = document.getElementById('wretry-' + id);
   if (!a || a.disabled) return;
@@ -3157,6 +3159,15 @@ function trySTMistake(id){
     if (!extra) break;
     boxes.push(extra);
   }
+  // 先锁住输入框防止重复点击，但真正判分前必须等"拉最新题目数据"跑完——
+  // 不然万一模板刚好被改过，用旧快照拼出来的句子会跟新答案对不上，把答对的学生判错
+  boxes.forEach(function(b){ b.disabled = true; });
+  var btn = card ? card.querySelector('.wrong-retry-btn') : null;
+  if (btn) btn.disabled = true;
+  if (feedback) { feedback.innerHTML = ''; feedback.className = 'wrong-retry-feedback'; }
+  if (stFreshPromise[id]) { try { await stFreshPromise[id]; } catch(e){} }
+  d = stMistakeData[id] || {};
+
   var studentAns = '';
   if (d.question_line && String(d.question_line).indexOf('_') !== -1) {
     var segs = stParseLine(d.question_line);
@@ -3170,9 +3181,6 @@ function trySTMistake(id){
     else { studentAns = p1; }
   }
   var isCorrect = isAnswerCorrect(studentAns, d.model_answer, d.acceptable_answers);
-  boxes.forEach(function(b){ b.disabled = true; });
-  var btn = card ? card.querySelector('.wrong-retry-btn') : null;
-  if (btn) btn.disabled = true;
   if (isCorrect) {
     feedback.innerHTML = '\u2705 Correct!';
     feedback.className = 'wrong-retry-feedback correct';
