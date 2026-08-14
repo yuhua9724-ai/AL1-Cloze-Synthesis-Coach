@@ -157,9 +157,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .wrong-bank-empty{font-size:13px;color:var(--text-dim);padding:16px;background:var(--dark3);border-radius:10px;text-align:center;}
 .wrong-card{background:linear-gradient(160deg,#fdfefb 0%,var(--dark2) 100%);border:1px solid rgba(91,65,236,0.15);border-left:4px solid rgba(91,65,236,0.35);border-radius:12px;padding:16px;margin-bottom:10px;}
 .wrong-card.is-cloze{border-left-color:#5b41ec;}
-.wrong-card.is-synthesis{border-left-color:#00c7ca;}
+.wrong-card.is-synthesis{border-left-color:#1f9d55;}
 .wrong-card.is-cloze .wrong-card-type{color:#4c33d4;background:rgba(91,65,236,0.12);}
-.wrong-card.is-synthesis .wrong-card-type{color:#067b7d;background:rgba(0,199,202,0.14);}
+.wrong-card.is-synthesis .wrong-card-type{color:#1f9d55;background:rgba(31,157,85,0.14);}
 .wrong-card-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
 .wrong-card-type{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold);background:rgba(91,65,236,0.1);padding:3px 8px;border-radius:4px;}
 .wrong-card-date{font-size:11px;color:var(--text-dim);}
@@ -647,6 +647,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
       </div>
       <div class="admin-section">
         <h3>👥 Current Students</h3>
+        <input type="text" id="student-search" placeholder="Search by phone or name…" oninput="filterStudentList()" style="width:100%;box-sizing:border-box;margin-bottom:10px;padding:9px 12px;border-radius:8px;border:1px solid rgba(91,65,236,0.25);font-family:inherit;font-size:13px;"/>
         <div id="users-list"><p style="font-size:13px;color:var(--text-dim);">Loading…</p></div>
       </div>
       <div class="admin-section">
@@ -1777,23 +1778,41 @@ async function loadStudentList(){
   try{
     const res=await api('admin',{action:'list_students'});
     _adminStudents=res.students||[];
-    if(!_adminStudents.length){list.innerHTML='<p style="font-size:13px;color:var(--text-dim);">No students yet.</p>';return;}
-    list.innerHTML=_adminStudents.map(u=>{
-      const days=u.expiry?Math.ceil((new Date(u.expiry)-new Date())/86400000):null;
-      let expHtml='';
-      if(days!==null){
-        if(days<=0)expHtml=`<span class="expire-dead">❌ Expired</span>`;
-        else if(days<=30)expHtml=`<span class="expire-warn">⚠️ ${days}d left</span>`;
-        else expHtml=`<span class="expire-ok">✅ Until ${u.expiry}</span>`;
-      }
-      const isTester=u.role==='tester';
-      const roleBadge=isTester?'<span style="background:rgba(244,121,32,0.15);color:#c05a00;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;">TRIAL</span>':'';
-      const upgradeBtn=isTester?`<button style="background:rgba(0,199,202,0.1);border:1px solid rgba(0,199,202,0.3);color:#086668;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;font-family:inherit;margin-right:6px;" onclick="upgradeToStudent('${u.id}')">Upgrade ✅</button>`:'';
-      const planLabel=u.plan?` · ${u.plan}`:'';
-      const editBtn=`<button style="background:rgba(91,65,236,0.1);border:1px solid rgba(91,65,236,0.3);color:var(--gold);font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;font-family:inherit;margin-right:6px;" onclick="editStudent('${u.id}')">Edit</button>`;
-      return`<div class="user-row"><div><div class="user-name">${u.display||u.phone}${roleBadge}</div><div class="user-meta">${u.phone} · ${u.level||'P6'}${planLabel} · Start: ${u.start_date||'—'} ${expHtml}</div></div><div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 0;">${upgradeBtn}${editBtn}<button class="btn-delete" onclick="resetStudentPassword('${u.id}')" style="margin-right:6px;">Reset PW</button><button class="btn-delete" onclick="deleteStudent('${u.id}')">Remove</button></div></div>`;
-    }).join('');
+    const box=document.getElementById('student-search');
+    if(box)box.value='';
+    renderStudentList(_adminStudents);
   }catch(e){list.innerHTML='<p style="font-size:13px;color:var(--red);">Error: '+e.message+'</p>';}
+}
+
+function renderStudentList(students){
+  const list=document.getElementById('users-list');
+  if(!students.length){list.innerHTML='<p style="font-size:13px;color:var(--text-dim);">No students found.</p>';return;}
+  list.innerHTML=students.map(u=>{
+    const days=u.expiry?Math.ceil((new Date(u.expiry)-new Date())/86400000):null;
+    let expHtml='';
+    if(days!==null){
+      if(days<=0)expHtml=`<span class="expire-dead">❌ Expired</span>`;
+      else if(days<=30)expHtml=`<span class="expire-warn">⚠️ ${days}d left</span>`;
+      else expHtml=`<span class="expire-ok">✅ Until ${u.expiry}</span>`;
+    }
+    const isTester=u.role==='tester';
+    const roleBadge=isTester?'<span style="background:rgba(244,121,32,0.15);color:#c05a00;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;">TRIAL</span>':'';
+    const upgradeBtn=isTester?`<button style="background:rgba(0,199,202,0.1);border:1px solid rgba(0,199,202,0.3);color:#086668;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;font-family:inherit;margin-right:6px;" onclick="upgradeToStudent('${u.id}')">Upgrade ✅</button>`:'';
+    const planLabel=u.plan?` · ${u.plan}`:'';
+    const editBtn=`<button style="background:rgba(91,65,236,0.1);border:1px solid rgba(91,65,236,0.3);color:var(--gold);font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;font-family:inherit;margin-right:6px;" onclick="editStudent('${u.id}')">Edit</button>`;
+    return`<div class="user-row"><div><div class="user-name">${u.display||u.phone}${roleBadge}</div><div class="user-meta">${u.phone} · ${u.level||'P6'}${planLabel} · Start: ${u.start_date||'—'} ${expHtml}</div></div><div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 0;">${upgradeBtn}${editBtn}<button class="btn-delete" onclick="resetStudentPassword('${u.id}')" style="margin-right:6px;">Reset PW</button><button class="btn-delete" onclick="deleteStudent('${u.id}')">Remove</button></div></div>`;
+  }).join('');
+}
+
+function filterStudentList(){
+  const term=(document.getElementById('student-search').value||'').trim().toLowerCase();
+  if(!term){renderStudentList(_adminStudents);return;}
+  const filtered=_adminStudents.filter(u=>{
+    const phone=(u.phone||'').toLowerCase();
+    const name=(u.display||'').toLowerCase();
+    return phone.includes(term)||name.includes(term);
+  });
+  renderStudentList(filtered);
 }
 
 const PLAN_CHOICES={'1':'week','2':'month','3':'quarter','4':'half_year'};
