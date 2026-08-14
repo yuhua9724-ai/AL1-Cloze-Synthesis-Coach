@@ -2413,7 +2413,11 @@ async function startDBSession(type) {
 function normalizeAnswerText(s) {
   return (s == null ? '' : String(s)).trim().toLowerCase()
     .replace(/[''‛`´]/g, '')
-    .replace(/[.!?,;:'"]+$/, '').replace(/\s+/g, ' ');
+    .replace(/[.!?,;:'"]+$/, '').replace(/\s+/g, ' ')
+    // 标点前后的空格不影响对错——"6J ,is" 和 "6J, is" 意思一样，判分不该因为空格位置不同就算错
+    .replace(/\s+([,.!?;:])/g, '$1')
+    .replace(/([,.!?;:])(?=\S)/g, '$1 ')
+    .replace(/\s+/g, ' ').trim();
 }
 
 function toAnswerList(val) {
