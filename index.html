@@ -2435,6 +2435,28 @@ function isAnswerCorrect(studentAns, ...correctVals) {
   return pool.some(v => normalizeAnswerText(v) === norm);
 }
 
+// 直接引语（引号内容）判分专用：忽略所有标点（引号、问号等题干模板自带的符号），
+// 但保留大小写——直接引语句首要不要大写，是这类题真正要考的语法点，不能像其它题一样统一转小写。
+function normalizeAnswerTextCaseSensitive(s) {
+  return (s == null ? '' : String(s))
+    .replace(/[\u2018\u2019\u201b`\u00b4]/g, '')
+    .replace(/["'.,!?;:]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isAnswerCorrectCaseSensitive(studentAns, ...correctVals) {
+  const norm = normalizeAnswerTextCaseSensitive(studentAns);
+  if (!norm) return false;
+  const pool = correctVals.flatMap(v => toAnswerList(v));
+  return pool.some(v => normalizeAnswerTextCaseSensitive(v) === norm);
+}
+
+// 判断这道题是不是"引号包裹填空"的直接引语题型——question_line 模板里带引号
+function stIsQuotedLine(q) {
+  return !!(q && q.question_line && String(q.question_line).indexOf('"') !== -1);
+}
+
 function parseNumberedAnswers(text, pattern) {
   const map = {};
   text.split('\n').forEach(line => {
@@ -2568,7 +2590,9 @@ async function markDBAnswers(studentAnswer, type) {
     const lines = qs.map((q, i) => {
       const qNum = i + 1;
       const studentAns = studentMap[qNum] || '';
-      const ok = isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
+      const ok = stIsQuotedLine(q)
+        ? isAnswerCorrectCaseSensitive(studentAns, q.model_answer, q.acceptable_answers)
+        : isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
       if (ok) { correct++; return `Q${qNum}: ✅ ${studentAns}`; }
       saveWrongQuestion(q.original_sentence || `Synthesis Q${qNum}`, q.model_answer, studentAns, 'synthesis', { question_line: q.question_line || '', starter: q.starter || '', keyword: q.keyword || '', keyword_position: q.keyword_position || 'end', ending: q.ending || '', explanation: q.explanation || null }, q.id);
       return `Q${qNum}: ❌ Your answer: ${studentAns || '(blank)'}\nModel answer: ${q.model_answer}${q.explanation ? '\n' + q.explanation : ''}`;
@@ -3012,7 +3036,9 @@ async function submitOneST(btn) {
     }
   }
 
-  const ok = isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
+  const ok = stIsQuotedLine(q)
+    ? isAnswerCorrectCaseSensitive(studentAns, q.model_answer, q.acceptable_answers)
+    : isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
 
   await logAttempts([{
     question_type:'synthesis', source_id:q.id||null,
@@ -3230,7 +3256,9 @@ async function trySTMistake(id){
     else if (pos === 'both') { studentAns = ((d.starter ? d.starter + ' ' : '') + p1 + ' ' + (d.keyword || '') + ' ' + p2).trim(); }
     else { studentAns = p1; }
   }
-  var isCorrect = isAnswerCorrect(studentAns, d.model_answer, d.acceptable_answers);
+  var isCorrect = stIsQuotedLine(d)
+    ? isAnswerCorrectCaseSensitive(studentAns, d.model_answer, d.acceptable_answers)
+    : isAnswerCorrect(studentAns, d.model_answer, d.acceptable_answers);
   if (isCorrect) {
     feedback.innerHTML = '\u2705 Correct!';
     feedback.className = 'wrong-retry-feedback correct';
@@ -3344,7 +3372,9 @@ async function submitDeepPractice(key){
     else if (pos === 'both') studentAns = ((q.starter ? q.starter + ' ' : '') + p1 + ' ' + (q.keyword || '') + ' ' + p2).trim();
     else studentAns = p1;
   }
-  var ok = isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
+  var ok = stIsQuotedLine(q)
+    ? isAnswerCorrectCaseSensitive(studentAns, q.model_answer, q.acceptable_answers)
+    : isAnswerCorrect(studentAns, q.model_answer, q.acceptable_answers);
   boxes.forEach(function(b){ b.disabled = true; });
   var btn = document.getElementById('dpbtn-' + key);
   if (btn) btn.disabled = true;
