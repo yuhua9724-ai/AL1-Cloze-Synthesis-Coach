@@ -524,6 +524,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
     <button class="tabnav-btn active" id="tab-practice" onclick="showTab('practice')">Practice</button>
     <button class="tabnav-btn" id="tab-progress" onclick="showTab('progress')">Progress</button>
     <button class="tabnav-btn" id="tab-mistakes" onclick="showTab('mistakes')">My Mistakes</button>
+    <button class="tabnav-btn" id="tab-review" onclick="showTab('review')">Today's Review</button>
     <button class="tabnav-btn" id="tab-ranks" onclick="showTab('ranks')">Ranks</button>
     <button class="tabnav-btn" id="tab-account" onclick="showTab('account')">Account</button>
     <button class="tabnav-btn admin-only" id="tab-admin" onclick="showTab('admin')">Admin</button>
@@ -606,6 +607,13 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
     <div class="wrong-bank-wrap">
       <div id="wrong-bank-content"><div class="wrong-bank-empty">Loading…</div></div>
     </div>
+  </div>
+
+  <!-- TODAY'S REVIEW TAB -->
+  <div id="panel-review" style="display:none;" class="app-body-stacked">
+    <h2 style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:6px;">Today's Review</h2>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:18px;">Everything you've done today, right and wrong</div>
+    <div id="review-content"><div class="wrong-bank-empty">Loading…</div></div>
   </div>
 
   <!-- RANKS TAB -->
@@ -1137,6 +1145,95 @@ async function loadWrongBank() {
     el.innerHTML = rows.map(q => renderWrongCard(q)).join('');
   } catch(e) {
     el.innerHTML = '<div class="wrong-bank-empty">Error loading wrong bank.</div>';
+  }
+}
+
+// ══════════════════════════════════
+// TODAY'S REVIEW (read-only — every attempt made today, right and wrong)
+// ══════════════════════════════════
+async function loadTodayReview(){
+  const el=document.getElementById('review-content');
+  if(!el||!currentUser)return;
+  el.innerHTML='<div class="wrong-bank-empty">Loading…</div>';
+  try{
+    const rows=await sbFetch(`attempts?user_id=eq.${currentUser.id}&attempt_date=eq.${TODAY}&order=created_at.asc&select=*`)||[];
+    if(!rows.length){
+      el.innerHTML='<div class="wrong-bank-empty">You haven\'t practised yet today — head to Practice to get started!</div>';
+      return;
+    }
+    const stRows=rows.filter(r=>r.question_type==='synthesis');
+    const clozeRows=rows.filter(r=>r.question_type==='cloze');
+
+    let html='<h3 style="font-size:13px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Synthesis &amp; Transformation</h3>';
+    html+= stRows.length
+      ? '<div style="margin-bottom:24px;">'+stRows.map(renderReviewSTCard).join('')+'</div>'
+      : '<div class="wrong-bank-empty" style="margin-bottom:24px;">No S&amp;T questions done today.</div>';
+
+    html+='<h3 style="font-size:13px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Comprehension Cloze</h3>';
+    html+= clozeRows.length
+      ? '<div id="review-cloze-slot"><div class="wrong-bank-empty">Loading passages…</div></div>'
+      : '<div class="wrong-bank-empty">No Cloze passages done today.</div>';
+    el.innerHTML=html;
+
+    if(clozeRows.length) await renderReviewClozeSection(clozeRows);
+  }catch(e){
+    console.warn('loadTodayReview failed', e);
+    el.innerHTML='<div class="wrong-bank-empty">Error loading today\'s review.</div>';
+  }
+}
+
+function reviewTimeLabel(ts){
+  if(!ts)return'';
+  try{return new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}catch(e){return'';}
+}
+
+function renderReviewSTCard(r){
+  const ok=!!r.is_correct;
+  const badge=ok
+    ? '<span class="wrong-card-correct">✅ '+stEscapeHtml(r.student_answer||'')+'</span>'
+    : '<span class="wrong-card-user">Your answer: '+stEscapeHtml(r.student_answer||'(blank)')+'</span><span class="wrong-card-correct">Correct: '+stEscapeHtml(r.correct_answer||'')+'</span>';
+  return '<div class="wrong-card is-synthesis">'
+    +'<div class="wrong-card-meta"><span class="wrong-card-type">synthesis'+(r.is_deep?' · deep practice':'')+'</span><span class="wrong-card-date">'+reviewTimeLabel(r.created_at)+'</span></div>'
+    +'<div class="wrong-card-q">'+stEscapeHtml(r.question_text||'')+'</div>'
+    +'<div class="wrong-card-answers">'+badge+'</div>'
+    +'</div>';
+}
+
+async function renderReviewClozeSection(clozeRows){
+  const slot=document.getElementById('review-cloze-slot');
+  if(!slot)return;
+  const groups={},order=[];
+  clozeRows.forEach(r=>{
+    if(r.source_id==null)return;
+    if(!groups[r.source_id]){groups[r.source_id]=[];order.push(r.source_id);}
+    groups[r.source_id].push(r);
+  });
+  if(!order.length){slot.innerHTML='<div class="wrong-bank-empty">No Cloze passages done today.</div>';return;}
+  try{
+    const passages=await sbFetch(`cloze_passages?id=in.(${order.join(',')})&select=id,title,passage,answers,explanations`)||[];
+    const byId={};
+    passages.forEach(p=>byId[p.id]=p);
+    let html='';
+    order.forEach(pid=>{
+      const p=byId[pid];
+      const attemptsForP=groups[pid];
+      if(!p)return;
+      const answers=p.answers||{};
+      const explanations=p.explanations||{};
+      const studentMap={};
+      attemptsForP.forEach(r=>{ if(r.blank_no!=null) studentMap[String(r.blank_no)]=r.student_answer||''; });
+      const keys=Object.keys(answers).sort((a,b)=>Number(a)-Number(b));
+      const correctCount=attemptsForP.filter(r=>r.is_correct).length;
+      html+='<div class="wrong-card is-cloze" style="margin-bottom:14px;">'
+        +'<div class="wrong-card-meta"><span class="wrong-card-type">cloze'+(attemptsForP.some(r=>r.is_deep)?' · deep practice':'')+'</span><span class="wrong-card-date">'+reviewTimeLabel(attemptsForP[0].created_at)+'</span></div>'
+        +'<div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:8px;">'+stEscapeHtml(p.title||'')+' — '+correctCount+'/'+attemptsForP.length+'</div>'
+        +renderInlinePassage(p,answers,explanations,studentMap,keys)
+        +'</div>';
+    });
+    slot.innerHTML=html||'<div class="wrong-bank-empty">No Cloze passages done today.</div>';
+  }catch(e){
+    console.warn('renderReviewClozeSection failed', e);
+    slot.innerHTML='<div class="wrong-bank-empty">Error loading passages.</div>';
   }
 }
 
@@ -1985,12 +2082,14 @@ function showTab(tab){
   document.getElementById('panel-practice').style.display=tab==='practice'?'block':'none';
   document.getElementById('panel-progress').style.display=tab==='progress'?'block':'none';
   document.getElementById('panel-mistakes').style.display=tab==='mistakes'?'block':'none';
+  document.getElementById('panel-review').style.display=tab==='review'?'block':'none';
   document.getElementById('panel-ranks').style.display=tab==='ranks'?'block':'none';
   document.getElementById('panel-account').style.display=tab==='account'?'block':'none';
   document.getElementById('panel-admin').style.display=tab==='admin'?'block':'none';
   if(tab==='admin'){loadStudentList().then(loadReports);}
   if(tab==='progress')loadProgressPage();
   if(tab==='mistakes')loadWrongBank();
+  if(tab==='review')loadTodayReview();
   if(tab==='ranks')loadRanksPage();
   if(tab==='account')loadAccountPage();
 }
