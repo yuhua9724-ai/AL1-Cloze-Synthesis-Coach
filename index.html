@@ -1201,7 +1201,7 @@ async function loadTodayReview(){
 
     let html='<h3 style="font-size:13px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Synthesis &amp; Transformation</h3>';
     html+= stRows.length
-      ? '<div style="margin-bottom:24px;">'+stRows.map(renderReviewSTCard).join('')+'</div>'
+      ? '<div id="review-st-slot" style="margin-bottom:24px;"><div class="wrong-bank-empty">Loading…</div></div>'
       : '<div class="wrong-bank-empty" style="margin-bottom:24px;">No S&amp;T questions done today.</div>';
 
     html+='<h3 style="font-size:13px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Comprehension Cloze</h3>';
@@ -1210,6 +1210,7 @@ async function loadTodayReview(){
       : '<div class="wrong-bank-empty">No Cloze passages done today.</div>';
     el.innerHTML=html;
 
+    if(stRows.length) await renderReviewSTSection(stRows);
     if(clozeRows.length) await renderReviewClozeSection(clozeRows);
   }catch(e){
     console.warn('loadTodayReview failed', e);
@@ -1222,16 +1223,36 @@ function reviewTimeLabel(ts){
   try{return new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}catch(e){return'';}
 }
 
-function renderReviewSTCard(r){
+function renderReviewSTCard(r, originalSentence){
   const ok=!!r.is_correct;
   const badge=ok
     ? '<span class="wrong-card-correct">✅ '+stEscapeHtml(r.student_answer||'')+'</span>'
     : '<span class="wrong-card-user">Your answer: '+stEscapeHtml(r.student_answer||'(blank)')+'</span><span class="wrong-card-correct">Correct: '+stEscapeHtml(r.correct_answer||'')+'</span>';
+  // 原句和改写模板不是一句话时才单独显示原句，避免两行重复
+  const origHtml = (originalSentence && originalSentence !== r.question_text)
+    ? '<div class="st-original-line">'+stEscapeHtml(originalSentence)+'</div>' : '';
   return '<div class="wrong-card is-synthesis">'
     +'<div class="wrong-card-meta"><span class="wrong-card-type">synthesis'+(r.is_deep?' · deep practice':'')+'</span><span class="wrong-card-date">'+reviewTimeLabel(r.created_at)+'</span></div>'
+    +origHtml
     +'<div class="wrong-card-q">'+stEscapeHtml(r.question_text||'')+'</div>'
     +'<div class="wrong-card-answers">'+badge+'</div>'
     +'</div>';
+}
+
+// 按 source_id 回 synthesis_questions 拉一次 original_sentence，跟改写模板一起显示，
+// 不再只依赖 attempts 表里存的那一行（那一行只有改写模板，没有原句）。
+async function renderReviewSTSection(stRows){
+  const slot=document.getElementById('review-st-slot');
+  if(!slot)return;
+  const ids=[...new Set(stRows.filter(r=>r.source_id!=null).map(r=>r.source_id))];
+  const origMap={};
+  if(ids.length){
+    try{
+      const qs=await sbFetch(`synthesis_questions?id=in.(${ids.join(',')})&select=id,original_sentence`)||[];
+      qs.forEach(q=>{ origMap[q.id]=q.original_sentence||''; });
+    }catch(e){ console.warn('renderReviewSTSection fetch failed', e); }
+  }
+  slot.innerHTML = stRows.map(r=>renderReviewSTCard(r, origMap[r.source_id])).join('') || '<div class="wrong-bank-empty">No S&amp;T questions done today.</div>';
 }
 
 async function renderReviewClozeSection(clozeRows){
@@ -3111,8 +3132,8 @@ function openReportModal(type, qIdx){
   reportState.issue = opts[0] ? opts[0].value : null;
 
   document.getElementById('rm-blank-wrap').style.display = (type==='cloze') ? 'block' : 'none';
-  document.getElementById('rm-note-wrap').style.display = (type==='cloze') ? 'block' : 'none';
-  document.getElementById('rm-answer-wrap').style.display = (type==='synthesis' && reportState.issue==='multiple_answers') ? 'block' : 'none';
+  document.getElementById('rm-note-wrap').style.display = 'block';
+  document.getElementById('rm-answer-wrap').style.display = (type==='synthesis') ? 'block' : 'none';
 
   document.getElementById('rm-blank-no').value = '';
   document.getElementById('rm-note').value = '';
@@ -3126,8 +3147,8 @@ function onReportIssueChange(input){
   document.querySelectorAll('#rm-options .rm-option').forEach(el=>{
     el.classList.toggle('selected', el.getAttribute('data-value')===input.value);
   });
-  document.getElementById('rm-answer-wrap').style.display =
-    (reportState.type==='synthesis' && input.value==='multiple_answers') ? 'block' : 'none';
+  // "你的答案" 这个框只跟题型有关（synthesis 一律显示），不再跟着具体 issue 切换——
+  // answer_wrong 一样需要知道学生填了什么，才好判断是题目错还是学生理解错。
 }
 
 function closeReportModal(){
@@ -3151,7 +3172,7 @@ async function submitReport(){
     sourceId = q.id;
   }
 
-  const studentAnswer = (type==='synthesis' && issue==='multiple_answers')
+  const studentAnswer = (type==='synthesis')
     ? document.getElementById('rm-student-answer').value.trim() : null;
   if(type==='synthesis' && issue==='multiple_answers' && !studentAnswer){
     showToast('Please write your answer first.');
@@ -3160,7 +3181,7 @@ async function submitReport(){
 
   const blankNoRaw = (type==='cloze') ? document.getElementById('rm-blank-no').value.trim() : '';
   const blankNo = blankNoRaw ? parseInt(blankNoRaw, 10) : null;
-  const note = (type==='cloze') ? document.getElementById('rm-note').value.trim() : '';
+  const note = document.getElementById('rm-note').value.trim();
 
   const btn = document.getElementById('rm-submit-btn');
   btn.disabled = true; btn.textContent = 'Submitting…';
