@@ -1104,6 +1104,41 @@ async function saveWrongQuestion(questionText, correctAnswer, userAnswer, type, 
   } catch(e) { console.warn('saveWrongQuestion error', e); }
 }
 
+// Cloze 专用：同一句话里错了几个空，合并存成一条记录，payload.blanks 是数组。
+// 已有活跃记录就往里追加新错的空（去重按 blank_num，不会重复塞同一空）；不新建卡片。
+async function saveWrongClozeGroup(questionText, blanks, sourceId) {
+  if (!currentUser) return;
+  try {
+    const existing = await sbFetch(`mistakes?user_id=eq.${currentUser.id}&question_text=eq.${encodeURIComponent(questionText)}&status=eq.active&select=id,payload`);
+    if (existing && existing.length > 0) {
+      const row = existing[0];
+      const payload = row.payload ? (typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload) : { blanks: [] };
+      payload.blanks = payload.blanks || [];
+      const have = new Set(payload.blanks.map(b => String(b.blank_num)));
+      let changed = false;
+      blanks.forEach(b => { if (!have.has(String(b.blank_num))) { payload.blanks.push(b); have.add(String(b.blank_num)); changed = true; } });
+      if (changed) await sbFetch(`mistakes?id=eq.${row.id}`, { method:'PATCH', prefer:'return=minimal', body:{ payload, correct_streak:0 } });
+      return;
+    }
+    await sbFetch('mistakes', {
+      method: 'POST', prefer: 'return=minimal',
+      body: {
+        user_id: currentUser.id,
+        question_type: 'cloze',
+        question_text: questionText,
+        correct_answer: '',
+        student_answer: '',
+        payload: { blanks },
+        source_id: sourceId != null ? sourceId : null,
+        wrong_date: new Date().toISOString().split('T')[0],
+        next_review: new Date().toISOString().split('T')[0],
+        correct_streak: 0,
+        status: 'active'
+      }
+    });
+  } catch(e) { console.warn('saveWrongClozeGroup error', e); }
+}
+
 async function saveWrongPassage(p) {
   if (!currentUser || !p?.id) return;
   try {
@@ -1342,17 +1377,23 @@ function renderWrongCard(q) {
   let questionHtml, bodyHtml;
   if (q.question_type === 'cloze' && /\(\d{1,2}\)/.test(q.question_text || '')) {
     const escaped = (q.question_text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    questionHtml = escaped.replace(/\((\d{1,2})\)(\s*_{2,})?/, `<input type="text" class="fill-blank wrong-inline-blank" id="wretry-${q.id}" onkeydown="if(event.key==='Enter')tryWrongFillIn('${q.id}','${(q.correct_answer||'').replace(/'/g,"\\'")}')"/>`);
-    const exp = opts && opts.explanation;
-    let hintText = '';
-    if (exp) {
-      if (typeof exp === 'string') { hintText = exp; }
-      else if (exp.explanation) { hintText = exp.explanation.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>'); }
-    }
-    const safeAns=(q.correct_answer||'').replace(/'/g,"\\'");
-    bodyHtml = '<button class="wrong-retry-btn" onclick="tryWrongFillIn(\'' + q.id + '\',\'' + safeAns + '\')">Check</button>'
+    // 新格式：payload.blanks 是数组（同一句里可能有多个空）。
+    // 旧格式兼容：老记录只有 opts.blank_num / q.correct_answer 单个空，包成一个元素的数组照样走同一套渲染。
+    const blanksArr = (opts && Array.isArray(opts.blanks) && opts.blanks.length)
+      ? opts.blanks
+      : (opts && opts.blank_num != null
+          ? [{ blank_num: opts.blank_num, correct_answer: q.correct_answer, explanation: opts.explanation }]
+          : []);
+    let html = escaped;
+    blanksArr.forEach(b => {
+      const marker = new RegExp(`\\(${b.blank_num}\\)(\\s*_{2,})?`);
+      html = html.replace(marker, `<input type="text" class="fill-blank wrong-inline-blank" id="wretry-${q.id}-${b.blank_num}" onkeydown="if(event.key==='Enter')tryWrongFillInMulti('${q.id}')"/>`);
+    });
+    questionHtml = html;
+    (window._wrongBlanksData ||= {})[q.id] = blanksArr;
+    bodyHtml = '<button class="wrong-retry-btn" onclick="tryWrongFillInMulti(\'' + q.id + '\')">Check</button>'
       + '<div class="wrong-retry-feedback" id="wfeedback-' + q.id + '"></div>'
-      + (hintText ? '<div id="whint-' + q.id + '" style="display:none;margin-top:8px;font-size:13px;color:var(--text-dim);line-height:1.6;padding:6px 10px;background:var(--dark3);border-radius:6px;">' + hintText + '</div>' : '');
+      + '<div id="whint-' + q.id + '" style="display:none;margin-top:8px;font-size:13px;color:var(--text-dim);line-height:1.6;padding:6px 10px;background:var(--dark3);border-radius:6px;"></div>';
   } else if (opts) {
     questionHtml = q.question_text;
     bodyHtml = `<div class="wrong-card-options">${Object.entries(opts).map(([k,v]) =>
@@ -1407,6 +1448,60 @@ function fadeAndRemoveWrongCard(id, delayMs){
     card.style.opacity = '0';
     setTimeout(() => card.remove(), 500);
   }, delayMs == null ? 1500 : delayMs);
+}
+
+// 一句话里有多个空的错题卡：全部答对才算过关、才清卡；答错的空标红并给出对应答案 + 讲解。
+function tryWrongFillInMulti(id) {
+  const blanksArr = (window._wrongBlanksData && window._wrongBlanksData[id]) || [];
+  const card = document.getElementById('wcard-' + id);
+  const feedback = document.getElementById('wfeedback-' + id);
+  const hintBox = document.getElementById('whint-' + id);
+  if (!card || !feedback || !blanksArr.length) return;
+  const firstInput = document.getElementById('wretry-' + id + '-' + blanksArr[0].blank_num);
+  if (firstInput && firstInput.disabled) return; // prevent double-trigger
+  let allCorrect = true;
+  const wrongOnes = [];
+  const hints = [];
+  blanksArr.forEach(b => {
+    const input = document.getElementById('wretry-' + id + '-' + b.blank_num);
+    if (!input) return;
+    const ok = isAnswerCorrect((input.value || '').trim(), b.correct_answer);
+    input.disabled = true;
+    input.style.borderColor = ok ? '#16a34a' : '#e05a5a';
+    if (!ok) {
+      allCorrect = false;
+      wrongOnes.push(b);
+      const exp = b.explanation;
+      let hintText = '';
+      if (exp) {
+        if (typeof exp === 'string') hintText = exp;
+        else if (exp.explanation) hintText = exp.explanation.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+      }
+      hints.push('<div style="margin-bottom:6px;"><strong>(' + b.blank_num + ')</strong> ' + (toAnswerList(b.correct_answer)[0] || b.correct_answer) + (hintText ? ' — ' + hintText : '') + '</div>');
+    }
+  });
+  const btn = card.querySelector('.wrong-retry-btn');
+  if (btn) btn.disabled = true;
+  if (allCorrect) {
+    feedback.innerHTML = '✅ Correct!';
+    feedback.className = 'wrong-retry-feedback correct';
+    updateMistakeStreak(id, true, card);
+  } else {
+    feedback.innerHTML = '❌ Blank (' + wrongOnes.map(b => b.blank_num).join(', ') + ') wrong';
+    feedback.className = 'wrong-retry-feedback wrong';
+    if (hintBox) { hintBox.innerHTML = hints.join(''); hintBox.style.display = 'block'; }
+    updateMistakeStreak(id, false, card);
+    // 只让答错的空可以重打；答对的空保持锁住、保持绿色
+    setTimeout(() => {
+      wrongOnes.forEach(b => {
+        const input = document.getElementById('wretry-' + id + '-' + b.blank_num);
+        if (input) { input.disabled = false; input.value = ''; }
+      });
+      if (btn) btn.disabled = false;
+      const firstWrongInput = document.getElementById('wretry-' + id + '-' + wrongOnes[0].blank_num);
+      if (firstWrongInput) firstWrongInput.focus();
+    }, 1200);
+  }
 }
 
 function tryWrongFillIn(id, correctAnswer) {
@@ -2740,7 +2835,12 @@ async function markDBAnswers(studentAnswer, type) {
     if (wrongCount >= 8) {
       saveWrongPassage(p);
     } else if (wrongCount > 0) {
-      wrongBlanks.forEach(w => saveWrongQuestion(extractSentenceForBlank(p.passage, w.k), w.correctDisplay, w.studentAns, 'cloze', { explanation: explanations[w.k], blank_num: w.k }, p.id));
+      const bySentence = {};
+      wrongBlanks.forEach(w => {
+        const sentence = extractSentenceForBlank(p.passage, w.k);
+        (bySentence[sentence] ||= []).push({ blank_num: w.k, correct_answer: w.correctDisplay, explanation: explanations[w.k] });
+      });
+      Object.entries(bySentence).forEach(([sentence, blanks]) => saveWrongClozeGroup(sentence, blanks, p.id));
     }
     const _wasRedo = !!redoingWrongMistakeId;
     if (redoingWrongMistakeId) {
