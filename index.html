@@ -2627,8 +2627,8 @@ async function startDBSession(type) {
 // ── Local answer matching ──────────────────────────────────
 function normalizeAnswerText(s) {
   return (s == null ? '' : String(s)).trim().toLowerCase()
-    .replace(/[''‛`´]/g, '')
-    .replace(/[.!?,;:'"]+$/, '').replace(/\s+/g, ' ')
+    .replace(/[\u2018\u2019\u201b'`´]/g, '')
+    .replace(/[.!?,;:"]+$/, '').replace(/\s+/g, ' ')
     // 标点前后的空格不影响对错——"6J ,is" 和 "6J, is" 意思一样，判分不该因为空格位置不同就算错
     .replace(/\s+([,.!?;:])/g, '$1')
     .replace(/([,.!?;:])(?=\S)/g, '$1 ')
@@ -3497,7 +3497,7 @@ async function trySTMistake(id){
   } else {
     feedback.innerHTML = buildSTFeedback(d, studentAns);
     feedback.className = 'wrong-retry-feedback wrong';
-    setTimeout(function(){ boxes.forEach(function(b){ b.disabled = false; b.value = ''; }); boxes[0].focus(); if (btn) btn.disabled = false; }, 3000);
+    setTimeout(function(){ boxes.forEach(function(b){ b.disabled = false; b.value = ''; }); boxes[0].focus(); if (btn) btn.disabled = false; feedback.innerHTML = ''; feedback.className = 'wrong-retry-feedback'; }, 3000);
   }
   updateMistakeStreak(id, isCorrect, card, isCorrect);
 }
