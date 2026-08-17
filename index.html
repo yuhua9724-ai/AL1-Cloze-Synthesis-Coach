@@ -3493,6 +3493,14 @@ async function trySTMistake(id){
   if (isCorrect) {
     feedback.innerHTML = '\u2705 Correct!';
     feedback.className = 'wrong-retry-feedback correct';
+    // 订正对了也要记一笔 attempts + markDone，不然 Deep Practice 选题时
+    // 不知道这道题刚做过，可能把它自己当"同类型新题"推荐回来
+    await logAttempts([{
+      question_type: 'synthesis', source_id: d.source_id != null ? d.source_id : null,
+      question_text: d.question_line || d.original_sentence || '',
+      correct_answer: d.model_answer || '', student_answer: studentAns, is_correct: true
+    }]);
+    markDone('synthesis', d.source_id);
     offerDeepPractice(id);
   } else {
     feedback.innerHTML = buildSTFeedback(d, studentAns);
