@@ -3397,19 +3397,36 @@ function stTokenize(t){
   return String(t||'').trim().split(/\s+/).filter(function(x){return x.length;});
 }
 
+// 题目模板打印引号时，引号和学生打的字之间隔着一个空格（模板文字 + 空格 + 输入框），
+// 但存好的标准答案里引号是直接贴着单词的（没有空格）——分词之后这类"单独一个引号"的词
+// 在两边的位置对不上，会平白多出一个"引号不见了/多了"的假差异。
+// 归一化之后剩下空字符串的词（比如单独的一个引号），说明它整个都是标点，不带实际内容，
+// 对比前直接把这种词从两边都剔除，不参与比对——真正的用词/大小写差异才会被找出来。
+function stStripPunctOnlyTokens(tokens, normFn){
+  return tokens.filter(function(w){ return normFn(w) !== ''; });
+}
+
 function stNormWord(w){
   return String(w||'').toLowerCase().replace(/[\u2018\u2019\u201b`\u00b4']/g,'').replace(/^[.,!?;:"()]+|[.,!?;:"()]+$/g,'');
 }
 
+// 直接引语题专用：不转小写——句首该不该大写正是这类题要考的语法点，
+// 大小写不一样就该被判成"变了"，讲解里才能准确指出"这里要大写"，而不是被默默当成一样
+function stNormWordCaseSensitive(w){
+  return String(w||'').replace(/[\u2018\u2019\u201b`\u00b4']/g,'').replace(/^[.,!?;:"()]+|[.,!?;:"()]+$/g,'');
+}
+
 // Word-level LCS diff: returns [{type:'same'|'chg', correct:[], student:[]}]
-function stDiffWords(studentTxt, correctTxt){
-  var A = stTokenize(studentTxt), B = stTokenize(correctTxt);
+function stDiffWords(studentTxt, correctTxt, caseSensitive){
+  var normFn = caseSensitive ? stNormWordCaseSensitive : stNormWord;
+  var A = stStripPunctOnlyTokens(stTokenize(studentTxt), normFn);
+  var B = stStripPunctOnlyTokens(stTokenize(correctTxt), normFn);
   var n = A.length, m = B.length;
   var dp = [];
   for (var i = 0; i <= n; i++){ dp.push(new Array(m + 1).fill(0)); }
   for (var i2 = n - 1; i2 >= 0; i2--){
     for (var j2 = m - 1; j2 >= 0; j2--){
-      dp[i2][j2] = (stNormWord(A[i2]) === stNormWord(B[j2]))
+      dp[i2][j2] = (normFn(A[i2]) === normFn(B[j2]))
         ? dp[i2 + 1][j2 + 1] + 1
         : Math.max(dp[i2 + 1][j2], dp[i2][j2 + 1]);
     }
@@ -3419,7 +3436,7 @@ function stDiffWords(studentTxt, correctTxt){
     if (pendA.length || pendB.length){ out.push({ type:'chg', student: pendA, correct: pendB }); pendA = []; pendB = []; }
   }
   while (i < n && j < m){
-    if (stNormWord(A[i]) === stNormWord(B[j])){
+    if (normFn(A[i]) === normFn(B[j])){
       flush();
       out.push({ type:'same', correct:[B[j]] });
       i++; j++;
@@ -3432,8 +3449,8 @@ function stDiffWords(studentTxt, correctTxt){
   return out;
 }
 
-function stBuildDiffHtml(studentTxt, correctTxt){
-  var parts = stDiffWords(studentTxt, correctTxt);
+function stBuildDiffHtml(studentTxt, correctTxt, caseSensitive){
+  var parts = stDiffWords(studentTxt, correctTxt, caseSensitive);
   // 差异太大时（例如整段语序对调）逐词比对会画得乱七八糟，反而误导。
   // 相同的字少于一半就不画，只给标准答案。
   var sameWords = 0, totalWords = stTokenize(correctTxt).length;
@@ -3462,7 +3479,7 @@ function buildSTFeedback(q, studentAns){
   var full = stFullAnswer(q);
   var html = '<div class="st-wrong-head">Model answer</div>';
   html += (studentAns && String(studentAns).trim())
-    ? stBuildDiffHtml(studentAns, full)
+    ? stBuildDiffHtml(studentAns, full, stIsQuotedLine(q))
     : '<div class="st-ans-line">' + stEscapeHtml(full) + '</div>';
   if (exp && exp.legacy) { html += '<div class="st-rule">' + exp.legacy + '</div>'; }
   else if (exp && exp.rule) { html += '<div class="st-rule">' + stEscapeHtml(exp.rule).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>') + '</div>'; }
