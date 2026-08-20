@@ -2680,7 +2680,10 @@ function stIsQuotedLine(q) {
   var after = line.slice(m.index + m[0].length).trim();
   var beforeChar = before.slice(-1);
   var afterChar = after.slice(0, 1);
-  return quoteChars.indexOf(beforeChar) !== -1 || quoteChars.indexOf(afterChar) !== -1;
+  // 空格前后没有字符时 beforeChar/afterChar 是空字符串 ''——JS 里 ''.indexOf('') 恒等于 0，
+  // 不加这个非空判断会导致所有句首/句尾就是空格的题（A/C/D 型）被误判成引号题，从而错误地区分大小写
+  return (beforeChar !== '' && quoteChars.indexOf(beforeChar) !== -1) ||
+         (afterChar !== '' && quoteChars.indexOf(afterChar) !== -1);
 }
 
 function parseNumberedAnswers(text, pattern) {
