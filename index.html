@@ -1388,7 +1388,7 @@ function renderWrongCard(q) {
       + '<div class="wrong-card-meta"><span class="wrong-card-type">synthesis</span><span class="wrong-card-date">' + q.wrong_date + '</span></div>'
       + '<div class="wrong-card-q">' + stEscapeHtml(q.question_text || '') + '</div>'
       + '<div class="wrong-retry-row" id="wrow-' + q.id + '" style="flex-wrap:wrap;align-items:center;gap:8px;">' + line + '</div>'
-      + '<div style="margin-top:8px;"><button class="wrong-retry-btn" onclick="trySTMistake(\'' + q.id + '\')">Check</button></div>'
+      + '<div style="margin-top:8px;"><button class="wrong-retry-btn" id="wcheckbtn-' + q.id + '" onclick="trySTMistake(\'' + q.id + '\')">Check</button></div>'
       + '<div class="wrong-retry-feedback" id="wfeedback-' + q.id + '"></div>'
       + '<div id="wdp-slot-' + q.id + '"></div>'
       + '<div class="wrong-card-footer"><span class="wrong-streak">Get it right once to clear this card</span></div>'
@@ -2625,8 +2625,20 @@ async function startDBSession(type) {
 }
 
 // ── Local answer matching ──────────────────────────────────
+// 中文输入法没切换到英文时，打出来的是全角标点（，。？！：；），跟标准答案里的半角标点
+// 是完全不同的 Unicode 字符，逐字比对会认成不一样——这里统一转换成半角再比较
+function toHalfwidthPunct(s) {
+  return String(s == null ? '' : s)
+    .replace(/，/g, ',')
+    .replace(/。/g, '.')
+    .replace(/？/g, '?')
+    .replace(/！/g, '!')
+    .replace(/：/g, ':')
+    .replace(/；/g, ';');
+}
+
 function normalizeAnswerText(s) {
-  return (s == null ? '' : String(s)).trim().toLowerCase()
+  return toHalfwidthPunct(s == null ? '' : String(s)).trim().toLowerCase()
     .replace(/[\u2018\u2019\u201b'`´]/g, '')
     .replace(/[.!?,;:"]+$/, '').replace(/\s+/g, ' ')
     // 标点前后的空格不影响对错——"6J ,is" 和 "6J, is" 意思一样，判分不该因为空格位置不同就算错
@@ -2653,7 +2665,7 @@ function isAnswerCorrect(studentAns, ...correctVals) {
 // 直接引语（引号内容）判分专用：忽略所有标点（直引号、弯引号、单引号双引号、问号等题干模板自带的符号），
 // 但保留大小写——直接引语句首要不要大写，是这类题真正要考的语法点，不能像其它题一样统一转小写。
 function normalizeAnswerTextCaseSensitive(s) {
-  return (s == null ? '' : String(s))
+  return toHalfwidthPunct(s == null ? '' : String(s))
     .replace(/[\u2018\u2019\u201b\u201c\u201d`\u00b4"'.,!?;:]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -3457,6 +3469,22 @@ function buildSTFeedback(q, studentAns){
   return html;
 }
 
+// 判错后学生自己按 Try Again 才触发——清空输入框、解锁重新作答、把讲解收起来
+function resetSTMistakeRetry(id){
+  var boxes = [document.getElementById('wretry-' + id)];
+  for (var k = 1; k < 6; k++) {
+    var extra = document.getElementById('wretry-' + id + '-' + k);
+    if (!extra) break;
+    boxes.push(extra);
+  }
+  boxes.forEach(function(b){ if (b) { b.disabled = false; b.value = ''; } });
+  if (boxes[0]) boxes[0].focus();
+  var btn = document.getElementById('wcheckbtn-' + id);
+  if (btn) btn.disabled = false;
+  var feedback = document.getElementById('wfeedback-' + id);
+  if (feedback) { feedback.innerHTML = ''; feedback.className = 'wrong-retry-feedback'; }
+}
+
 async function trySTMistake(id){
   var d = stMistakeData[id] || {};
   var a = document.getElementById('wretry-' + id);
@@ -3472,7 +3500,7 @@ async function trySTMistake(id){
   // 先锁住输入框防止重复点击，但真正判分前必须等"拉最新题目数据"跑完——
   // 不然万一模板刚好被改过，用旧快照拼出来的句子会跟新答案对不上，把答对的学生判错
   boxes.forEach(function(b){ b.disabled = true; });
-  var btn = card ? card.querySelector('.wrong-retry-btn') : null;
+  var btn = document.getElementById('wcheckbtn-' + id);
   if (btn) btn.disabled = true;
   if (feedback) { feedback.innerHTML = ''; feedback.className = 'wrong-retry-feedback'; }
   if (stFreshPromise[id]) { try { await stFreshPromise[id]; } catch(e){} }
@@ -3506,9 +3534,11 @@ async function trySTMistake(id){
     markDone('synthesis', d.source_id);
     offerDeepPractice(id);
   } else {
-    feedback.innerHTML = buildSTFeedback(d, studentAns);
+    // 判错之后不再自动清空——留住学生刚才写的答案和讲解，给足时间看错在哪，
+    // 由孩子自己按 "Try Again" 才清空重来，不是几秒后系统自动帮他清
+    feedback.innerHTML = buildSTFeedback(d, studentAns)
+      + '<button class="wrong-retry-btn" style="margin-top:10px;" onclick="resetSTMistakeRetry(\'' + id + '\')">Try Again</button>';
     feedback.className = 'wrong-retry-feedback wrong';
-    setTimeout(function(){ boxes.forEach(function(b){ b.disabled = false; b.value = ''; }); boxes[0].focus(); if (btn) btn.disabled = false; feedback.innerHTML = ''; feedback.className = 'wrong-retry-feedback'; }, 3000);
   }
   updateMistakeStreak(id, isCorrect, card, isCorrect);
 }
