@@ -88,7 +88,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .tabnav{display:flex;background:var(--dark2);border-bottom:1px solid rgba(91,65,236,0.1);overflow-x:auto;}
 .tabnav-btn{position:relative;flex:1;padding:11px;font-size:13px;font-weight:700;color:var(--text-dim);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;}
 .tabnav-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
-.nav-dot{position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--red);}
+.tabnav-label{position:relative;}
+.nav-dot{position:absolute;top:-3px;right:-9px;width:7px;height:7px;border-radius:50%;background:var(--red);}
 .admin-only{display:none;}
 
 /* LAYOUT */
@@ -535,7 +536,7 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
     <button class="tabnav-btn" id="tab-mistakes" onclick="showTab('mistakes')">My Mistakes</button>
     <button class="tabnav-btn" id="tab-review" onclick="showTab('review')">Today's Review</button>
     <button class="tabnav-btn" id="tab-ranks" onclick="showTab('ranks')">Ranks</button>
-    <button class="tabnav-btn" id="tab-account" onclick="showTab('account')">Account</button>
+    <button class="tabnav-btn" id="tab-account" onclick="showTab('account')"><span class="tabnav-label">Account</span></button>
     <button class="tabnav-btn admin-only" id="tab-admin" onclick="showTab('admin')">Admin</button>
   </div>
 
@@ -911,9 +912,10 @@ async function checkUnreadReportReplies(){
 function renderAccountNavDot(){
   const btn=document.getElementById('tab-account');
   if(!btn)return;
-  let dot=btn.querySelector('.nav-dot');
+  const label=btn.querySelector('.tabnav-label')||btn;
+  let dot=label.querySelector('.nav-dot');
   if(_unreadReportReplies.length>0){
-    if(!dot){dot=document.createElement('span');dot.className='nav-dot';btn.appendChild(dot);}
+    if(!dot){dot=document.createElement('span');dot.className='nav-dot';label.appendChild(dot);}
   }else if(dot){dot.remove();}
 }
 
