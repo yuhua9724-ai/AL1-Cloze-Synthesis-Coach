@@ -86,8 +86,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 /* TABS */
 .tabnav{display:flex;background:var(--dark2);border-bottom:1px solid rgba(91,65,236,0.1);overflow-x:auto;}
-.tabnav-btn{flex:1;padding:11px;font-size:13px;font-weight:700;color:var(--text-dim);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;}
+.tabnav-btn{position:relative;flex:1;padding:11px;font-size:13px;font-weight:700;color:var(--text-dim);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;}
 .tabnav-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
+.nav-dot{position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--red);}
 .admin-only{display:none;}
 
 /* LAYOUT */
@@ -254,6 +255,14 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .report-card-actions button{font-size:12px;font-weight:600;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;}
 .rc-btn-fixed{background:rgba(16,163,74,0.1);color:#0f8a3f;}
 .rc-btn-dismiss{background:rgba(107,107,138,0.1);color:var(--text-dim);}
+.report-card-reply{margin-top:8px;}
+.rc-reply-input{width:100%;box-sizing:border-box;min-height:44px;resize:vertical;padding:8px 10px;border-radius:8px;border:1px solid rgba(91,65,236,0.2);font-family:inherit;font-size:12px;background:var(--dark3);color:var(--text);}
+.report-reply-banner{background:rgba(91,65,236,0.06);border:1.5px solid rgba(91,65,236,0.25);border-radius:12px;padding:14px;margin-bottom:14px;}
+.report-reply-banner-title{font-size:14px;font-weight:700;color:var(--gold);margin-bottom:10px;}
+.report-reply-item{background:var(--dark3);border-radius:8px;padding:10px 12px;margin-bottom:8px;}
+.report-reply-item-top{font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:4px;}
+.report-reply-item-text{font-size:13px;color:var(--text);line-height:1.5;}
+.report-reply-ack-btn{display:block;width:100%;margin-top:4px;padding:9px;border:none;border-radius:8px;background:var(--gold-btn);color:#fff;font-weight:700;font-size:13px;cursor:pointer;}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark3);border:1px solid rgba(91,65,236,0.3);color:var(--text);font-size:13px;line-height:1.5;padding:11px 18px;border-radius:10px;opacity:0;transition:all 0.3s;pointer-events:none;z-index:999;white-space:normal;max-width:min(92vw,460px);text-align:center;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
@@ -885,6 +894,40 @@ function resetUserSessionCaches(){
   todayProgress = {cloze_done:0, synthesis_done:0, weak_cloze:'', weak_synthesis:''};
   _adminStudents = [];
   _pendingMistakesCount = -1;
+  _unreadReportReplies = [];
+  stQSnapshot = {};
+}
+
+// 学生名下有没有老师已回复但还没看过的举报反馈
+async function checkUnreadReportReplies(){
+  if(!currentUser || currentUser.role==='admin'){_unreadReportReplies=[];renderAccountNavDot();return;}
+  try{
+    const rows=await sbFetch('reports?user_id=eq.'+currentUser.id+'&seen_by_student=eq.false&admin_reply=not.is.null&select=*')||[];
+    _unreadReportReplies=rows;
+  }catch(e){console.warn('checkUnreadReportReplies failed',e);_unreadReportReplies=[];}
+  renderAccountNavDot();
+}
+
+function renderAccountNavDot(){
+  const btn=document.getElementById('tab-account');
+  if(!btn)return;
+  let dot=btn.querySelector('.nav-dot');
+  if(_unreadReportReplies.length>0){
+    if(!dot){dot=document.createElement('span');dot.className='nav-dot';btn.appendChild(dot);}
+  }else if(dot){dot.remove();}
+}
+
+async function ackReportReplies(){
+  const ids=_unreadReportReplies.map(r=>r.id);
+  if(!ids.length)return;
+  try{
+    await sbFetch('reports?id=in.('+ids.join(',')+')',{method:'PATCH',prefer:'return=minimal',body:{seen_by_student:true}});
+    _unreadReportReplies=[];
+    renderAccountNavDot();
+    loadAccountPage();
+  }catch(e){
+    showToast('❌ Could not update: '+e.message);
+  }
 }
 
 async function enterApp(){
@@ -903,6 +946,7 @@ async function enterApp(){
   loadInviteBanner();
   loadStreakWidget();
   renderMiniLeaderboard();
+  checkUnreadReportReplies();
 }
 
 async function doLogout(){
@@ -1877,10 +1921,37 @@ async function loadAccountPage(){
       if(cr && cr.length){ currentUser.credit = cr[0].available; }
     }catch(e){ console.warn('credit failed', e); }
 
+    // ── Unread report-reply banner (highest priority, always first) ──
+    let replyBannerHtml='';
+    if(_unreadReportReplies.length>0){
+      const clozeIds=[...new Set(_unreadReportReplies.filter(r=>r.source_table==='cloze_passages').map(r=>r.source_id))];
+      const synIds=[...new Set(_unreadReportReplies.filter(r=>r.source_table==='synthesis_questions').map(r=>r.source_id))];
+      const [clozeRows,synRows]=await Promise.all([
+        clozeIds.length?sbFetch('cloze_passages?id=in.('+clozeIds.join(',')+')&select=id,title'):[],
+        synIds.length?sbFetch('synthesis_questions?id=in.('+synIds.join(',')+')&select=id,original_sentence'):[]
+      ]);
+      const clozeMap={}; (clozeRows||[]).forEach(c=>clozeMap[c.id]=c.title);
+      const synMap={}; (synRows||[]).forEach(s=>synMap[s.id]=s.original_sentence);
+      const itemsHtml=_unreadReportReplies.map(r=>{
+        const typeLabel=r.source_table==='cloze_passages'?'Comprehension Cloze':'Synthesis & Transformation';
+        const rawTitle=r.source_table==='cloze_passages'?(clozeMap[r.source_id]||('#'+r.source_id)):(synMap[r.source_id]||('#'+r.source_id));
+        const statusLabel=r.status==='fixed'?'✅ Fixed':'Not accepted';
+        return `<div class="report-reply-item">
+          <div class="report-reply-item-top">${stEscapeHtml(typeLabel)} · ${stEscapeHtml(rawTitle)}${r.blank_no?(' · blank '+r.blank_no):''} — ${statusLabel}</div>
+          <div class="report-reply-item-text">${stEscapeHtml(r.admin_reply)}</div>
+        </div>`;
+      }).join('');
+      replyBannerHtml=`<div class="report-reply-banner">
+        <div class="report-reply-banner-title">📋 Your report${_unreadReportReplies.length>1?'s have':' has'} been reviewed</div>
+        ${itemsHtml}
+        <button class="report-reply-ack-btn" onclick="ackReportReplies()">Got it</button>
+      </div>`;
+    }
+
     // ── Referral code banner FIRST (same as home page) ──
     if(isStudent&&currentUser.referral_code){
       const code=currentUser.referral_code;
-      el.innerHTML=`<div class="invite-banner" style="margin-bottom:14px;">
+      el.innerHTML=replyBannerHtml+`<div class="invite-banner" style="margin-bottom:14px;">
         <div class="invite-banner-header">
           <div class="invite-banner-icon" style="font-size:40px;">🎁</div>
           <div>
@@ -1898,11 +1969,11 @@ async function loadAccountPage(){
       </div>`;
       loadInviteBanner();
     }else if(currentUser.role==='tester'){
-      el.innerHTML=`<div style="background:rgba(224,92,58,0.06);border:1.5px solid rgba(224,92,58,0.25);border-radius:12px;padding:14px;margin-bottom:14px;">
+      el.innerHTML=replyBannerHtml+`<div style="background:rgba(224,92,58,0.06);border:1.5px solid rgba(224,92,58,0.25);border-radius:12px;padding:14px;margin-bottom:14px;">
         <div style="font-size:14px;font-weight:700;color:#c05a00;margin-bottom:6px;">🔖 Trial Member</div>
         <p style="font-size:13px;color:var(--text-dim);line-height:1.6;">You're on a 3-day trial. Contact your teacher to upgrade to a full Student plan.</p>
       </div>`;
-    }else{el.innerHTML='';}
+    }else{el.innerHTML=replyBannerHtml;}
 
     // ── Info card ──
     const creditLine=isStudent?`<div class="acct-info-row"><span class="acct-info-label">Account Credit</span><span class="acct-info-val" style="color:var(--gold);font-weight:800;">${totalCreditsEarned} pts</span></div>`:'';
@@ -1981,6 +2052,7 @@ async function loadAccountPage(){
 // ADMIN — 每个动作都由服务器先验明身分再执行
 // ══════════════════════════════════
 let _adminStudents=[];
+let _unreadReportReplies=[];
 
 const REPORT_ISSUE_LABELS={
   answer_wrong:'Answer is wrong',
@@ -2019,12 +2091,13 @@ async function loadReports(){
       const statusColor=r.status==='pending'?'#f47920':(r.status==='fixed'?'#0f8a3f':'#6b6b8a');
       const answerHtml=r.student_answer?('<div class="report-card-detail">Student\'s answer: <strong>'+stEscapeHtml(r.student_answer)+'</strong></div>'):'';
       const noteHtml=r.note?('<div class="report-card-detail">Note: '+stEscapeHtml(r.note)+'</div>'):'';
-      const actionsHtml=r.status==='pending'?('<div class="report-card-actions"><button class="rc-btn-fixed" onclick="updateReportStatus('+r.id+',\'fixed\')">Mark fixed</button><button class="rc-btn-dismiss" onclick="updateReportStatus('+r.id+',\'dismissed\')">Dismiss</button></div>'):'';
+      const replyHtml=r.admin_reply?('<div class="report-card-detail">Your reply: '+stEscapeHtml(r.admin_reply)+' <span style="color:'+(r.seen_by_student?'var(--green)':'var(--orange)')+'">('+(r.seen_by_student?'seen':'not seen yet')+')</span></div>'):'';
+      const actionsHtml=r.status==='pending'?('<div class="report-card-reply"><textarea id="reply-'+r.id+'" class="rc-reply-input" placeholder="Optional reply to student (why dismissed / how fixed)…"></textarea></div><div class="report-card-actions"><button class="rc-btn-fixed" onclick="updateReportStatus('+r.id+',\'fixed\')">Mark fixed</button><button class="rc-btn-dismiss" onclick="updateReportStatus('+r.id+',\'dismissed\')">Dismiss</button></div>'):'';
       return '<div class="report-card">'
         +'<div class="report-card-top"><span class="report-badge">'+typeLabel+'</span><span class="report-status" style="color:'+statusColor+'">'+r.status+'</span></div>'
         +'<div class="report-card-title">'+title+(r.blank_no?(' · blank '+r.blank_no):'')+'</div>'
         +'<div class="report-card-issue">'+issueLabel+'</div>'
-        +answerHtml+noteHtml
+        +answerHtml+noteHtml+replyHtml
         +'<div class="report-card-meta">'+student+' · '+dateStr+'</div>'
         +actionsHtml
         +'</div>';
@@ -2036,7 +2109,11 @@ async function loadReports(){
 
 async function updateReportStatus(id,status){
   try{
-    await sbFetch('reports?id=eq.'+id,{method:'PATCH',prefer:'return=minimal',body:{status}});
+    const replyEl=document.getElementById('reply-'+id);
+    const reply=replyEl?replyEl.value.trim():'';
+    const body={status};
+    if(reply){ body.admin_reply=reply; body.seen_by_student=false; }
+    await sbFetch('reports?id=eq.'+id,{method:'PATCH',prefer:'return=minimal',body});
     showToast(status==='fixed'?'✅ Marked as fixed':'Dismissed');
     loadReports();
   }catch(e){
@@ -3048,6 +3125,10 @@ function addMessage(role,text){
   }
 }
 
+// 每道题渲染出来的那一刻，就把它自己对应的完整题目内容记下来，
+// 提交时用这份"当时的快照"，不再临时去问随时可能已经变了的全局 currentDBQuestions
+let stQSnapshot = {};
+
 function formatMessage(text){
   const msgId='m'+Date.now()+Math.random().toString(36).slice(2,5);
   let blankIdx=0, currentQ=0, hasMCQ=false;
@@ -3077,6 +3158,8 @@ l=l.replace(/§EXAM§(.+?)§\/EXAM§/g,'<div class="exp-example">e.g. $1</div>')
       blankIdx++;
       const stId=msgId+'-st-'+blankIdx;
       const qIdx=blankIdx-1;
+      // 渲染这道题的这一刻，把它对应的题目内容原样存一份快照
+      stQSnapshot[stId] = (currentDBQuestions && currentDBQuestions[qIdx]) || null;
       // Replace each ____________________ with an input box
       // For middle/both questions there will be two sets of underscores on the same line
       let inputCount = 0;
@@ -3258,8 +3341,13 @@ async function submitOneST(btn) {
   inputs.forEach(inp => inp.disabled = true);
   btn.disabled = true;
 
-  const q = currentDBQuestions[qIdx];
+  const q = stQSnapshot[stId] || currentDBQuestions[qIdx];
   const fb = document.getElementById('stfeedback-' + stId);
+  if(!q){
+    fb.innerHTML = '❌ This question could not be loaded — please start a new set.';
+    fb.className = 'st-feedback wrong';
+    return;
+  }
 
   let studentAns = '';
 
