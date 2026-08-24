@@ -3212,7 +3212,18 @@ const REPORT_OPTIONS = {
 
 function openReportModal(type, qIdx){
   if(!currentUser){ showToast('Please sign in first.'); return; }
-  reportState = { type, qIdx:(qIdx===undefined?null:qIdx), issue:null };
+  // 关键修复：source_id 在这里（打开弹窗的瞬间）就锁定，不要等到 submitReport
+  // 提交时才去读 live 的 currentDBQuestions —— 学生填 note/answer 期间数组可能已经变了
+  // （切题、Deep Practice 加载新题等），导致举报挂到错误的题目上。
+  // 与 submitOneST 的 stQSnapshot 是同一个修复模式。
+  let snapshotId = null;
+  if(type==='cloze'){
+    snapshotId = (currentDBQuestions && currentDBQuestions.id) ? currentDBQuestions.id : null;
+  } else {
+    const qNow = currentDBQuestions && currentDBQuestions[qIdx];
+    snapshotId = (qNow && qNow.id) ? qNow.id : null;
+  }
+  reportState = { type, qIdx:(qIdx===undefined?null:qIdx), issue:null, sourceId: snapshotId };
 
   let contextLabel = '';
   if(type==='cloze'){
@@ -3257,19 +3268,19 @@ function closeReportModal(){
 
 async function submitReport(){
   if(!currentUser){ showToast('Please sign in first.'); return; }
-  const { type, qIdx, issue } = reportState;
+  const { type, qIdx, issue, sourceId: snapshotId } = reportState;
   if(!issue){ showToast('Please choose an option.'); return; }
 
   let sourceTable, sourceId;
   if(type==='cloze'){
-    if(!currentDBQuestions || !currentDBQuestions.id){ showToast('❌ No passage loaded.'); return; }
+    // 优先用打开弹窗那一刻锁定的 id；currentDBQuestions 仅作兜底（理论上不会用到）
+    sourceId = snapshotId || (currentDBQuestions && currentDBQuestions.id) || null;
+    if(!sourceId){ showToast('❌ No passage loaded.'); return; }
     sourceTable = 'cloze_passages';
-    sourceId = currentDBQuestions.id;
   } else {
-    const q = currentDBQuestions && currentDBQuestions[qIdx];
-    if(!q || !q.id){ showToast('❌ Could not find this question.'); return; }
+    sourceId = snapshotId || ((currentDBQuestions && currentDBQuestions[qIdx] && currentDBQuestions[qIdx].id) || null);
+    if(!sourceId){ showToast('❌ Could not find this question.'); return; }
     sourceTable = 'synthesis_questions';
-    sourceId = q.id;
   }
 
   const studentAnswer = (type==='synthesis')
