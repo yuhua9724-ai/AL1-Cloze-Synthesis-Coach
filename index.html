@@ -2503,8 +2503,8 @@ async function loadQuestionsFromDB(type) {
         // 试用生：照清单顺序（先难后易），做过的跳过
         candidates = currentUser.demo_cloze_ids.filter(id => !done.has(Number(id)));
       } else {
-        // 正式学员：全库按 id 由小到大，做过的跳过
-        const idRows = await sbFetch('cloze_passages?approved=eq.true&select=id&order=id.asc') || [];
+        // 正式学员：priority 高的先出，同 priority 内按 id 由小到大，做过的跳过
+        const idRows = await sbFetch('cloze_passages?approved=eq.true&select=id&order=priority.desc,id.asc') || [];
         candidates = idRows.map(r => r.id).filter(id => !done.has(Number(id)));
       }
       if (!candidates.length) { poolEmpty.cloze = true; return; }
@@ -2517,9 +2517,12 @@ async function loadQuestionsFromDB(type) {
         // 试用生：照清单顺序，做过的跳过
         candidates = currentUser.demo_synthesis_ids.filter(id => !done.has(Number(id)));
       } else {
-        // 正式学员：没做过的里面随机
-        const idRows = await sbFetch('synthesis_questions?approved=eq.true&select=id') || [];
-        candidates = shuffle(idRows.map(r => r.id).filter(id => !done.has(Number(id))));
+        // 正式学员：priority 高的这批先随机抽完，再抽剩下的（各自内部仍是随机）
+        const idRows = await sbFetch('synthesis_questions?approved=eq.true&select=id,priority') || [];
+        const undone = idRows.filter(r => !done.has(Number(r.id)));
+        const priorityIds = shuffle(undone.filter(r => Number(r.priority) > 0).map(r => r.id));
+        const normalIds = shuffle(undone.filter(r => !(Number(r.priority) > 0)).map(r => r.id));
+        candidates = priorityIds.concat(normalIds);
       }
       if (!candidates.length) { poolEmpty.synthesis = true; return; }
       const rows = await fetchRowsByIds('synthesis_questions', candidates.slice(0, 5));
