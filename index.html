@@ -685,11 +685,6 @@ mark.hint-mark{background:#fde68a;color:var(--text);padding:1px 4px;border-radiu
     <div class="rm-label">What's wrong?</div>
     <div id="rm-options"></div>
 
-    <div id="rm-answer-wrap" style="display:none;">
-      <div class="rm-label">Your answer</div>
-      <input type="text" id="rm-student-answer" placeholder="Type what you wrote…"/>
-    </div>
-
     <div id="rm-blank-wrap" style="display:none;">
       <div class="rm-label">Which blank number?</div>
       <input type="number" id="rm-blank-no" placeholder="e.g. 7"/>
@@ -2075,29 +2070,54 @@ async function loadReports(){
 
     const clozeIds=[...new Set(rows.filter(r=>r.source_table==='cloze_passages').map(r=>r.source_id))];
     const synIds=[...new Set(rows.filter(r=>r.source_table==='synthesis_questions').map(r=>r.source_id))];
-    const [clozeRows,synRows]=await Promise.all([
+    const userIds=[...new Set(rows.map(r=>r.user_id).filter(Boolean))];
+    const [clozeRows,synRows,clozeAttempts,synAttempts]=await Promise.all([
       clozeIds.length?sbFetch('cloze_passages?id=in.('+clozeIds.join(',')+')&select=id,title'):[],
-      synIds.length?sbFetch('synthesis_questions?id=in.('+synIds.join(',')+')&select=id,original_sentence'):[]
+      synIds.length?sbFetch('synthesis_questions?id=in.('+synIds.join(',')+')&select=id,original_sentence,question_line'):[],
+      (clozeIds.length&&userIds.length)?sbFetch('attempts?question_type=eq.cloze&source_id=in.('+clozeIds.join(',')+')&user_id=in.('+userIds.join(',')+')&select=user_id,source_id,blank_no,student_answer,correct_answer,is_correct,created_at&order=created_at.desc'):[],
+      (synIds.length&&userIds.length)?sbFetch('attempts?question_type=eq.synthesis&source_id=in.('+synIds.join(',')+')&user_id=in.('+userIds.join(',')+')&select=user_id,source_id,student_answer,correct_answer,is_correct,created_at&order=created_at.desc'):[]
     ]);
     const clozeMap={}; (clozeRows||[]).forEach(c=>clozeMap[c.id]=c.title);
-    const synMap={}; (synRows||[]).forEach(s=>synMap[s.id]=s.original_sentence);
+    const synMap={}; (synRows||[]).forEach(s=>synMap[s.id]={original_sentence:s.original_sentence,question_line:s.question_line});
     const studentMap={}; (_adminStudents||[]).forEach(u=>studentMap[u.id]=u.display||u.phone);
+
+    // 每个学生 · 每道题(cloze 再加上 blank) 只留最近一次的真实作答记录 —— 结果已按 created_at 倒序,先出现的就是最近一次
+    const clozeAttemptMap={};
+    (clozeAttempts||[]).forEach(a=>{
+      const key=a.user_id+'|'+a.source_id+'|'+a.blank_no;
+      if(!clozeAttemptMap[key]) clozeAttemptMap[key]=a;
+    });
+    const synAttemptMap={};
+    (synAttempts||[]).forEach(a=>{
+      const key=a.user_id+'|'+a.source_id;
+      if(!synAttemptMap[key]) synAttemptMap[key]=a;
+    });
 
     el.innerHTML=rows.map(r=>{
       const student=stEscapeHtml(studentMap[r.user_id]||'—');
-      const rawTitle=r.source_table==='cloze_passages'?(clozeMap[r.source_id]||('#'+r.source_id)):(synMap[r.source_id]||('#'+r.source_id));
+      const isCloze=r.source_table==='cloze_passages';
+      const rawTitle=isCloze?(clozeMap[r.source_id]||('#'+r.source_id)):((synMap[r.source_id]&&synMap[r.source_id].original_sentence)||('#'+r.source_id));
       const title=stEscapeHtml(rawTitle);
-      const typeLabel=r.source_table==='cloze_passages'?'Cloze':'S&T';
+      const questionLine=!isCloze&&synMap[r.source_id]&&synMap[r.source_id].question_line?('<div class="report-card-detail">题干: <strong>'+stEscapeHtml(synMap[r.source_id].question_line)+'</strong></div>'):'';
+      const typeLabel=isCloze?'Cloze':'S&T';
       const issueLabel=stEscapeHtml(REPORT_ISSUE_LABELS[r.issue_type]||r.issue_type);
       const dateStr=new Date(r.created_at).toLocaleString();
       const statusColor=r.status==='pending'?'#f47920':(r.status==='fixed'?'#0f8a3f':'#6b6b8a');
-      const answerHtml=r.student_answer?('<div class="report-card-detail">Student\'s answer: <strong>'+stEscapeHtml(r.student_answer)+'</strong></div>'):'';
+
+      // 学生真实作答 —— 一律从 attempts 表现取最近一次,不再依赖举报表单里手打的那个字段
+      const attempt=isCloze?clozeAttemptMap[r.user_id+'|'+r.source_id+'|'+r.blank_no]:synAttemptMap[r.user_id+'|'+r.source_id];
+      const answerHtml=attempt
+        ?('<div class="report-card-detail">Student\'s answer (from attempts): <strong>'+stEscapeHtml(attempt.student_answer||'')+'</strong>'
+          +' <span style="color:'+(attempt.is_correct?'var(--green)':'var(--red)')+'">('+(attempt.is_correct?'marked correct':'marked wrong')+')</span></div>'
+          +'<div class="report-card-detail">Correct answer on file: '+stEscapeHtml(attempt.correct_answer||'')+'</div>')
+        :'<div class="report-card-detail" style="color:var(--text-dim);">No matching attempt record found for this student.</div>';
       const noteHtml=r.note?('<div class="report-card-detail">Note: '+stEscapeHtml(r.note)+'</div>'):'';
       const replyHtml=r.admin_reply?('<div class="report-card-detail">Your reply: '+stEscapeHtml(r.admin_reply)+' <span style="color:'+(r.seen_by_student?'var(--green)':'var(--orange)')+'">('+(r.seen_by_student?'seen':'not seen yet')+')</span></div>'):'';
       const actionsHtml=r.status==='pending'?('<div class="report-card-reply"><textarea id="reply-'+r.id+'" class="rc-reply-input" placeholder="Optional reply to student (why dismissed / how fixed)…"></textarea></div><div class="report-card-actions"><button class="rc-btn-fixed" onclick="updateReportStatus('+r.id+',\'fixed\')">Mark fixed</button><button class="rc-btn-dismiss" onclick="updateReportStatus('+r.id+',\'dismissed\')">Dismiss</button></div>'):'';
       return '<div class="report-card">'
         +'<div class="report-card-top"><span class="report-badge">'+typeLabel+'</span><span class="report-status" style="color:'+statusColor+'">'+r.status+'</span></div>'
         +'<div class="report-card-title">'+title+(r.blank_no?(' · blank '+r.blank_no):'')+'</div>'
+        +questionLine
         +'<div class="report-card-issue">'+issueLabel+'</div>'
         +answerHtml+noteHtml+replyHtml
         +'<div class="report-card-meta">'+student+' · '+dateStr+'</div>'
@@ -3247,11 +3267,9 @@ function openReportModal(type, qIdx){
 
   document.getElementById('rm-blank-wrap').style.display = (type==='cloze') ? 'block' : 'none';
   document.getElementById('rm-note-wrap').style.display = 'block';
-  document.getElementById('rm-answer-wrap').style.display = (type==='synthesis') ? 'block' : 'none';
 
   document.getElementById('rm-blank-no').value = '';
   document.getElementById('rm-note').value = '';
-  document.getElementById('rm-student-answer').value = '';
 
   document.getElementById('report-modal-overlay').classList.add('active');
 }
@@ -3261,8 +3279,6 @@ function onReportIssueChange(input){
   document.querySelectorAll('#rm-options .rm-option').forEach(el=>{
     el.classList.toggle('selected', el.getAttribute('data-value')===input.value);
   });
-  // "你的答案" 这个框只跟题型有关（synthesis 一律显示），不再跟着具体 issue 切换——
-  // answer_wrong 一样需要知道学生填了什么，才好判断是题目错还是学生理解错。
 }
 
 function closeReportModal(){
@@ -3286,13 +3302,7 @@ async function submitReport(){
     sourceTable = 'synthesis_questions';
   }
 
-  const studentAnswer = (type==='synthesis')
-    ? document.getElementById('rm-student-answer').value.trim() : null;
-  if(type==='synthesis' && issue==='multiple_answers' && !studentAnswer){
-    showToast('Please write your answer first.');
-    return;
-  }
-
+  // 学生不用再手打一遍答案了 —— 后台看报告时会自动去 attempts 表调他最近一次的真实提交。
   const blankNoRaw = (type==='cloze') ? document.getElementById('rm-blank-no').value.trim() : '';
   const blankNo = blankNoRaw ? parseInt(blankNoRaw, 10) : null;
   const note = document.getElementById('rm-note').value.trim();
@@ -3306,7 +3316,7 @@ async function submitReport(){
       source_id: sourceId,
       blank_no: blankNo,
       issue_type: issue,
-      student_answer: studentAnswer,
+      student_answer: null,
       note: note || null
     }});
     closeReportModal();
