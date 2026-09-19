@@ -2904,7 +2904,8 @@ function renderInlinePassage(p,answers,explanations,studentMap,keys){
       const d=blankData[k];
       if(!d)return m;
       if(d.ok){
-        return `<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;margin:0 2px;"><span style="background:rgba(0,199,202,0.15);color:#086668;font-weight:600;padding:1px 7px;border-radius:4px;font-size:14px;border-bottom:2px solid #00c7ca;">(${n}) ${d.correctDisplay}</span></span>`;
+        // 答对的空：显示学生自己写的词（不再显示标准答案里排第一的词）
+        return `<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;margin:0 2px;"><span style="background:rgba(0,199,202,0.15);color:#086668;font-weight:600;padding:1px 7px;border-radius:4px;font-size:14px;border-bottom:2px solid #00c7ca;">(${n}) ${stEscapeHtml(String(d.studentAns).trim())}</span></span>`;
       } else {
         wrongInLine.push({k,n});
         return `<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;margin:0 2px;"><span style="font-size:13px;font-weight:500;color:var(--text);text-decoration:line-through;text-decoration-color:#e0245e;text-decoration-thickness:2px;line-height:1.3;">${d.studentAns||'(blank)'}</span><span style="background:rgba(224,36,94,0.12);color:#e0245e;font-weight:600;padding:1px 7px;border-radius:4px;font-size:14px;border-bottom:2px solid #e0245e;">(${n}) ${d.correctDisplay}</span></span>`;
@@ -3004,7 +3005,16 @@ async function markDBAnswers(studentAnswer, type) {
     const scoreHtml = `<div style="font-weight:700;font-size:16px;color:${scoreColor};margin-bottom:14px;">Score: ${correct}/${keys.length}</div>`;
     const passageHtml = renderInlinePassage(p, answers, explanations, studentMap, keys);
     chatHistory.push({ role: 'assistant', content: `Score: ${correct}/${keys.length}` });
-    addHTMLMessage(scoreHtml + passageHtml);
+    const _bub = window._clozeSubmitBubble;
+    window._clozeSubmitBubble = null;
+    if (_bub && _bub.isConnected) {
+      // 直接在原来填空的位置变成批改结果 + 讲解
+      const _src = p.source ? ` <span style="font-weight:400;font-size:12px;color:var(--text-dim);font-style:italic;">(${stEscapeHtml(p.source)})</span>` : '';
+      _bub.innerHTML = `<div style="font-weight:700;font-size:15px;margin-bottom:8px;">Passage: ${stEscapeHtml(p.title||'')}${_src}</div>` + scoreHtml + passageHtml;
+      _bub.scrollIntoView({block:'start',behavior:'smooth'});
+    } else {
+      addHTMLMessage(scoreHtml + passageHtml);
+    }
     isThinking = false;
     document.getElementById('thinking').style.display = 'none';
     document.getElementById('btn-send').disabled = false;
@@ -3840,7 +3850,10 @@ function submitBlanks(submitEl){
   const summaryMsg=blankCount>0
     ? `✅ Submitted ${filledCount}/${count} blanks (${blankCount} left blank).`
     : `✅ Submitted all ${count} blanks.`;
-  sendWithText('My answers:\n'+answers.join('\n'),summaryMsg);
+  // 题库文章：批改结果直接在这篇文章原来的位置显示，不再另外弹出「Submitted」提示和第二篇文章
+  const inPlace=!!(currentDBQuestions && currentDBType==='cloze');
+  window._clozeSubmitBubble=inPlace?bubble:null;
+  sendWithText('My answers:\n'+answers.join('\n'),summaryMsg,inPlace);
 }
 
 function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
@@ -3854,8 +3867,8 @@ function sendMessage(){
   sendWithText(text);
 }
 
-async function sendWithText(text,displayText){
-  addMessage('user',displayText||text);
+async function sendWithText(text,displayText,silent){
+  if(!silent) addMessage('user',displayText||text);
   chatHistory.push({role:'user',content:text});
 
   if (currentDBQuestions && currentDBType) {
