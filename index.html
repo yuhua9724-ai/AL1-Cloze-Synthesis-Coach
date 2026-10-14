@@ -3494,8 +3494,8 @@ function stLineModelAnswer(q){
 
 function stEscapeHtml(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
-function stFullAnswer(q){
-  if (stHasLine(q)) { return stLineModelAnswer(q); }
+function stFullAnswer(q, studentAns){
+  if (stHasLine(q)) { return stPickClosestAnswer(q, studentAns); }
   var starter = q.starter ? String(q.starter).trim() : '';
   var body = q.model_answer ? String(q.model_answer).trim() : '';
   var ending = q.ending ? String(q.ending).trim() : '';
@@ -3569,7 +3569,7 @@ function stDiffWords(studentTxt, correctTxt, caseSensitive){
   while (i < n && j < m){
     if (normFn(A[i]) === normFn(B[j])){
       flush();
-      out.push({ type:'same', correct:[B[j]] });
+      out.push({ type:'same', correct:[B[j]], student:[A[i]] });
       i++; j++;
     } else if (dp[i + 1][j] >= dp[i][j + 1]) { pendA.push(A[i++]); }
     else { pendB.push(B[j++]); }
@@ -3578,6 +3578,69 @@ function stDiffWords(studentTxt, correctTxt, caseSensitive){
   while (j < m){ pendB.push(B[j++]); }
   flush();
   return out;
+}
+
+// 题干照原卷录入，原卷基本不印标点，所以逗号、句号都要学生自己打。
+// 两个词只差一个标点时（Kwan / Kwan,），逐词比对原本会当成一样、不画线，
+// 学生判错了却在讲解里看不出差在哪 —— 这里把这种差异标出来。
+// 引号和撇号仍然不算差异：题干印引号时，引号和学生打的字之间隔着一个空格，
+// 而答案里引号是贴着单词的，拿它比对会冒出一堆「引号不见了」的假差异。
+function stPunctOnlyDiff(studentWord, correctWord, caseSensitive){
+  var normFn = caseSensitive ? stNormWordCaseSensitive : stNormWord;
+  if (normFn(studentWord) !== normFn(correctWord)) return false;
+  var keep = function(w){
+    var t = String(w == null ? '' : w).replace(/[‘’‛“”`´'"]/g, '');
+    return caseSensitive ? t : t.toLowerCase();
+  };
+  return keep(studentWord) !== keep(correctWord);
+}
+
+// model_answer 和 acceptable_answers 都是正确答案，没有主次之分 —— 判分时两条都认。
+// 画线讲解时也必须两条都看：学生照哪一条的结构写的，就拿哪一条来比对。
+// 否则结构不同的那一整段会被整块划掉，看起来像错了好几处，其实只差一两个词。
+function stAnswerCandidates(q){
+  var out = [], seen = {};
+  var push = function(v){
+    var t = String(v == null ? '' : v).trim();
+    if (!t) return;
+    var k = normalizeAnswerText(t);
+    if (!k || seen[k]) return;
+    seen[k] = 1;
+    out.push(t);
+  };
+  push(q && q.model_answer);
+  var acc = q && q.acceptable_answers;
+  if (Array.isArray(acc)) acc.forEach(push);
+  else if (acc != null) toAnswerList(acc).forEach(push);
+  return out;
+}
+
+// 学生的答案跟某一条正确答案有多接近：相同的词占那条答案的比例
+function stSimilarity(studentTxt, correctTxt, caseSensitive){
+  var normFn = caseSensitive ? stNormWordCaseSensitive : stNormWord;
+  var total = stStripPunctOnlyTokens(stTokenize(correctTxt), normFn).length;
+  if (!total) return 0;
+  var parts = stDiffWords(studentTxt, correctTxt, caseSensitive);
+  var same = 0;
+  for (var i = 0; i < parts.length; i++){
+    if (parts[i].type === 'same') same += parts[i].correct.length;
+  }
+  return same / total;
+}
+
+// 挑出跟学生写法最接近的那一条正确答案。平手时保持原顺序（model_answer 排在最前）。
+function stPickClosestAnswer(q, studentAns){
+  var list = stAnswerCandidates(q);
+  if (!list.length) return stLineModelAnswer(q);
+  var s = String(studentAns == null ? '' : studentAns).trim();
+  if (!s || list.length === 1) return list[0];
+  var cs = stIsQuotedLine(q);
+  var best = list[0], bestScore = -1;
+  for (var i = 0; i < list.length; i++){
+    var sc = stSimilarity(s, list[i], cs);
+    if (sc > bestScore){ bestScore = sc; best = list[i]; }
+  }
+  return best;
 }
 
 function stBuildDiffHtml(studentTxt, correctTxt, caseSensitive){
@@ -3594,7 +3657,19 @@ function stBuildDiffHtml(studentTxt, correctTxt, caseSensitive){
   var html = '';
   for (var i = 0; i < parts.length; i++){
     var p = parts[i];
-    if (p.type === 'same'){ html += ' ' + stEscapeHtml(p.correct.join(' ')); continue; }
+    if (p.type === 'same'){
+      var cw = p.correct[0];
+      var sw = (p.student && p.student.length === 1) ? p.student[0] : null;
+      if (p.correct.length === 1 && sw != null && stPunctOnlyDiff(sw, cw, caseSensitive)){
+        html += ' <span class="st-chg">'
+          + '<span class="st-chg-old">' + stEscapeHtml(sw) + '</span>'
+          + '<span class="st-chg-new">' + stEscapeHtml(cw) + '</span>'
+          + '</span>';
+      } else {
+        html += ' ' + stEscapeHtml(p.correct.join(' '));
+      }
+      continue;
+    }
     var oldTxt = p.student.join(' ');
     var newTxt = p.correct.join(' ');
     html += ' <span class="st-chg">'
@@ -3607,7 +3682,7 @@ function stBuildDiffHtml(studentTxt, correctTxt, caseSensitive){
 
 function buildSTFeedback(q, studentAns){
   var exp = stParseExplanation(q.explanation);
-  var full = stFullAnswer(q);
+  var full = stFullAnswer(q, studentAns);
   var html = '<div class="st-wrong-head">Model answer</div>';
   html += (studentAns && String(studentAns).trim())
     ? stBuildDiffHtml(studentAns, full, stIsQuotedLine(q))
