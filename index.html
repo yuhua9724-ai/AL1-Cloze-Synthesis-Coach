@@ -2697,6 +2697,9 @@ async function startDBSession(type) {
     const msgText = formatAllSTQuestions(qs);
     window._sessionRunning = false;
     setTimeout(() => {
+      // 串题修复：0.3 秒里学生如果又开了新的一组，这组旧题就不再显示。
+      // 只有"当前这一组"仍是 qs 时才显示，这样每格记下的题一定就是屏幕上那道。
+      if (currentDBQuestions !== qs) return;
       addMessage('ai', msgText);
       chatHistory.push({role:'assistant', content: msgText});
     }, 300);
