@@ -3661,16 +3661,9 @@ function stBuildDiffHtml(studentTxt, correctTxt, caseSensitive){
   for (var i = 0; i < parts.length; i++){
     var p = parts[i];
     if (p.type === 'same'){
-      var cw = p.correct[0];
-      var sw = (p.student && p.student.length === 1) ? p.student[0] : null;
-      if (p.correct.length === 1 && sw != null && stPunctOnlyDiff(sw, cw, caseSensitive)){
-        html += ' <span class="st-chg">'
-          + '<span class="st-chg-old">' + stEscapeHtml(sw) + '</span>'
-          + '<span class="st-chg-new">' + stEscapeHtml(cw) + '</span>'
-          + '</span>';
-      } else {
-        html += ' ' + stEscapeHtml(p.correct.join(' '));
-      }
+      // 只差标点（比如漏打句尾句号）不再画线提醒——句尾标点本来就不计入判分，
+      // 画出来反而让人以为是扣分的错误，徒增困惑，直接按标准答案原样显示。
+      html += ' ' + stEscapeHtml(p.correct.join(' '));
       continue;
     }
     var oldTxt = p.student.join(' ');
