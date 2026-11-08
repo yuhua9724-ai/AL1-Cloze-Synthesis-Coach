@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1.0.75';
+const CACHE_VERSION = 'v1.0.76';
 const CACHE_NAME = 'al1-cloze-' + CACHE_VERSION;
 
 self.addEventListener('install', e => {
